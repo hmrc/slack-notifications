@@ -27,17 +27,19 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.slacknotifications.connectors.{SlackConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.slacknotifications.model.SlackMessage
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.GithubRepository
+import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.services.NotificationService.RepositoryNotFound
 
 class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with PropertyChecks {
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  "Sending notifications" should {
+  "Sending a Slack message" should {
     "succeed if slack accepted the notification" in new Fixtures {
       when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-      val result = service.sendMessage(SlackMessage("existentChannel")).futureValue
+      val result = service.sendSlackMessage(SlackMessage("existentChannel")).futureValue
 
       result shouldBe Right(())
     }
@@ -49,10 +51,26 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         when(slackConnector.sendMessage(any())(any()))
           .thenReturn(Future(HttpResponse(statusCode, responseString = Some(errorMsg))))
 
-        val result = service.sendMessage(SlackMessage("nonexistentChannel")).futureValue
+        val result = service.sendSlackMessage(SlackMessage("nonexistentChannel")).futureValue
 
-        result shouldBe Left(NotificationService.Error(statusCode, errorMsg))
+        result shouldBe Left(NotificationService.OtherError(statusCode, errorMsg))
       }
+    }
+  }
+
+  "Sending a notification" should {
+    "fail if requested to lookup a channel for repository that doesn't exist" in new Fixtures {
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any())).thenReturn(Future(None))
+      private val nonexistentRepoName = "nonexistent-repo"
+      private val notificationRequest =
+        NotificationRequest(
+          channelLookup = GithubRepository("", nonexistentRepoName),
+          text          = "some-text-to-post-to-slack"
+        )
+
+      val result = service.sendNotification(notificationRequest).futureValue
+
+      result shouldBe Left(RepositoryNotFound(nonexistentRepoName))
     }
   }
 

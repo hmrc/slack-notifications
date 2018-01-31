@@ -14,21 +14,15 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.slacknotifications.controllers
+package uk.gov.hmrc.slacknotifications.model
 
-import javax.inject.Singleton
+import play.api.libs.json.{Json, Reads}
 
-import uk.gov.hmrc.play.bootstrap.controller.BaseController
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
-import play.api.mvc._
+case class NotificationRequest(
+  channelLookup: ChannelLookup,
+  text: String
+)
 
-import scala.concurrent.Future
-
-@Singleton()
-class MicroserviceHelloWorld extends BaseController {
-
-  def hello() = Action.async { implicit request =>
-    Future(Ok("Hello world"))
-  }
-
+object NotificationRequest {
+  implicit val reads: Reads[NotificationRequest] = Json.reads[NotificationRequest]
 }

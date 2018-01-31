@@ -22,24 +22,38 @@ import scala.concurrent.Future
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import uk.gov.hmrc.slacknotifications.connectors.{SlackConnector, TeamsAndRepositoriesConnector}
-import uk.gov.hmrc.slacknotifications.model.SlackMessage
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.GithubRepository
+import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, SlackMessage}
 
 class NotificationService @Inject()(
   slackConnector: SlackConnector,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector) {
   import NotificationService._
 
-  def sendMessage(slackMessage: SlackMessage)(implicit hc: HeaderCarrier): Future[Either[Error, Unit]] =
+  def sendNotification(notificationRequest: NotificationRequest)(
+    implicit hc: HeaderCarrier): Future[Either[Error, Unit]] =
+    notificationRequest.channelLookup match {
+      case GithubRepository(_, name) =>
+        teamsAndRepositoriesConnector.getRepositoryDetails(name).map {
+          case Some(_) => Right(())
+          case None    => Left(RepositoryNotFound(name))
+        }
+    }
+
+  private[services] def sendSlackMessage(slackMessage: SlackMessage)(
+    implicit hc: HeaderCarrier): Future[Either[OtherError, Unit]] =
     slackConnector.sendMessage(slackMessage).map { response =>
       response.status match {
         case 200 => Right(())
         case _ =>
           Logger.warn(s"Slack API returned error, status=${response.status} and body='${response.body}'")
-          Left(Error(response.status, response.body))
+          Left(OtherError(response.status, response.body))
       }
     }
 }
 
 object NotificationService {
-  final case class Error(statusCode: Int, message: String)
+  sealed trait Error
+  final case class OtherError(statusCode: Int, message: String) extends Error
+  final case class RepositoryNotFound(repoName: String) extends Error
 }

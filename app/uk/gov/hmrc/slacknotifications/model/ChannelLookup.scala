@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.model
 import play.api.libs.json.Reads._
 import play.api.libs.json.{Json, Reads, _}
 
-trait ChannelLookup {
+sealed trait ChannelLookup {
   def by: String
 }
 

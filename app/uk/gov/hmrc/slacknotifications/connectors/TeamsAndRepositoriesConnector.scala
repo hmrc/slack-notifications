@@ -33,8 +33,8 @@ class TeamsAndRepositoriesConnector(
   val mode = environment.mode
   val url  = baseUrl("teamsAndRepositories")
 
-  def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[RepositoryDetails] =
-    http.GET[RepositoryDetails](s"$url/$repositoryName")
+  def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
+    http.GET[Option[RepositoryDetails]](s"$url/$repositoryName")
 
 }
 
