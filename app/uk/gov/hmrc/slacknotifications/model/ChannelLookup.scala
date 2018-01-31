@@ -27,16 +27,16 @@ object ChannelLookup {
 
   final case class GithubRepository(by: String, name: String) extends ChannelLookup
 
-  val githubRepositoryReads = Json.reads[GithubRepository].map(asChannelLookup)
+  val githubRepositoryReads = Json.reads[GithubRepository].map(upcastAsChannelLookup)
 
   implicit val reads: Reads[ChannelLookup] = new Reads[ChannelLookup] {
-    def reads(json: JsValue) =
+    def reads(json: JsValue): JsResult[ChannelLookup] =
       (json \ "by").validate[String].flatMap {
         case "github-repository" => json.validate(githubRepositoryReads)
         case _                   => JsError("Unknown channel lookup type")
       }
   }
 
-  private def asChannelLookup[A <: ChannelLookup](a: A): ChannelLookup = a: ChannelLookup
+  private def upcastAsChannelLookup[A <: ChannelLookup](a: A): ChannelLookup = a: ChannelLookup
 
 }

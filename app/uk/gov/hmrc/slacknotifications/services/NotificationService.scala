@@ -21,10 +21,12 @@ import play.api.Logger
 import scala.concurrent.Future
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
-import uk.gov.hmrc.slacknotifications.connectors.SlackConnector
+import uk.gov.hmrc.slacknotifications.connectors.{SlackConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.slacknotifications.model.SlackMessage
 
-class NotificationService @Inject()(slackConnector: SlackConnector) {
+class NotificationService @Inject()(
+  slackConnector: SlackConnector,
+  teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector) {
   import NotificationService._
 
   def sendMessage(slackMessage: SlackMessage)(implicit hc: HeaderCarrier): Future[Either[Error, Unit]] =

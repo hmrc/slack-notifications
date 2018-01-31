@@ -26,7 +26,7 @@ import org.scalatest.{Matchers, WordSpec}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
-import uk.gov.hmrc.slacknotifications.connectors.SlackConnector
+import uk.gov.hmrc.slacknotifications.connectors.{SlackConnector, TeamsAndRepositoriesConnector}
 import uk.gov.hmrc.slacknotifications.model.SlackMessage
 
 class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with PropertyChecks {
@@ -34,30 +34,33 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
   "Sending notifications" should {
-    "succeed if slack accepted the notification" in {
-      val slackConnector = mock[SlackConnector]
+    "succeed if slack accepted the notification" in new Fixtures {
       when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-      val service = new NotificationService(slackConnector)
-      val result  = service.sendMessage(SlackMessage("existentChannel")).futureValue
+      val result = service.sendMessage(SlackMessage("existentChannel")).futureValue
 
       result shouldBe Right(())
     }
 
-    "return error if response was not 200" in {
+    "return error if response was not 200" in new Fixtures {
       val invalidStatusCodes = Gen.choose(201, 599)
       forAll(invalidStatusCodes) { statusCode =>
-        val slackConnector = mock[SlackConnector]
-        val errorMsg       = "invalid_payload"
+        val errorMsg = "invalid_payload"
         when(slackConnector.sendMessage(any())(any()))
           .thenReturn(Future(HttpResponse(statusCode, responseString = Some(errorMsg))))
 
-        val service = new NotificationService(slackConnector)
-        val result  = service.sendMessage(SlackMessage("nonexistentChannel")).futureValue
+        val result = service.sendMessage(SlackMessage("nonexistentChannel")).futureValue
 
         result shouldBe Left(NotificationService.Error(statusCode, errorMsg))
       }
     }
+  }
+
+  trait Fixtures {
+    val slackConnector                = mock[SlackConnector]
+    val teamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
+
+    val service = new NotificationService(slackConnector, teamsAndRepositoriesConnector)
   }
 
 }
