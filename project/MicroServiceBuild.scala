@@ -15,9 +15,11 @@ object MicroServiceBuild extends Build with MicroService {
   )
 
   val test = Seq(
-    "org.scalatest"     %% "scalatest" % "3.0.4",
-    "org.pegdown"       % "pegdown"    % "1.6.0",
-    "com.typesafe.play" %% "play-test" % PlayVersion.current
+    "org.scalatest"     %% "scalatest"  % "3.0.4",
+    "org.scalacheck"    %% "scalacheck" % "1.13.4",
+    "org.pegdown"       % "pegdown"     % "1.6.0",
+    "org.mockito"       % "mockito-all" % "1.10.19",
+    "com.typesafe.play" %% "play-test"  % PlayVersion.current
   ).map(_ % "test")
 
 }
