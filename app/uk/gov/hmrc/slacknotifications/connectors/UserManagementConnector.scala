@@ -16,30 +16,46 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
-import play.api.libs.json.{Format, Json}
+import play.api.libs.json.{Format, JsValue, Json}
 import play.api.{Configuration, Environment}
 import scala.concurrent.Future
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 
-class TeamsAndRepositoriesConnector(
+class UserManagementConnector(
   http: HttpClient,
   override val runModeConfiguration: Configuration,
   environment: Environment)
     extends ServicesConfig {
 
-  val mode = environment.mode
-  val url  = baseUrl("teams-and-repositories")
+  import UserManagementConnector._
 
-  def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
-    http.GET[Option[RepositoryDetails]](s"$url/$repositoryName")
+  val mode = environment.mode
+  val url  = baseUrl("user-management")
+
+  def getTeamSlackChannel(teamName: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+    http.GET[HttpResponse](s"$url/v2/organisations/teams/$teamName").map(r => extractSlackChannel(r.json))
 
 }
 
-final case class RepositoryDetails(teamNames: List[String])
+object UserManagementConnector {
+  def extractSlackChannel(json: JsValue): Option[String] =
+    for {
+      js           <- Option(json)
+      teamDetails  <- js.asOpt[TeamDetails]
+      slackChannel <- teamDetails.slackChannel
+    } yield slackChannel
+}
 
-object RepositoryDetails {
-  implicit val format: Format[RepositoryDetails] = Json.format[RepositoryDetails]
+case class TeamDetails(slack: String) {
+  def slackChannel: Option[String] = {
+    val s = slack.substring(slack.lastIndexOf("/") + 1)
+    if (s.nonEmpty) Some(s) else None
+  }
+}
+
+object TeamDetails {
+  implicit val format: Format[TeamDetails] = Json.format[TeamDetails]
 }
