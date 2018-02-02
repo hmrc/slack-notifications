@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
-import play.api.libs.json.{Format, JsValue, Json}
 import play.api.{Configuration, Environment}
 import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
@@ -30,32 +29,10 @@ class UserManagementConnector(
   environment: Environment)
     extends ServicesConfig {
 
-  import UserManagementConnector._
-
   val mode = environment.mode
   val url  = baseUrl("user-management")
 
-  def getTeamSlackChannel(teamName: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
-    http.GET[HttpResponse](s"$url/v2/organisations/teams/$teamName").map(r => extractSlackChannel(r.json))
+  def getTeamSlackChannel(teamName: String)(implicit hc: HeaderCarrier): Future[HttpResponse] =
+    http.GET[HttpResponse](s"$url/v2/organisations/teams/$teamName")
 
-}
-
-object UserManagementConnector {
-  def extractSlackChannel(json: JsValue): Option[String] =
-    for {
-      js           <- Option(json)
-      teamDetails  <- js.asOpt[TeamDetails]
-      slackChannel <- teamDetails.slackChannel
-    } yield slackChannel
-}
-
-case class TeamDetails(slack: String) {
-  def slackChannel: Option[String] = {
-    val s = slack.substring(slack.lastIndexOf("/") + 1)
-    if (s.nonEmpty) Some(s) else None
-  }
-}
-
-object TeamDetails {
-  implicit val format: Format[TeamDetails] = Json.format[TeamDetails]
 }
