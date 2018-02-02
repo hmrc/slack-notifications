@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
+import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Format, Json}
 import play.api.{Configuration, Environment}
 import scala.concurrent.Future
@@ -24,7 +25,8 @@ import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 
-class TeamsAndRepositoriesConnector(
+@Singleton
+class TeamsAndRepositoriesConnector @Inject()(
   http: HttpClient,
   override val runModeConfiguration: Configuration,
   environment: Environment)
@@ -33,8 +35,12 @@ class TeamsAndRepositoriesConnector(
   val mode = environment.mode
   val url  = baseUrl("teams-and-repositories")
 
-  def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
-    http.GET[Option[RepositoryDetails]](s"$url/$repositoryName")
+  def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] = {
+    println
+    println(s"$url/$repositoryName")
+    println
+    http.GET[Option[RepositoryDetails]](s"$url/api/repositories/$repositoryName")
+  }
 
 }
 

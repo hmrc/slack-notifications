@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
+import javax.inject.{Inject, Singleton}
 import play.api.{Configuration, Environment}
 import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
@@ -23,7 +24,8 @@ import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 
-class UserManagementConnector(
+@Singleton
+class UserManagementConnector @Inject()(
   http: HttpClient,
   override val runModeConfiguration: Configuration,
   environment: Environment)

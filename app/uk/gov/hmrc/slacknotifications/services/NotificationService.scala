@@ -44,7 +44,7 @@ class NotificationService @Inject()(
             teamNames
               .map { teamName =>
                 withExistingSlackChannel(teamName) { slackChannel =>
-                  sendSlackMessage(SlackMessage(slackChannel)).map(_.toValidatedNel)
+                  sendSlackMessage(SlackMessage(slackChannel, notificationRequest.text)).map(_.toValidatedNel)
                 }
               }
               .sequence[Future, ValidatedNel[Error, Unit]]

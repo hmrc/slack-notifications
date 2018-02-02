@@ -44,7 +44,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "succeed if slack accepted the notification" in new Fixtures {
       when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-      val result = service.sendSlackMessage(SlackMessage("existentChannel")).futureValue
+      val result = service.sendSlackMessage(SlackMessage("existentChannel", "text")).futureValue
 
       result shouldBe Right(())
     }
@@ -56,7 +56,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         when(slackConnector.sendMessage(any())(any()))
           .thenReturn(Future(HttpResponse(statusCode, responseString = Some(errorMsg))))
 
-        val result = service.sendSlackMessage(SlackMessage("nonexistentChannel")).futureValue
+        val result = service.sendSlackMessage(SlackMessage("nonexistentChannel", "text")).futureValue
 
         result shouldBe Left(NotificationService.SlackError(statusCode, errorMsg))
       }
