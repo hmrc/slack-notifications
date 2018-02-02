@@ -114,12 +114,23 @@ class NotificationService @Inject()(
 
 object NotificationService {
 
-  sealed trait Error extends Product with Serializable
+  sealed trait Error extends Product with Serializable {
+    def message: String
+    override def toString = message
+  }
 
-  final case class SlackError(statusCode: Int, message: String) extends Error
-  final case class RepositoryNotFound(repoName: String) extends Error
-  final case class TeamsNotFoundForRepository(repoName: String) extends Error
-  final case class SlackChannelNotFoundForTeam(teamName: String) extends Error
+  final case class SlackError(statusCode: Int, slackErrorMsg: String) extends Error {
+    def message = s"Slack error, statusCode: $statusCode, msg: '$slackErrorMsg'"
+  }
+  final case class RepositoryNotFound(repoName: String) extends Error {
+    def message = s"Repository: '$repoName' not found"
+  }
+  final case class TeamsNotFoundForRepository(repoName: String) extends Error {
+    def message = s"Team not found for repository: '$repoName"
+  }
+  final case class SlackChannelNotFoundForTeam(teamName: String) extends Error {
+    def message = s"Slack channel not found for team: '$teamName'"
+  }
 
   case class TeamDetails(slack: String) {
     def slackChannel: Option[String] = {

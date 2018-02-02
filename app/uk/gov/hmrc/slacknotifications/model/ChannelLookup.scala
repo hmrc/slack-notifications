@@ -25,7 +25,7 @@ sealed trait ChannelLookup {
 
 object ChannelLookup {
 
-  final case class GithubRepository(by: String, name: String) extends ChannelLookup
+  final case class GithubRepository(by: String, repositoryName: String) extends ChannelLookup
 
   val githubRepositoryReads = Json.reads[GithubRepository].map(upcastAsChannelLookup)
 

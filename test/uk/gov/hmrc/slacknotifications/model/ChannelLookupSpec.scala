@@ -29,7 +29,7 @@ class ChannelLookupSpec extends WordSpec with Matchers {
         s"""
           {
             "by" : "$by",
-            "name" : "$repoName"
+            "repositoryName" : "$repoName"
           }
         """
 
@@ -41,7 +41,7 @@ class ChannelLookupSpec extends WordSpec with Matchers {
         s"""
           {
             "by" : "sth-not-valid-here",
-            "name" : "a-repo-name"
+            "repositoryName" : "a-repo-name"
           }
         """
 

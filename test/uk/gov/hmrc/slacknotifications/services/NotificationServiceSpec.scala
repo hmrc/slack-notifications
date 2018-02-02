@@ -38,7 +38,7 @@ import uk.gov.hmrc.slacknotifications.services.NotificationService.{RepositoryNo
 class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with PropertyChecks {
 
   implicit val hc: HeaderCarrier                       = HeaderCarrier()
-  override implicit val patienceConfig: PatienceConfig = PatienceConfig(1.second, 15.millis)
+  override implicit val patienceConfig: PatienceConfig = PatienceConfig(5.second, 15.millis)
 
   "Sending a Slack message" should {
     "succeed if slack accepted the notification" in new Fixtures {
