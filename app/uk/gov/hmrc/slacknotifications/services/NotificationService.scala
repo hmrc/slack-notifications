@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.data.ValidatedNel
+import cats.data.{NonEmptyList, ValidatedNel}
 import cats.implicits._
 import javax.inject.Inject
 import play.api.Logger
@@ -25,7 +25,7 @@ import play.api.libs.json.{Format, JsValue, Json}
 import scala.concurrent.Future
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
-import uk.gov.hmrc.slacknotifications.connectors.{SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
+import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.GithubRepository
 import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, SlackMessage}
 
@@ -39,48 +39,58 @@ class NotificationService @Inject()(
     implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
     notificationRequest.channelLookup match {
       case GithubRepository(_, name) =>
-        teamsAndRepositoriesConnector.getRepositoryDetails(name).flatMap {
-          case Some(repositoryDetails) =>
-            repositoryDetails.teamNames.toNel match {
-              case None => Future.successful(TeamsNotFoundForRepository(name).invalidNel)
-              case Some(teamNames) =>
-                val foo = teamNames map { t =>
-                  val slackChannelF = {
-                    val x = userManagementConnector.getTeamSlackChannel(t)
-                    x.map { r =>
-                      val y = extractSlackChannel(r.json)
-                      y
-                    }
-                  }
-
-                  slackChannelF.flatMap {
-                    case Some(slackChannel) => sendSlackMessage(SlackMessage(slackChannel)).map(_.toValidatedNel)
-                    case None               => Future.successful(SlackChannelNotFound(t).invalidNel)
-                  }
+        withExistingRepository(name) { repositoryDetails =>
+          withExistingTeams(name, repositoryDetails) { teamNames =>
+            teamNames
+              .map { teamName =>
+                withExistingSlackChannel(teamName) { slackChannel =>
+                  sendSlackMessage(SlackMessage(slackChannel)).map(_.toValidatedNel)
                 }
-
-                val bar = foo.sequence[Future, ValidatedNel[Error, Unit]]
-
-                val baz = bar.map { x =>
-                  x.reduceLeft { (acc, c) =>
-                    c match {
-                      case Valid(_) => acc
-                      case Invalid(errors) =>
-                        acc match {
-                          case Valid(_) => c
-                          case Invalid(errorsSoFar) =>
-                            errorsSoFar.concatNel(errors).invalid
-                        }
-                    }
-
-                  }
-                }
-                baz
-            }
-
-          case None =>
-            Future.successful(RepositoryNotFound(name).invalidNel)
+              }
+              .sequence[Future, ValidatedNel[Error, Unit]]
+              .map(flatten)
+          }
         }
+    }
+
+  private def withExistingRepository(repoName: String)(f: RepositoryDetails => Future[ValidatedNel[Error, Unit]])(
+    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
+    teamsAndRepositoriesConnector.getRepositoryDetails(repoName).flatMap {
+      case Some(repoDetails) => f(repoDetails)
+      case None              => Future.successful(RepositoryNotFound(repoName).invalidNel)
+    }
+
+  private def withExistingTeams(repoName: String, repositoryDetails: RepositoryDetails)(
+    f: NonEmptyList[String] => Future[ValidatedNel[Error, Unit]])(
+    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
+    repositoryDetails.teamNames.toNel match {
+      case Some(teamNames) => f(teamNames)
+      case None            => Future.successful(TeamsNotFoundForRepository(repoName).invalidNel)
+    }
+
+  private def withExistingSlackChannel(teamName: String)(f: String => Future[ValidatedNel[Error, Unit]])(
+    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
+    userManagementConnector
+      .getTeamSlackChannel(teamName)
+      .map { r =>
+        extractSlackChannel(r.json)
+      }
+      .flatMap {
+        case Some(slackChannel) => f(slackChannel)
+        case None               => Future.successful(SlackChannelNotFound(teamName).invalidNel)
+      }
+
+  private def flatten[E, A](xs: NonEmptyList[ValidatedNel[E, A]]): ValidatedNel[E, A] =
+    xs.reduceLeft { (acc, c) =>
+      c match {
+        case Valid(_) => acc
+        case Invalid(errors) =>
+          acc match {
+            case Valid(_) => c
+            case Invalid(errorsSoFar) =>
+              errorsSoFar.concatNel(errors).invalid
+          }
+      }
     }
 
   private[services] def sendSlackMessage(slackMessage: SlackMessage)(
