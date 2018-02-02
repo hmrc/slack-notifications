@@ -2,6 +2,7 @@ import sbt.Keys._
 import sbt.Tests.{Group, SubProcess}
 import sbt._
 import play.routes.compiler.StaticRoutesGenerator
+import play.sbt.PlayImport.PlayKeys
 import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
 trait MicroService {
@@ -25,6 +26,7 @@ trait MicroService {
     .enablePlugins(
       Seq(play.sbt.PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin) ++ plugins: _*)
     .settings(playSettings: _*)
+    .settings(PlayKeys.playDefaultPort := 8866)
     .settings(scalaSettings: _*)
     .settings(publishingSettings: _*)
     .settings(defaultSettings(): _*)

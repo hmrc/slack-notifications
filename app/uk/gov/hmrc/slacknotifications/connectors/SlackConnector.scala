@@ -28,11 +28,14 @@ import uk.gov.hmrc.slacknotifications.model.SlackMessage
 @Singleton
 class SlackConnector @Inject()(http: HttpClient, configuration: Configuration) {
 
-  val slackWebHookUri = configuration
-    .getString("alerts.slack.webhook.uri")
-    .getOrElse(
-      throw new RuntimeException("Missing required alerts.slack.webhook.uri configuration")
-    )
+  val slackWebHookUri = {
+    val key = "slack.webhookUrl"
+    configuration
+      .getString(key)
+      .getOrElse(
+        throw new RuntimeException(s"Missing required $key configuration")
+      )
+  }
 
   def sendMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] =
     try {
