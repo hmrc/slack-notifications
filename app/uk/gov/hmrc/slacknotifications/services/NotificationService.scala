@@ -53,23 +53,23 @@ class NotificationService @Inject()(
         }
     }
 
-  private def withExistingRepository(repoName: String)(f: RepositoryDetails => Future[ValidatedNel[Error, Unit]])(
-    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
+  private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[ValidatedNel[Error, A]])(
+    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, A]] =
     teamsAndRepositoriesConnector.getRepositoryDetails(repoName).flatMap {
       case Some(repoDetails) => f(repoDetails)
       case None              => Future.successful(RepositoryNotFound(repoName).invalidNel)
     }
 
-  private def withExistingTeams(repoName: String, repositoryDetails: RepositoryDetails)(
-    f: NonEmptyList[String] => Future[ValidatedNel[Error, Unit]])(
-    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
+  private def withExistingTeams[A](repoName: String, repositoryDetails: RepositoryDetails)(
+    f: NonEmptyList[String] => Future[ValidatedNel[Error, A]])(
+    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, A]] =
     repositoryDetails.teamNames.toNel match {
       case Some(teamNames) => f(teamNames)
       case None            => Future.successful(TeamsNotFoundForRepository(repoName).invalidNel)
     }
 
-  private def withExistingSlackChannel(teamName: String)(f: String => Future[ValidatedNel[Error, Unit]])(
-    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
+  private def withExistingSlackChannel[A](teamName: String)(f: String => Future[ValidatedNel[Error, A]])(
+    implicit hc: HeaderCarrier): Future[ValidatedNel[Error, A]] =
     userManagementConnector
       .getTeamSlackChannel(teamName)
       .map { r =>
@@ -77,7 +77,7 @@ class NotificationService @Inject()(
       }
       .flatMap {
         case Some(slackChannel) => f(slackChannel)
-        case None               => Future.successful(SlackChannelNotFound(teamName).invalidNel)
+        case None               => Future.successful(SlackChannelNotFoundForTeam(teamName).invalidNel)
       }
 
   private def flatten[E, A](xs: NonEmptyList[ValidatedNel[E, A]]): ValidatedNel[E, A] =
@@ -94,13 +94,13 @@ class NotificationService @Inject()(
     }
 
   private[services] def sendSlackMessage(slackMessage: SlackMessage)(
-    implicit hc: HeaderCarrier): Future[Either[OtherError, Unit]] =
+    implicit hc: HeaderCarrier): Future[Either[SlackError, Unit]] =
     slackConnector.sendMessage(slackMessage).map { response =>
       response.status match {
         case 200 => Right(())
         case _ =>
           Logger.warn(s"Slack API returned error, status=${response.status} and body='${response.body}'")
-          Left(OtherError(response.status, response.body))
+          Left(SlackError(response.status, response.body))
       }
     }
 
@@ -113,11 +113,13 @@ class NotificationService @Inject()(
 }
 
 object NotificationService {
+
   sealed trait Error extends Product with Serializable
-  final case class OtherError(statusCode: Int, message: String) extends Error
+
+  final case class SlackError(statusCode: Int, message: String) extends Error
   final case class RepositoryNotFound(repoName: String) extends Error
   final case class TeamsNotFoundForRepository(repoName: String) extends Error
-  final case class SlackChannelNotFound(teamName: String) extends Error
+  final case class SlackChannelNotFoundForTeam(teamName: String) extends Error
 
   case class TeamDetails(slack: String) {
     def slackChannel: Option[String] = {

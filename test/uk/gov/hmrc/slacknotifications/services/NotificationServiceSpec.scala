@@ -33,7 +33,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.GithubRepository
 import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, SlackMessage}
-import uk.gov.hmrc.slacknotifications.services.NotificationService.{RepositoryNotFound, SlackChannelNotFound, TeamsNotFoundForRepository}
+import uk.gov.hmrc.slacknotifications.services.NotificationService.{RepositoryNotFound, SlackChannelNotFoundForTeam, TeamsNotFoundForRepository}
 
 class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with PropertyChecks {
 
@@ -58,7 +58,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
         val result = service.sendSlackMessage(SlackMessage("nonexistentChannel")).futureValue
 
-        result shouldBe Left(NotificationService.OtherError(statusCode, errorMsg))
+        result shouldBe Left(NotificationService.SlackError(statusCode, errorMsg))
       }
     }
   }
@@ -118,7 +118,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
       val result = service.sendNotification(notificationRequest).futureValue
 
-      result shouldBe Invalid(NonEmptyList.of(SlackChannelNotFound(teamName)))
+      result shouldBe Invalid(NonEmptyList.of(SlackChannelNotFoundForTeam(teamName)))
     }
 
     "fail if no team is assigned to a repository" in new Fixtures {
