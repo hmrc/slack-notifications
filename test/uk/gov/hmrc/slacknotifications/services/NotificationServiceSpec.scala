@@ -32,7 +32,7 @@ import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel}
-import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{MessageDetails, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.NotificationService.{RepositoryNotFound, SlackChannelNotFoundForTeam, TeamsNotFoundForRepository}
 
 class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with PropertyChecks {
@@ -98,10 +98,12 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         val notificationRequest =
           NotificationRequest(
             channelLookup = channelLookup,
-            text          = "some-text-to-post-to-slack",
-            username      = "username",
-            iconEmoji     = Some(":snowman:"),
-            attachments   = Nil
+            messageDetails = MessageDetails(
+              text        = "some-text-to-post-to-slack",
+              username    = "username",
+              iconEmoji   = Some(":snowman:"),
+              attachments = Nil
+            )
           )
 
         when(userManagementConnector.getTeamSlackChannel(any())(any()))
@@ -122,10 +124,12 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val notificationRequest =
         NotificationRequest(
           channelLookup = GithubRepository("", nonexistentRepoName),
-          text          = "some-text-to-post-to-slack",
-          username      = "username",
-          iconEmoji     = Some(":snowman:"),
-          attachments   = Nil
+          messageDetails = MessageDetails(
+            text        = "some-text-to-post-to-slack",
+            username    = "username",
+            iconEmoji   = Some(":snowman:"),
+            attachments = Nil
+          )
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -143,10 +147,11 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val notificationRequest =
         NotificationRequest(
           channelLookup = GithubRepository("", ""),
-          text          = "some-text-to-post-to-slack",
-          username      = "username",
-          iconEmoji     = Some(":snowman:"),
-          attachments   = Nil
+          messageDetails = MessageDetails(
+            text        = "some-text-to-post-to-slack",
+            username    = "username",
+            iconEmoji   = Some(":snowman:"),
+            attachments = Nil)
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -163,10 +168,12 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val notificationRequest =
         NotificationRequest(
           channelLookup = GithubRepository("", repoName),
-          text          = "some-text-to-post-to-slack",
-          username      = "username",
-          iconEmoji     = Some(":snowman:"),
-          attachments   = Nil
+          messageDetails = MessageDetails(
+            text        = "some-text-to-post-to-slack",
+            username    = "username",
+            iconEmoji   = Some(":snowman:"),
+            attachments = Nil
+          )
         )
 
       val result = service.sendNotification(notificationRequest).futureValue

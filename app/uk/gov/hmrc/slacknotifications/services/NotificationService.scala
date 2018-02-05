@@ -56,14 +56,10 @@ class NotificationService @Inject()(
         }.map(flatten)
     }
 
-  private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage =
-    SlackMessage(
-      channel     = slackChannel,
-      text        = notificationRequest.text,
-      username    = notificationRequest.username,
-      icon_emoji  = notificationRequest.iconEmoji,
-      attachments = notificationRequest.attachments
-    )
+  private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage = {
+    import notificationRequest.messageDetails._
+    SlackMessage(slackChannel, text, username, iconEmoji, attachments)
+  }
 
   private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[ValidatedNel[Error, A]])(
     implicit hc: HeaderCarrier): Future[ValidatedNel[Error, A]] =

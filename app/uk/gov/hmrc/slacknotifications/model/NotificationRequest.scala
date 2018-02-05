@@ -20,20 +20,27 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.Reads._
 import play.api.libs.json.{Reads, _}
 
-case class NotificationRequest(
-  channelLookup: ChannelLookup,
+final case class MessageDetails(
   text: String,
   username: String,
   iconEmoji: Option[String]    = None,
   attachments: Seq[Attachment] = Nil
 )
 
-object NotificationRequest {
-  implicit val reads: Reads[NotificationRequest] = (
-    (__ \ "channelLookup").read[ChannelLookup] and
-      (__ \ "text").read[String] and
+object MessageDetails {
+  implicit val reads: Reads[MessageDetails] = (
+    (__ \ "text").read[String] and
       (__ \ "username").read[String] and
       (__ \ "iconEmoji").readNullable[String] and
       (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
-  )(NotificationRequest.apply _)
+  )(MessageDetails.apply _)
+}
+
+final case class NotificationRequest(
+  channelLookup: ChannelLookup,
+  messageDetails: MessageDetails
+)
+
+object NotificationRequest {
+  implicit val reads: Reads[NotificationRequest] = Json.reads[NotificationRequest]
 }

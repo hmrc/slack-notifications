@@ -52,15 +52,19 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
               "by" : "github-repository",
               "repositoryName" : "foo"
             },
-            "text" : "a slack message",
-            "username" : "a-user",
-            "attachments" : []
+            "messageDetails" : {
+              "text" : "a slack message",
+              "username" : "a-user",
+              "attachments" : []
+            }
           }
         """
       )
       val response = controller.sendNotification()(FakeRequest().withBody(jsonBody))
 
-      status(response) shouldBe 200
+      withClue(s"Response was: ${contentAsString(response)}") {
+        status(response) shouldBe 200
+      }
     }
 
     "return 400 bad request if specified repository doesn't exist" in {
@@ -74,13 +78,15 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
               "by" : "github-repository",
               "repositoryName" : "$repoName"
             },
-            "text" : "a slack message",
-            "username" : "a-user",
-            "attachments" : [
-              {
-                "text" : "my-attachment"
-              }
-            ]
+            "messageDetails" : {
+              "text" : "a slack message",
+              "username" : "a-user",
+              "attachments" : [
+                {
+                  "text" : "my-attachment"
+                }
+              ]
+            }
           }
         """
       )
@@ -89,9 +95,11 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
 
       val response = controller.sendNotification()(FakeRequest().withBody(jsonBody))
 
-      status(response)          shouldBe 400
-      contentType(response).get shouldBe "application/json"
-      contentAsString(response) should include(s"Repository: '$repoName' not found")
+      withClue(s"Response was: ${contentAsString(response)}") {
+        status(response)          shouldBe 400
+        contentType(response).get shouldBe "application/json"
+        contentAsString(response) should include(s"Repository: '$repoName' not found")
+      }
     }
 
     "return 500 internal server error with a list of errors if other errors occur" in {
@@ -104,9 +112,11 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
               "by" : "github-repository",
               "repositoryName" : "a-repository"
             },
-            "text" : "a slack message",
-            "username" : "a-user",
-            "iconEmoji" : ":monkey_face:"
+            "messageDetails" : {
+              "text" : "a slack message",
+              "username" : "a-user",
+              "iconEmoji" : ":monkey_face:"
+            }
           }
         """
       )
@@ -121,7 +131,7 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
       status(response)          shouldBe 500
       contentType(response).get shouldBe "application/json"
       contentAsString(response) should include(
-        s""""errors":[{"errorMessage":"Slack channel not found for team: '$teamName'"}]""".stripMargin)
+        s""""errors":["Slack channel not found for team: '$teamName'"]""".stripMargin)
 
     }
 
