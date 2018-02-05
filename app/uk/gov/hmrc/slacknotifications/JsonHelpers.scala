@@ -15,23 +15,24 @@
  */
 
 package uk.gov.hmrc.slacknotifications
-package controllers
 
 import cats.data.NonEmptyList
 import play.api.libs.json._
 
-final case class ErrorMessage(errorMessage: String)
+trait JsonHelpers {
 
-object ErrorMessage {
-  implicit val writes: Writes[ErrorMessage] = Json.writes[ErrorMessage]
+  implicit def nonEmptyListWrites[A: Writes]: Writes[NonEmptyList[A]] =
+    new Writes[NonEmptyList[A]] {
+      def writes(nonEmptyList: NonEmptyList[A]): JsValue = Json.toJson(nonEmptyList.toList)
+    }
+
+  implicit def nonEmptyListReads[A: Reads]: Reads[NonEmptyList[A]] = Reads { jsValue =>
+    jsValue.validate[Seq[A]].flatMap {
+      case Nil          => JsError("Expected a non-empty list")
+      case head :: tail => JsSuccess(NonEmptyList(head, tail))
+    }
+  }
+
 }
 
-final case class Errors(errors: NonEmptyList[ErrorMessage])
-
-object Errors extends JsonHelpers {
-
-  def one(errorMessage: String): Errors =
-    Errors(NonEmptyList.of(ErrorMessage(errorMessage)))
-
-  implicit val writes: Writes[Errors] = Json.writes[Errors]
-}
+object JsonHelpers extends JsonHelpers

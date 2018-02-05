@@ -16,23 +16,28 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
+import cats.data.NonEmptyList
 import play.api.libs.json.Reads._
 import play.api.libs.json.{Json, Reads, _}
+import uk.gov.hmrc.slacknotifications.JsonHelpers
 
 sealed trait ChannelLookup {
   def by: String
 }
 
-object ChannelLookup {
+object ChannelLookup extends JsonHelpers {
 
   final case class GithubRepository(by: String, repositoryName: String) extends ChannelLookup
+  final case class SlackChannel(by: String, slackChannels: NonEmptyList[String]) extends ChannelLookup
 
   val githubRepositoryReads = Json.reads[GithubRepository].map(upcastAsChannelLookup)
+  val slackChannelReads     = Json.reads[SlackChannel].map(upcastAsChannelLookup)
 
   implicit val reads: Reads[ChannelLookup] = new Reads[ChannelLookup] {
     def reads(json: JsValue): JsResult[ChannelLookup] =
       (json \ "by").validate[String].flatMap {
         case "github-repository" => json.validate(githubRepositoryReads)
+        case "slack-channel"     => json.validate(slackChannelReads)
         case _                   => JsError("Unknown channel lookup type")
       }
   }

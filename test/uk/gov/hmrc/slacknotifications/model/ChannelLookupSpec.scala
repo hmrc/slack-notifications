@@ -16,9 +16,10 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
+import cats.data.NonEmptyList
 import org.scalatest.{Matchers, WordSpec}
 import play.api.libs.json.{JsError, Json}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.GithubRepository
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel}
 
 class ChannelLookupSpec extends WordSpec with Matchers {
   "Channel lookup" should {
@@ -36,6 +37,41 @@ class ChannelLookupSpec extends WordSpec with Matchers {
       Json.parse(json).as[ChannelLookup] shouldBe GithubRepository(by, repoName)
     }
 
+    "be possible directly by slack channel name" in {
+      val by           = "slack-channel"
+      val slackChannel = "a-team-channel"
+      val json =
+        s"""
+          {
+            "by" : "$by",
+            "slackChannels" : [
+              "$slackChannel"
+            ]
+          }
+        """
+
+      val parsingResult = Json.parse(json).as[ChannelLookup]
+      parsingResult shouldBe SlackChannel(by, NonEmptyList.of(slackChannel))
+    }
+
+    "fail if user specified empty list of slack channels" in {
+      val json =
+        s"""
+          {
+            "by" : "slack-channel",
+            "slackChannels" : []
+          }
+        """
+
+      val parsingResult = Json.parse(json).validate[ChannelLookup]
+
+      parsingResult shouldBe a[JsError]
+      parsingResult.fold(
+        invalid => invalid.head._2.head.message shouldBe "Expected a non-empty list",
+        _ => fail("didn't expect parsing to succeed")
+      )
+    }
+
     "fail if lookup method not specified" in {
       val json =
         s"""
@@ -50,12 +86,9 @@ class ChannelLookupSpec extends WordSpec with Matchers {
       parsingResult shouldBe a[JsError]
       parsingResult.fold(
         invalid => invalid.head._2.head.message shouldBe "Unknown channel lookup type",
-        _ => fail("didn't expect to be succeed")
+        _ => fail("didn't expect parsing to succeed")
       )
     }
 
-    "be possible by github team name" in pending
-
-    "be possible directly by slack channel name" in pending
   }
 }

@@ -26,8 +26,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.GithubRepository
-import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
 
 class NotificationService @Inject()(
   slackConnector: SlackConnector,
@@ -38,7 +37,8 @@ class NotificationService @Inject()(
   def sendNotification(notificationRequest: NotificationRequest)(
     implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
     notificationRequest.channelLookup match {
-      case GithubRepository(_, name) =>
+
+      case ChannelLookup.GithubRepository(_, name) =>
         withExistingRepository(name) { repositoryDetails =>
           withExistingTeams(name, repositoryDetails) { teamNames =>
             traverseFuturesSequentially(teamNames) { teamName =>
@@ -48,6 +48,11 @@ class NotificationService @Inject()(
             }.map(flatten)
           }
         }
+
+      case ChannelLookup.SlackChannel(_, slackChannels) =>
+        traverseFuturesSequentially(slackChannels) { slackChannel =>
+          sendSlackMessage(fromNotification(notificationRequest, slackChannel)).map(_.toValidatedNel)
+        }.map(flatten)
     }
 
   private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage =
@@ -117,7 +122,7 @@ class NotificationService @Inject()(
       slackChannel <- teamDetails.slackChannel
     } yield slackChannel
 
-  // helps avoiding many concurrent requests
+  // helps avoiding too many concurrent requests
   private def traverseFuturesSequentially[A, B](as: NonEmptyList[A])(f: A => Future[B])(
     implicit ec: ExecutionContext): Future[NonEmptyList[B]] =
     as.tail
@@ -130,6 +135,7 @@ class NotificationService @Inject()(
         }
       }
       .map(_.reverse)
+
 }
 
 object NotificationService {

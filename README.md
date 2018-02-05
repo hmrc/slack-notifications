@@ -2,7 +2,54 @@
 
 [![Build Status](https://travis-ci.org/hmrc/slack-notifications.svg)](https://travis-ci.org/hmrc/slack-notifications) [ ![Download](https://api.bintray.com/packages/hmrc/releases/slack-notifications/images/download.svg) ](https://bintray.com/hmrc/releases/slack-notifications/_latestVersion)
 
-This is a placeholder README.md for a new repository
+This service enables sending slack notifications on the MDTP.
+
+Notifications can be sent to a correct slack channel based on specified criteria.
+
+## Send to teams that own a repository
+
+```
+POST /notification 
+
+body:
+
+{
+    "channelLookup" : {
+        "by" : "github-repository",
+        "githubRepository" : "name-of-a-repo"
+    },
+    "text" : "message to be posted",
+    "username" : "deployments-info"
+    "iconEmoji" : ":snowman:", // optional
+    "attachments" : [ // optional
+        "text" : "some-attachment"
+    ]
+}
+```
+
+## Send to multiple channels by specifying their names directly
+
+```
+POST /notification 
+
+body:
+
+{
+    "channelLookup" : {
+        "by" : "slack-channel",
+        "slackChannels" : [ 
+            "channel1",
+            "channel2" 
+        ]
+    },
+    "text" : "message to be posted",
+    "username" : "deployments-info" 
+    "iconEmoji" : ":snowman:", // optional
+    "attachments" : [ // optional
+        "text" : "some-attachment"
+    ]
+}
+```
 
 ### License
 

@@ -31,7 +31,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.GithubRepository
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel}
 import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.NotificationService.{RepositoryNotFound, SlackChannelNotFoundForTeam, TeamsNotFoundForRepository}
 
@@ -81,7 +81,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
   "Sending a notification" should {
 
-    "success (happy path)" in new Fixtures {
+    "succeed (happy path)" in new Fixtures {
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName)))))
@@ -89,23 +89,31 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       val teamChannel = "team-channel"
       val teamDetails = s""" { "slack" : "https://foo.slack.com/$teamChannel" } """
 
-      private val notificationRequest =
-        NotificationRequest(
-          channelLookup = GithubRepository("", "repo"),
-          text          = "some-text-to-post-to-slack",
-          username      = "username",
-          iconEmoji     = Some(":snowman:"),
-          attachments   = Nil
-        )
+      val channelLookups = List(
+        GithubRepository("", "repo"),
+        SlackChannel("", NonEmptyList.of("slack-channel"))
+      )
 
-      when(userManagementConnector.getTeamSlackChannel(any())(any()))
-        .thenReturn(Future(HttpResponse(responseStatus = 200, responseJson = Some(Json.parse(teamDetails)))))
+      channelLookups.foreach { channelLookup =>
+        val notificationRequest =
+          NotificationRequest(
+            channelLookup = channelLookup,
+            text          = "some-text-to-post-to-slack",
+            username      = "username",
+            iconEmoji     = Some(":snowman:"),
+            attachments   = Nil
+          )
 
-      when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
+        when(userManagementConnector.getTeamSlackChannel(any())(any()))
+          .thenReturn(Future(HttpResponse(responseStatus = 200, responseJson = Some(Json.parse(teamDetails)))))
 
-      val result = service.sendNotification(notificationRequest).futureValue
+        when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-      result shouldBe Valid(())
+        val result = service.sendNotification(notificationRequest).futureValue
+
+        result shouldBe Valid(())
+      }
+
     }
 
     "fail if requested to lookup a channel for repository that doesn't exist" in new Fixtures {
