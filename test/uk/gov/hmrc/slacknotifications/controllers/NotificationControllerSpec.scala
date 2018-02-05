@@ -52,7 +52,9 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
               "by" : "github-repository",
               "repositoryName" : "foo"
             },
-            "text" : "a slack message"
+            "text" : "a slack message",
+            "username" : "a-user",
+            "attachments" : []
           }
         """
       )
@@ -72,7 +74,13 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
               "by" : "github-repository",
               "repositoryName" : "$repoName"
             },
-            "text" : "a slack message"
+            "text" : "a slack message",
+            "username" : "a-user",
+            "attachments" : [
+              {
+                "text" : "my-attachment"
+              }
+            ]
           }
         """
       )
@@ -96,7 +104,9 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
               "by" : "github-repository",
               "repositoryName" : "a-repository"
             },
-            "text" : "a slack message"
+            "text" : "a slack message",
+            "username" : "a-user",
+            "iconEmoji" : ":monkey_face:"
           }
         """
       )

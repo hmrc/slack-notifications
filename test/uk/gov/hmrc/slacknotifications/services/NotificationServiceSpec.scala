@@ -44,7 +44,15 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "succeed if slack accepted the notification" in new Fixtures {
       when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-      val result = service.sendSlackMessage(SlackMessage("existentChannel", "text")).futureValue
+      val result = service
+        .sendSlackMessage(
+          SlackMessage(
+            channel     = "existentChannel",
+            text        = "text",
+            username    = "someUser",
+            icon_emoji  = Some(":snowman:"),
+            attachments = Nil))
+        .futureValue
 
       result shouldBe Right(())
     }
@@ -56,7 +64,15 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         when(slackConnector.sendMessage(any())(any()))
           .thenReturn(Future(HttpResponse(statusCode, responseString = Some(errorMsg))))
 
-        val result = service.sendSlackMessage(SlackMessage("nonexistentChannel", "text")).futureValue
+        val result = service
+          .sendSlackMessage(
+            SlackMessage(
+              channel     = "nonexistentChannel",
+              text        = "text",
+              username    = "someUser",
+              icon_emoji  = Some(":snowman:"),
+              attachments = Nil))
+          .futureValue
 
         result shouldBe Left(NotificationService.SlackError(statusCode, errorMsg))
       }
@@ -76,7 +92,10 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val notificationRequest =
         NotificationRequest(
           channelLookup = GithubRepository("", "repo"),
-          text          = "some-text-to-post-to-slack"
+          text          = "some-text-to-post-to-slack",
+          username      = "username",
+          iconEmoji     = Some(":snowman:"),
+          attachments   = Nil
         )
 
       when(userManagementConnector.getTeamSlackChannel(any())(any()))
@@ -95,7 +114,10 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val notificationRequest =
         NotificationRequest(
           channelLookup = GithubRepository("", nonexistentRepoName),
-          text          = "some-text-to-post-to-slack"
+          text          = "some-text-to-post-to-slack",
+          username      = "username",
+          iconEmoji     = Some(":snowman:"),
+          attachments   = Nil
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -113,7 +135,10 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val notificationRequest =
         NotificationRequest(
           channelLookup = GithubRepository("", ""),
-          text          = "some-text-to-post-to-slack"
+          text          = "some-text-to-post-to-slack",
+          username      = "username",
+          iconEmoji     = Some(":snowman:"),
+          attachments   = Nil
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -130,7 +155,10 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val notificationRequest =
         NotificationRequest(
           channelLookup = GithubRepository("", repoName),
-          text          = "some-text-to-post-to-slack"
+          text          = "some-text-to-post-to-slack",
+          username      = "username",
+          iconEmoji     = Some(":snowman:"),
+          attachments   = Nil
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -157,6 +185,10 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
     "return None if slack field doesn't exist" in new Fixtures {
       service.extractSlackChannel(Json.obj()) shouldBe None
+    }
+
+    "return None if slack field does not contain a forward slash" in new Fixtures {
+      service.extractSlackChannel(Json.obj("slack" -> "not a url")) shouldBe None
     }
   }
 

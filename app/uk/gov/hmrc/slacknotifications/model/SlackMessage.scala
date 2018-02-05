@@ -26,10 +26,10 @@ object Attachment {
 
 case class SlackMessage(
   channel: String,
-  text: String
-//  username: String,
-//  icon_emoji: String,
-//  attachments: Seq[Attachment]
+  text: String,
+  username: String,
+  icon_emoji: Option[String],
+  attachments: Seq[Attachment]
 )
 
 object SlackMessage {

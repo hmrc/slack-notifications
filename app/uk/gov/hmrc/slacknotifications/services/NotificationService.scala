@@ -43,12 +43,21 @@ class NotificationService @Inject()(
           withExistingTeams(name, repositoryDetails) { teamNames =>
             traverseFuturesSequentially(teamNames) { teamName =>
               withExistingSlackChannel(teamName) { slackChannel =>
-                sendSlackMessage(SlackMessage(slackChannel, notificationRequest.text)).map(_.toValidatedNel)
+                sendSlackMessage(fromNotification(notificationRequest, slackChannel)).map(_.toValidatedNel)
               }
             }.map(flatten)
           }
         }
     }
+
+  private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage =
+    SlackMessage(
+      channel     = slackChannel,
+      text        = notificationRequest.text,
+      username    = notificationRequest.username,
+      icon_emoji  = notificationRequest.iconEmoji,
+      attachments = notificationRequest.attachments
+    )
 
   private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[ValidatedNel[Error, A]])(
     implicit hc: HeaderCarrier): Future[ValidatedNel[Error, A]] =
@@ -145,8 +154,9 @@ object NotificationService {
 
   case class TeamDetails(slack: String) {
     def slackChannel: Option[String] = {
-      val s = slack.substring(slack.lastIndexOf("/") + 1)
-      if (s.nonEmpty) Some(s) else None
+      val slashPos = slack.lastIndexOf("/")
+      val s        = slack.substring(slashPos + 1)
+      if (slashPos > 0 && s.nonEmpty) Some(s) else None
     }
   }
 
