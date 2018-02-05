@@ -46,7 +46,7 @@ class NotificationController @Inject()(notificationService: NotificationService)
         BadRequest(Json.toJson(Errors.one(repoNotFoundError.message)))
       }
       .getOrElse {
-        InternalServerError(Json.toJson(Errors(errors.map(e => ErrorMessage(e.message)))))
+        InternalServerError(Json.toJson(Errors(errors.map(_.message))))
       }
 
 }

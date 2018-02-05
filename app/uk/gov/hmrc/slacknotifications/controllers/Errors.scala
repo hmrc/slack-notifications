@@ -20,18 +20,12 @@ package controllers
 import cats.data.NonEmptyList
 import play.api.libs.json._
 
-final case class ErrorMessage(errorMessage: String)
-
-object ErrorMessage {
-  implicit val writes: Writes[ErrorMessage] = Json.writes[ErrorMessage]
-}
-
-final case class Errors(errors: NonEmptyList[ErrorMessage])
+final case class Errors(errors: NonEmptyList[String])
 
 object Errors extends JsonHelpers {
 
   def one(errorMessage: String): Errors =
-    Errors(NonEmptyList.of(ErrorMessage(errorMessage)))
+    Errors(NonEmptyList.of(errorMessage))
 
   implicit val writes: Writes[Errors] = Json.writes[Errors]
 }
