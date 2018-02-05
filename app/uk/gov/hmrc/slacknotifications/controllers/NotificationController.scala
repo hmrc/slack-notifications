@@ -33,7 +33,7 @@ class NotificationController @Inject()(notificationService: NotificationService)
   def sendNotification() = Action.async(parse.json) { implicit request =>
     withJsonBody[NotificationRequest] { notificationRequest =>
       notificationService.sendNotification(notificationRequest).map {
-        case Valid(_)        => Ok
+        case Valid(_)        => Ok(Json.obj("message" -> "Slack messages sent successfully"))
         case Invalid(errors) => handleErrors(errors)
       }
     }

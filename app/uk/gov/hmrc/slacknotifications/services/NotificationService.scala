@@ -34,6 +34,7 @@ class NotificationService @Inject()(
   userManagementConnector: UserManagementConnector) {
   import NotificationService._
 
+  // todo: instead of unit return details about sending messages
   def sendNotification(notificationRequest: NotificationRequest)(
     implicit hc: HeaderCarrier): Future[ValidatedNel[Error, Unit]] =
     notificationRequest.channelLookup match {
