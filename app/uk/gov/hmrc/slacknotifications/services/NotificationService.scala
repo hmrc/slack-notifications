@@ -22,7 +22,7 @@ import cats.implicits._
 import javax.inject.Inject
 import play.api.Logger
 import play.api.libs.json.{Format, JsValue, Json}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
@@ -41,14 +41,11 @@ class NotificationService @Inject()(
       case GithubRepository(_, name) =>
         withExistingRepository(name) { repositoryDetails =>
           withExistingTeams(name, repositoryDetails) { teamNames =>
-            teamNames
-              .map { teamName =>
-                withExistingSlackChannel(teamName) { slackChannel =>
-                  sendSlackMessage(SlackMessage(slackChannel, notificationRequest.text)).map(_.toValidatedNel)
-                }
+            traverseFuturesSequentially(teamNames) { teamName =>
+              withExistingSlackChannel(teamName) { slackChannel =>
+                sendSlackMessage(SlackMessage(slackChannel, notificationRequest.text)).map(_.toValidatedNel)
               }
-              .sequence[Future, ValidatedNel[Error, Unit]]
-              .map(flatten)
+            }.map(flatten)
           }
         }
     }
@@ -110,6 +107,20 @@ class NotificationService @Inject()(
       teamDetails  <- js.asOpt[TeamDetails]
       slackChannel <- teamDetails.slackChannel
     } yield slackChannel
+
+  // helps avoiding many concurrent requests
+  private def traverseFuturesSequentially[A, B](as: NonEmptyList[A])(f: A => Future[B])(
+    implicit ec: ExecutionContext): Future[NonEmptyList[B]] =
+    as.tail
+      .foldLeft(f(as.head).map(v => NonEmptyList.of(v))) { (accF, current) =>
+        for {
+          acc <- accF
+          c   <- f(current)
+        } yield {
+          c :: acc
+        }
+      }
+      .map(_.reverse)
 }
 
 object NotificationService {
