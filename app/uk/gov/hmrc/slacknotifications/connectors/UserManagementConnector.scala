@@ -32,7 +32,11 @@ class UserManagementConnector @Inject()(
     extends ServicesConfig {
 
   val mode = environment.mode
-  val url  = baseUrl("user-management")
+
+  val url: String = {
+    val keyInServices = "user-management.url"
+    getConfString(keyInServices, throw new RuntimeException(s"Could not find config $keyInServices"))
+  }
 
   def getTeamSlackChannel(teamName: String)(implicit hc: HeaderCarrier): Future[HttpResponse] =
     http.GET[HttpResponse](s"$url/v2/organisations/teams/$teamName")
