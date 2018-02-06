@@ -51,6 +51,28 @@ body:
 }
 ```
 
+## Response
+
+Response will typically have 200 status code and following details:
+
+```
+
+{
+    "successfullySentTo" : [ 
+        "channel1",
+        "channel2" 
+    ],
+    "errors" : [ 
+        "Details of a problem",
+        "Details of another problem"
+    ],
+    "exceptions" : [
+        "Details of why slack message was not sent"
+    ]
+}
+
+```
+
 ### License
 
 This code is open source software licensed under the [Apache 2.0 License]("http://www.apache.org/licenses/LICENSE-2.0.html")
