@@ -17,7 +17,6 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import cats.data.NonEmptyList
-import cats.data.Validated.{Invalid, Valid}
 import concurrent.duration._
 import org.mockito.Matchers.any
 import org.mockito.Mockito.when
@@ -26,6 +25,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{Matchers, WordSpec}
+import play.api.Configuration
 import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -33,7 +33,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel}
 import uk.gov.hmrc.slacknotifications.model.{MessageDetails, NotificationRequest, SlackMessage}
-import uk.gov.hmrc.slacknotifications.services.NotificationService.{RepositoryNotFound, SlackChannelNotFoundForTeam, TeamsNotFoundForRepository}
+import uk.gov.hmrc.slacknotifications.services.NotificationService._
 
 class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with PropertyChecks {
 
@@ -44,17 +44,18 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "succeed if slack accepted the notification" in new Fixtures {
       when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
+      private val existingChannel = "existingChannel"
       val result = service
         .sendSlackMessage(
           SlackMessage(
-            channel     = "existentChannel",
+            channel     = existingChannel,
             text        = "text",
             username    = "someUser",
             icon_emoji  = Some(":snowman:"),
             attachments = Nil))
         .futureValue
 
-      result shouldBe Right(())
+      result shouldBe NotificationResult().addSuccessfullySent(existingChannel)
     }
 
     "return error if response was not 200" in new Fixtures {
@@ -74,7 +75,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
               attachments = Nil))
           .futureValue
 
-        result shouldBe Left(NotificationService.SlackError(statusCode, errorMsg))
+        result shouldBe NotificationResult().addError(SlackError(statusCode, errorMsg))
       }
     }
   }
@@ -91,7 +92,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
       val channelLookups = List(
         GithubRepository("", "repo"),
-        SlackChannel("", NonEmptyList.of("slack-channel"))
+        SlackChannel("", NonEmptyList.of(teamChannel))
       )
 
       channelLookups.foreach { channelLookup =>
@@ -113,12 +114,44 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
         val result = service.sendNotification(notificationRequest).futureValue
 
-        result shouldBe Valid(())
+        result shouldBe NotificationResult(
+          successfullySentTo = List(teamChannel),
+          errors             = Nil,
+          exclusions         = Nil
+        )
       }
 
     }
 
-    "fail if requested to lookup a channel for repository that doesn't exist" in new Fixtures {
+    "don't send notifications for a predefined set of teams" in new Fixtures {
+      private val teamName1 = "team-to-be-excluded-1"
+      private val teamName2 = "team-to-be-excluded-2"
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
+        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName1, teamName2)))))
+
+      override val configuration = Configuration("exclusions.notRealTeams" -> s"$teamName1, $teamName2")
+
+      val notificationRequest =
+        NotificationRequest(
+          channelLookup = GithubRepository("", "repo"),
+          messageDetails = MessageDetails(
+            text        = "some-text-to-post-to-slack",
+            username    = "username",
+            iconEmoji   = Some(":snowman:"),
+            attachments = Nil
+          )
+        )
+
+      val result = service.sendNotification(notificationRequest).futureValue
+
+      result shouldBe NotificationResult(
+        successfullySentTo = Nil,
+        errors             = Nil,
+        exclusions         = List(NotARealTeam(teamName1), NotARealTeam(teamName2))
+      )
+    }
+
+    "report if a repository does not exist" in new Fixtures {
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any())).thenReturn(Future(None))
       private val nonexistentRepoName = "nonexistent-repo"
       private val notificationRequest =
@@ -134,10 +167,14 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
       val result = service.sendNotification(notificationRequest).futureValue
 
-      result shouldBe Invalid(NonEmptyList.of(RepositoryNotFound(nonexistentRepoName)))
+      result shouldBe NotificationResult(
+        successfullySentTo = Nil,
+        errors             = List(RepositoryNotFound(nonexistentRepoName)),
+        exclusions         = Nil
+      )
     }
 
-    "fail if the team name is not found by the user management service" in new Fixtures {
+    "report if the team name is not found by the user management service" in new Fixtures {
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName)))))
@@ -156,10 +193,14 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
       val result = service.sendNotification(notificationRequest).futureValue
 
-      result shouldBe Invalid(NonEmptyList.of(SlackChannelNotFoundForTeam(teamName)))
+      result shouldBe NotificationResult(
+        successfullySentTo = Nil,
+        errors             = List(SlackChannelNotFoundForTeam(teamName)),
+        exclusions         = Nil
+      )
     }
 
-    "fail if no team is assigned to a repository" in new Fixtures {
+    "report if no team is assigned to a repository" in new Fixtures {
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List()))))
@@ -178,7 +219,11 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
       val result = service.sendNotification(notificationRequest).futureValue
 
-      result shouldBe Invalid(NonEmptyList.of(TeamsNotFoundForRepository(repoName)))
+      result shouldBe NotificationResult(
+        successfullySentTo = Nil,
+        errors             = List(TeamsNotFoundForRepository(repoName)),
+        exclusions         = Nil
+      )
     }
   }
 
@@ -211,8 +256,10 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     val slackConnector                = mock[SlackConnector]
     val teamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
     val userManagementConnector       = mock[UserManagementConnector]
+    val configuration                 = Configuration()
 
-    val service = new NotificationService(slackConnector, teamsAndRepositoriesConnector, userManagementConnector)
+    lazy val service =
+      new NotificationService(configuration, slackConnector, teamsAndRepositoriesConnector, userManagementConnector)
   }
 
 }
