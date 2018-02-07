@@ -18,12 +18,14 @@ body:
         "by" : "github-repository",
         "githubRepository" : "name-of-a-repo"
     },
-    "text" : "message to be posted",
-    "username" : "deployments-info"
-    "iconEmoji" : ":snowman:", // optional
-    "attachments" : [ // optional
-        "text" : "some-attachment"
-    ]
+    "messageDetails" : {
+        "text" : "message to be posted",
+        "username" : "deployments-info"
+        "iconEmoji" : ":snowman:", // optional
+        "attachments" : [ // optional
+            "text" : "some-attachment"
+        ]    
+    }
 }
 ```
 
@@ -42,12 +44,14 @@ body:
             "channel2" 
         ]
     },
-    "text" : "message to be posted",
-    "username" : "deployments-info" 
-    "iconEmoji" : ":snowman:", // optional
-    "attachments" : [ // optional
-        "text" : "some-attachment"
-    ]
+    "messageDetails" : {
+        "text" : "message to be posted",
+        "username" : "deployments-info" 
+        "iconEmoji" : ":snowman:", // optional
+        "attachments" : [ // optional
+            "text" : "some-attachment"
+        ]
+    }
 }
 ```
 
