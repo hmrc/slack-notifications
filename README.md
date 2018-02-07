@@ -9,7 +9,7 @@ Notifications can be sent to a correct slack channel based on specified criteria
 ## Send to teams that own a repository
 
 ```
-POST /notification 
+POST /slack-notifiations/notification 
 
 body:
 
@@ -30,7 +30,7 @@ body:
 ## Send to multiple channels by specifying their names directly
 
 ```
-POST /notification 
+POST /slack-notifiations/notification
 
 body:
 
