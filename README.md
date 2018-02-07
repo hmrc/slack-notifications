@@ -70,7 +70,7 @@ Response will typically have 200 status code and following details:
         "Details of a problem",
         "Details of another problem"
     ],
-    "exceptions" : [
+    "exclusions" : [
         "Details of why slack message was not sent"
     ]
 }
