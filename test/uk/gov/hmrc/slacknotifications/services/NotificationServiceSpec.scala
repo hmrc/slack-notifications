@@ -82,16 +82,18 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "return an error if an exception was thrown by the Slack connector" in new Fixtures {
       val errorMsg = "some exception message"
 
-      val genExceptions =
-        Gen.oneOf(
-          new BadRequestException(errorMsg),
-          Upstream4xxResponse(errorMsg, 403, 403),
-          new NotFoundException(errorMsg),
-          Upstream5xxResponse(errorMsg, 500, 500))
+      val exceptionsAndErrors =
+        Table(
+          ("exception", "expected error"),
+          (new BadRequestException(errorMsg), SlackError(400, errorMsg)),
+          (Upstream4xxResponse(errorMsg, 403, 403), SlackError(403, errorMsg)),
+          (Upstream5xxResponse(errorMsg, 500, 500), SlackError(500, errorMsg)),
+          (new NotFoundException(errorMsg), SlackError(404, errorMsg))
+        )
 
-      forAll(genExceptions) { ex =>
+      forAll(exceptionsAndErrors) { (exception, expectedError) =>
         when(slackConnector.sendMessage(any())(any()))
-          .thenReturn(Future.failed(ex))
+          .thenReturn(Future.failed(exception))
 
         val result = service
           .sendSlackMessage(
@@ -103,17 +105,11 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
               attachments = Nil))
           .futureValue
 
-        result shouldBe
-          (ex match {
-            case e: HttpException       => NotificationResult().addError(SlackError(e.responseCode, errorMsg))
-            case e: Upstream4xxResponse => NotificationResult().addError(SlackError(e.upstreamResponseCode, errorMsg))
-            case e: Upstream5xxResponse => NotificationResult().addError(SlackError(e.upstreamResponseCode, errorMsg))
-            case _                      => fail
-          })
+        result.errors.head shouldBe expectedError
       }
     }
 
-    "throw an exception if any other non-fatal exception was thrown" ignore new Fixtures {
+    "throw an exception if any other non-fatal exception was thrown" in new Fixtures {
       val errorMsg = "non-fatal exception"
 
       when(slackConnector.sendMessage(any())(any()))

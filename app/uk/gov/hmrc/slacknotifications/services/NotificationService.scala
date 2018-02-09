@@ -119,7 +119,7 @@ class NotificationService @Inject()(
       .recoverWith {
         case NonFatal(ex) =>
           Logger.error(s"Unable to notify Slack channel ${slackMessage.channel}", ex)
-          throw ex
+          Future.failed(ex)
       }
 
   private def handleSlackExceptions(channel: String): PartialFunction[Throwable, NotificationResult] = {
