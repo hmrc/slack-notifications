@@ -17,9 +17,8 @@
 package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
-import play.api.{Configuration, Logger}
+import play.api.Configuration
 import scala.concurrent.Future
-import scala.util.control.NonFatal
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
@@ -38,12 +37,6 @@ class SlackConnector @Inject()(http: HttpClient, configuration: Configuration) {
   }
 
   def sendMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    try {
-      http.POST[SlackMessage, HttpResponse](slackWebHookUri, message)
-    } catch {
-      case NonFatal(ex) =>
-        Logger.error(s"Unable to notify ${message.channel} on Slack", ex)
-        Future.failed(ex)
-    }
+    http.POST[SlackMessage, HttpResponse](slackWebHookUri, message)
 
 }

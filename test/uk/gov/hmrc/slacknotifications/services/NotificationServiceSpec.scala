@@ -29,7 +29,7 @@ import play.api.Configuration
 import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFoundException, _}
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel}
 import uk.gov.hmrc.slacknotifications.model.{MessageDetails, NotificationRequest, SlackMessage}
@@ -77,6 +77,62 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
         result shouldBe NotificationResult().addError(SlackError(statusCode, errorMsg))
       }
+    }
+
+    "return an error if an exception was thrown by the Slack connector" in new Fixtures {
+      val errorMsg = "some exception message"
+
+      val genExceptions =
+        Gen.oneOf(
+          new BadRequestException(errorMsg),
+          Upstream4xxResponse(errorMsg, 403, 403),
+          new NotFoundException(errorMsg),
+          Upstream5xxResponse(errorMsg, 500, 500))
+
+      forAll(genExceptions) { ex =>
+        when(slackConnector.sendMessage(any())(any()))
+          .thenReturn(Future.failed(ex))
+
+        val result = service
+          .sendSlackMessage(
+            SlackMessage(
+              channel     = "channel",
+              text        = "text",
+              username    = "someUser",
+              icon_emoji  = Some(":snowman:"),
+              attachments = Nil))
+          .futureValue
+
+        result shouldBe
+          (ex match {
+            case e: HttpException       => NotificationResult().addError(SlackError(e.responseCode, errorMsg))
+            case e: Upstream4xxResponse => NotificationResult().addError(SlackError(e.upstreamResponseCode, errorMsg))
+            case e: Upstream5xxResponse => NotificationResult().addError(SlackError(e.upstreamResponseCode, errorMsg))
+            case _                      => fail
+          })
+      }
+    }
+
+    "throw an exception if any other non-fatal exception was thrown" ignore new Fixtures {
+      val errorMsg = "non-fatal exception"
+
+      when(slackConnector.sendMessage(any())(any()))
+        .thenReturn(Future.failed(new RuntimeException(errorMsg)))
+
+      val thrown =
+        the[RuntimeException] thrownBy {
+          service
+            .sendSlackMessage(
+              SlackMessage(
+                channel     = "channel",
+                text        = "text",
+                username    = "someUser",
+                icon_emoji  = Some(":snowman:"),
+                attachments = Nil))
+            .futureValue
+        }
+
+      thrown.getCause.getMessage shouldBe errorMsg
     }
   }
 
