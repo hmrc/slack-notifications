@@ -20,7 +20,8 @@ import javax.inject.Inject
 import play.api.libs.json._
 import play.api.{Configuration, Logger}
 import scala.concurrent.{ExecutionContext, Future}
-import uk.gov.hmrc.http.HeaderCarrier
+import scala.util.control.NonFatal
+import uk.gov.hmrc.http._
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
@@ -106,15 +107,33 @@ class NotificationService @Inject()(
 
   private[services] def sendSlackMessage(slackMessage: SlackMessage)(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
-    slackConnector.sendMessage(slackMessage).map { response =>
-      response.status match {
-        case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
-        case _ =>
-          val slackError = SlackError(response.status, response.body)
-          Logger.warn(slackError.message)
-          NotificationResult().addError(slackError)
+    slackConnector
+      .sendMessage(slackMessage)
+      .map { response =>
+        response.status match {
+          case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
+          case _   => logAndReturnSlackError(response.status, response.body, slackMessage.channel)
+        }
       }
-    }
+      .recover(handleSlackExceptions(slackMessage.channel))
+      .recoverWith {
+        case NonFatal(ex) =>
+          Logger.error(s"Unable to notify Slack channel ${slackMessage.channel}", ex)
+          Future.failed(ex)
+      }
+
+  private def handleSlackExceptions(channel: String): PartialFunction[Throwable, NotificationResult] = {
+    case ex: BadRequestException => logAndReturnSlackError(400, ex.message, channel)
+    case ex: Upstream4xxResponse => logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel)
+    case ex: NotFoundException   => logAndReturnSlackError(404, ex.message, channel)
+    case ex: Upstream5xxResponse => logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel)
+  }
+
+  private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String): NotificationResult = {
+    val slackError = SlackError(statusCode, exceptionMessage)
+    Logger.error(s"Unable to notify Slack channel $channel, the following error occurred: ${slackError.message}")
+    NotificationResult().addError(slackError)
+  }
 
   private[services] def extractSlackChannel(json: JsValue): Option[String] =
     for {
