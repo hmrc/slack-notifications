@@ -116,17 +116,15 @@ class NotificationService @Inject()(
         }
       }
       .recover(handleSlackExceptions(slackMessage.channel))
-      .recoverWith {
-        case NonFatal(ex) =>
-          Logger.error(s"Unable to notify Slack channel ${slackMessage.channel}", ex)
-          Future.failed(ex)
-      }
 
   private def handleSlackExceptions(channel: String): PartialFunction[Throwable, NotificationResult] = {
     case ex: BadRequestException => logAndReturnSlackError(400, ex.message, channel)
     case ex: Upstream4xxResponse => logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel)
     case ex: NotFoundException   => logAndReturnSlackError(404, ex.message, channel)
     case ex: Upstream5xxResponse => logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel)
+    case NonFatal(ex) =>
+      Logger.error(s"Unable to notify Slack channel $channel", ex)
+      throw ex
   }
 
   private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String): NotificationResult = {
