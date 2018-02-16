@@ -119,7 +119,6 @@ class NotificationService @Inject()(
 
   private def handleSlackExceptions(channel: String): PartialFunction[Throwable, Future[NotificationResult]] = {
     case ex: BadRequestException =>
-    case ex: BadRequestException =>
       Future.successful(logAndReturnSlackError(400, ex.message, channel))
     case ex: Upstream4xxResponse =>
       Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel))
