@@ -35,12 +35,8 @@ class TeamsAndRepositoriesConnector @Inject()(
   val mode = environment.mode
   val url  = baseUrl("teams-and-repositories")
 
-  def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] = {
-    println
-    println(s"$url/$repositoryName")
-    println
+  def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
     http.GET[Option[RepositoryDetails]](s"$url/api/repositories/$repositoryName")
-  }
 
 }
 
