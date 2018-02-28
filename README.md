@@ -6,7 +6,7 @@ This service enables sending slack notifications on the MDTP.
 
 Notifications can be sent to a correct slack channel based on specified criteria.
 
-## Send to teams that own a repository
+## Send to teams that own a repository (as shown in The Catalogue)
 
 ```
 POST /slack-notifiations/notification 
@@ -57,7 +57,7 @@ body:
 
 ## Response
 
-Response will typically have 200 status code and following details:
+Response will typically have 201 status code and following details:
 
 ```
 
@@ -67,13 +67,24 @@ Response will typically have 200 status code and following details:
         "channel2" 
     ],
     "errors" : [ 
-        "Details of a problem",
-        "Details of another problem"
+        {   
+            "code" : "error_code_1",
+            "message" : "Details of a problem"
+        },
+        {
+            "code" : "error_code_2",
+            "message" : "Details of another problem"
+        }
     ],
     "exclusions" : [
-        "Details of why slack message was not sent"
+        {
+            "code" : "exclusion_code",
+            "message" : "Details of why slack message was not sent"
+        }
     ]
 }
+
+# error and exclusion codes are stable
 
 ```
 

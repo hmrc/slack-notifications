@@ -137,7 +137,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "succeed (happy path)" in new Fixtures {
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
-        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName)))))
+        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
       val teamDetails = s""" { "slack" : "https://foo.slack.com/$teamChannel" } """
@@ -179,7 +179,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val teamName1 = "team-to-be-excluded-1"
       private val teamName2 = "team-to-be-excluded-2"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
-        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName1, teamName2)))))
+        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName1, teamName2), owningTeams = Nil))))
 
       override val configuration = Configuration("exclusions.notRealTeams" -> s"$teamName1, $teamName2")
 
@@ -229,7 +229,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "report if the team name is not found by the user management service" in new Fixtures {
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
-        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName)))))
+        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
       when(userManagementConnector.getTeamSlackChannel(any())(any()))
         .thenReturn(Future(HttpResponse(responseStatus = 200, responseJson = Some(Json.obj()))))
 
@@ -247,7 +247,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(SlackChannelNotFoundForTeam(teamName)),
+        errors             = List(SlackChannelNotFoundForTeamInUMP(teamName)),
         exclusions         = Nil
       )
     }
@@ -255,7 +255,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "report if no team is assigned to a repository" in new Fixtures {
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
-        .thenReturn(Future(Some(RepositoryDetails(teamNames = List()))))
+        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(), owningTeams = Nil))))
 
       val repoName = "repo-name"
       private val notificationRequest =
@@ -276,6 +276,27 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         errors             = List(TeamsNotFoundForRepository(repoName)),
         exclusions         = Nil
       )
+    }
+  }
+
+  "Getting teams responsible for repo" should {
+    "prioritize owningTeams" in new Fixtures {
+      val repoDetails =
+        RepositoryDetails(
+          owningTeams = List("team1"),
+          teamNames   = List("team1", "team2")
+        )
+
+      service.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1")
+    }
+    "return contributing teams if no explicit owning teams are specified" in new Fixtures {
+      val repoDetails =
+        RepositoryDetails(
+          owningTeams = Nil,
+          teamNames   = List("team1", "team2")
+        )
+
+      service.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1", "team2")
     }
   }
 

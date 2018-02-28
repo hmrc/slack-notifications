@@ -40,7 +40,7 @@ class TeamsAndRepositoriesConnector @Inject()(
 
 }
 
-final case class RepositoryDetails(teamNames: List[String])
+final case class RepositoryDetails(teamNames: List[String], owningTeams: List[String])
 
 object RepositoryDetails {
   implicit val format: Format[RepositoryDetails] = Json.format[RepositoryDetails]

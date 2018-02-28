@@ -39,7 +39,7 @@ class NotificationService @Inject()(
 
       case ChannelLookup.GithubRepository(_, name) =>
         withExistingRepository(name) { repositoryDetails =>
-          withExistingTeams(name, repositoryDetails) { teamNames =>
+          withTeamsResponsibleForRepo(name, repositoryDetails) { teamNames =>
             traverseFuturesSequentially(teamNames) { teamName =>
               withExistingSlackChannel(teamName) { slackChannel =>
                 sendSlackMessage(fromNotification(notificationRequest, slackChannel))
@@ -74,15 +74,22 @@ class NotificationService @Inject()(
       case None              => Future.successful(NotificationResult().addError(RepositoryNotFound(repoName)))
     }
 
-  private def withExistingTeams[A](repoName: String, repositoryDetails: RepositoryDetails)(
+  private def withTeamsResponsibleForRepo[A](repoName: String, repositoryDetails: RepositoryDetails)(
     f: List[String] => Future[NotificationResult])(implicit hc: HeaderCarrier): Future[NotificationResult] =
-    repositoryDetails.teamNames match {
+    getTeamsResponsibleForRepo(repositoryDetails) match {
       case Nil => Future.successful(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))
       case teams =>
         val (excluded, toBeProcessed) = teams.partition(notRealTeams.contains)
         f(toBeProcessed).map { res =>
           res.addExclusion(excluded.map(NotARealTeam.apply): _*)
         }
+    }
+
+  private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
+    if (repositoryDetails.owningTeams.nonEmpty) {
+      repositoryDetails.owningTeams
+    } else {
+      repositoryDetails.teamNames
     }
 
   private val notRealTeams =
@@ -102,7 +109,7 @@ class NotificationService @Inject()(
       }
       .flatMap {
         case Some(slackChannel) => f(slackChannel)
-        case None               => Future.successful(NotificationResult().addError(SlackChannelNotFoundForTeam(teamName)))
+        case None               => Future.successful(NotificationResult().addError(SlackChannelNotFoundForTeamInUMP(teamName)))
       }
 
   private[services] def sendSlackMessage(slackMessage: SlackMessage)(
@@ -122,6 +129,8 @@ class NotificationService @Inject()(
       Future.successful(logAndReturnSlackError(400, ex.message, channel))
     case ex: Upstream4xxResponse =>
       Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel))
+    case ex: NotFoundException if ex.message.contains("channel_not_found") =>
+      handleChannelNotFound(channel)
     case ex: NotFoundException =>
       Future.successful(logAndReturnSlackError(404, ex.message, channel))
     case ex: Upstream5xxResponse =>
@@ -129,6 +138,11 @@ class NotificationService @Inject()(
     case NonFatal(ex) =>
       Logger.error(s"Unable to notify Slack channel $channel", ex)
       Future.failed(ex)
+  }
+
+  private def handleChannelNotFound(channel: String): Future[NotificationResult] = {
+    Logger.error(SlackChannelNotFound(channel).message)
+    Future.successful(NotificationResult().addError(SlackChannelNotFound(channel)))
   }
 
   private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String): NotificationResult = {
@@ -161,27 +175,39 @@ class NotificationService @Inject()(
 object NotificationService {
 
   sealed trait Error extends Product with Serializable {
+    def code: String
     def message: String
     override def toString = message
   }
 
   object Error {
     implicit val writes: Writes[Error] = Writes { error =>
-      JsString(error.message)
+      Json.obj(
+        "code"    -> error.code,
+        "message" -> error.message
+      )
     }
   }
 
   final case class SlackError(statusCode: Int, slackErrorMsg: String) extends Error {
+    val code    = "slack_error"
     val message = s"Slack error, statusCode: $statusCode, msg: '$slackErrorMsg'"
   }
   final case class RepositoryNotFound(repoName: String) extends Error {
+    val code    = "repository_not_found"
     val message = s"Repository: '$repoName' not found"
   }
   final case class TeamsNotFoundForRepository(repoName: String) extends Error {
+    val code    = "teams_not_found_for_repository"
     val message = s"Team not found for repository: '$repoName"
   }
-  final case class SlackChannelNotFoundForTeam(teamName: String) extends Error {
-    val message = s"Slack channel not found for team: '$teamName'"
+  final case class SlackChannelNotFoundForTeamInUMP(teamName: String) extends Error {
+    val code    = "slack_channel_not_found_for_team_in_ump"
+    val message = s"Slack channel not found for team: '$teamName' in User Management Portal"
+  }
+  final case class SlackChannelNotFound(channelName: String) extends Error {
+    val code    = "slack_channel_not_found"
+    val message = s"Slack channel: '$channelName' not found"
   }
 
   case class TeamDetails(slack: String) {
@@ -197,6 +223,7 @@ object NotificationService {
   }
 
   sealed trait Exclusion extends Product with Serializable {
+    def code: String
     def message: String
     override def toString = message
   }
@@ -208,6 +235,7 @@ object NotificationService {
   }
 
   final case class NotARealTeam(name: String) extends Exclusion {
+    val code    = "not_a_real_team"
     val message = s"$name is not a real team"
   }
 
