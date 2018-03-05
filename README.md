@@ -57,7 +57,7 @@ body:
 
 ## Response
 
-Response will typically have 201 status code and following details:
+Response will typically have 201 status code and the following details:
 
 ```
 

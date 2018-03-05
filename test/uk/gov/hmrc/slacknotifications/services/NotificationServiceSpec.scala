@@ -30,8 +30,9 @@ import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFoundException, _}
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel}
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
 import uk.gov.hmrc.slacknotifications.model.{MessageDetails, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
 
@@ -140,7 +141,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
-      val teamDetails = s""" { "slack" : "https://foo.slack.com/$teamChannel" } """
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), team = "n/a")
 
       val channelLookups = List(
         GithubRepository("", "repo"),
@@ -159,8 +160,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
             )
           )
 
-        when(userManagementConnector.getTeamSlackChannel(any())(any()))
-          .thenReturn(Future(HttpResponse(responseStatus = 200, responseJson = Some(Json.parse(teamDetails)))))
+        when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
 
         when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
@@ -230,8 +230,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
-      when(userManagementConnector.getTeamSlackChannel(any())(any()))
-        .thenReturn(Future(HttpResponse(responseStatus = 200, responseJson = Some(Json.obj()))))
+      when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(None))
 
       private val notificationRequest =
         NotificationRequest(
@@ -302,26 +301,28 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
   "Extracting team slack channel" should {
     "work if slack field exists and contains team name at the end" in new Fixtures {
-      val teamName      = "teamName"
-      val slackLink     = "foo/" + teamName
-      val json: JsValue = Json.obj("slack" -> slackLink)
+      val teamChannelName = "teamChannel"
+      val slackLink       = "foo/" + teamChannelName
+      val teamDetails     = TeamDetails(slack = Some(slackLink), team = "n/a")
 
-      service.extractSlackChannel(json) shouldBe Some(teamName)
+      service.extractSlackChannel(teamDetails) shouldBe Some(teamChannelName)
     }
 
     "return None if slack field exists but there is no slack channel in it" in new Fixtures {
-      val slackLink     = "link-without-team/"
-      val json: JsValue = Json.obj("slack" -> slackLink)
+      val slackLink   = "link-without-team/"
+      val teamDetails = TeamDetails(slack = Some(slackLink), team = "n/a")
 
-      service.extractSlackChannel(json) shouldBe None
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field doesn't exist" in new Fixtures {
-      service.extractSlackChannel(Json.obj()) shouldBe None
+      val teamDetails = TeamDetails(slack = None, team = "n/a")
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field does not contain a forward slash" in new Fixtures {
-      service.extractSlackChannel(Json.obj("slack" -> "not a url")) shouldBe None
+      val teamDetails = TeamDetails(slack = Some("not a url"), team = "n/a")
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
   }
 

@@ -17,6 +17,7 @@
 package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
+import play.api.libs.json.{Format, Json}
 import play.api.{Configuration, Environment}
 import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
@@ -33,12 +34,60 @@ class UserManagementConnector @Inject()(
 
   val mode = environment.mode
 
+  import UserManagementConnector._
+
   val url: String = {
     val keyInServices = "user-management.url"
     getConfString(keyInServices, throw new RuntimeException(s"Could not find config $keyInServices"))
   }
 
-  def getTeamSlackChannel(teamName: String)(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    http.GET[HttpResponse](s"$url/v2/organisations/teams/$teamName")
+  def getAllUsers(implicit hc: HeaderCarrier): Future[List[UmpUser]] =
+    http.GET[UmpUsers](s"$url/v2/organisations/users").map(_.users)
+
+  def getTeamsForUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
+    http.GET[HttpResponse](s"$url/v2/organisations/users/$ldapUsername/teams").map { resp =>
+      val maybeTeams =
+        for {
+          json  <- Option(resp.json)
+          teams <- (json \ "teams").asOpt[List[TeamDetails]]
+        } yield teams
+      maybeTeams.getOrElse(Nil)
+    }
+
+  def getTeamDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
+    http.GET[HttpResponse](s"$url/v2/organisations/teams/$teamName").map { resp =>
+      for {
+        json        <- Option(resp.json)
+        teamDetails <- json.asOpt[TeamDetails]
+      } yield teamDetails
+    }
+
+}
+
+object UserManagementConnector {
+
+  final case class UmpUser(
+    github: Option[String],
+    username: Option[String]
+  )
+
+  object UmpUser {
+    implicit val format: Format[UmpUser] = Json.format[UmpUser]
+  }
+
+  final case class UmpUsers(users: List[UmpUser])
+
+  object UmpUsers {
+    implicit val format: Format[UmpUsers] = Json.format[UmpUsers]
+  }
+
+  final case class TeamDetails(
+    slack: Option[String],
+    team: String
+  )
+
+  object TeamDetails {
+    implicit val format: Format[TeamDetails] = Json.format[TeamDetails]
+  }
 
 }
