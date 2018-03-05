@@ -32,7 +32,8 @@ class NotificationService @Inject()(
   configuration: Configuration,
   slackConnector: SlackConnector,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
-  userManagementConnector: UserManagementConnector) {
+  userManagementConnector: UserManagementConnector,
+  userManagementService: UserManagementService) {
   import NotificationService._
 
   def sendNotification(notificationRequest: NotificationRequest)(
@@ -54,6 +55,21 @@ class NotificationService @Inject()(
         traverseFuturesSequentially(slackChannels.toList) { slackChannel =>
           sendSlackMessage(fromNotification(notificationRequest, slackChannel))
         }.map(flatten)
+
+      case ChannelLookup.TeamsOfGithubUser(_, githubUsername) =>
+        userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
+          withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
+            if (nonExcludedTeams.nonEmpty) {
+              traverseFuturesSequentially(nonExcludedTeams) { teamName =>
+                withExistingSlackChannel(teamName) { slackChannel =>
+                  sendSlackMessage(fromNotification(notificationRequest, slackChannel))
+                }
+              }.map(flatten)
+            } else {
+              Future.successful(NotificationResult().addError(TeamsNotFoundForGithubUsername(githubUsername)))
+            }
+          }
+        }
     }
 
   private def flatten(results: Seq[NotificationResult]): NotificationResult =
@@ -79,12 +95,8 @@ class NotificationService @Inject()(
   private def withTeamsResponsibleForRepo[A](repoName: String, repositoryDetails: RepositoryDetails)(
     f: List[String] => Future[NotificationResult])(implicit hc: HeaderCarrier): Future[NotificationResult] =
     getTeamsResponsibleForRepo(repositoryDetails) match {
-      case Nil => Future.successful(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))
-      case teams =>
-        val (excluded, toBeProcessed) = teams.partition(notRealTeams.contains)
-        f(toBeProcessed).map { res =>
-          res.addExclusion(excluded.map(NotARealTeam.apply): _*)
-        }
+      case Nil   => Future.successful(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))
+      case teams => withNonExcludedTeams(teams)(f)
     }
 
   private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
@@ -93,6 +105,14 @@ class NotificationService @Inject()(
     } else {
       repositoryDetails.teamNames
     }
+
+  def withNonExcludedTeams(allTeamNames: List[String])(f: List[String] => Future[NotificationResult])(
+    implicit ec: ExecutionContext): Future[NotificationResult] = {
+    val (excluded, toBeProcessed) = allTeamNames.partition(notRealTeams.contains)
+    f(toBeProcessed).map { res =>
+      res.addExclusion(excluded.map(NotARealTeam.apply): _*)
+    }
+  }
 
   private val notRealTeams =
     configuration
@@ -201,7 +221,11 @@ object NotificationService {
   }
   final case class TeamsNotFoundForRepository(repoName: String) extends Error {
     val code    = "teams_not_found_for_repository"
-    val message = s"Team not found for repository: '$repoName"
+    val message = s"Teams not found for repository: '$repoName'"
+  }
+  final case class TeamsNotFoundForGithubUsername(githubUsername: String) extends Error {
+    val code    = "teams_not_found_for_github_username"
+    val message = s"Teams not found for Github username: '$githubUsername'"
   }
   final case class SlackChannelNotFoundForTeamInUMP(teamName: String) extends Error {
     val code    = "slack_channel_not_found_for_team_in_ump"

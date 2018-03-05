@@ -29,7 +29,7 @@ object ChannelLookup extends JsonHelpers {
 
   final case class GithubRepository(by: String, repositoryName: String) extends ChannelLookup
   final case class SlackChannel(by: String, slackChannels: NonEmptyList[String]) extends ChannelLookup
-  final case class TeamsOfGithubUser(by: String, githubUser: String) extends ChannelLookup
+  final case class TeamsOfGithubUser(by: String, githubUsername: String) extends ChannelLookup
 
   private val githubRepositoryReads  = Json.reads[GithubRepository].map(upcastAsChannelLookup)
   private val slackChannelReads      = Json.reads[SlackChannel].map(upcastAsChannelLookup)

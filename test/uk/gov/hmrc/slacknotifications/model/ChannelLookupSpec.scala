@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.model
 import cats.data.NonEmptyList
 import org.scalatest.{Matchers, WordSpec}
 import play.api.libs.json.{JsError, Json}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel}
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
 
 class ChannelLookupSpec extends WordSpec with Matchers {
   "Channel lookup" should {
@@ -70,6 +70,21 @@ class ChannelLookupSpec extends WordSpec with Matchers {
         invalid => invalid.head._2.head.message shouldBe "Expected a non-empty list",
         _ => fail("didn't expect parsing to succeed")
       )
+    }
+
+    "be possible by github username for their teams" in {
+      val by             = "teams-of-github-user"
+      val githubUsername = "a-github-username"
+      val json =
+        s"""
+          {
+            "by" : "$by",
+            "githubUsername" : "$githubUsername"
+          }
+        """
+
+      val parsingResult = Json.parse(json).as[ChannelLookup]
+      parsingResult shouldBe TeamsOfGithubUser(by, githubUsername)
     }
 
     "fail if lookup method not specified" in {
