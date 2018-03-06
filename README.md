@@ -68,7 +68,7 @@ body:
 {
     "channelLookup" : {
         "by" : "teams-of-github-user",
-        "githubUsername" : "user-github-handle"
+        "githubUsername" : "a-github-username"
     },
     "messageDetails" : {
         "text" : "message to be posted",

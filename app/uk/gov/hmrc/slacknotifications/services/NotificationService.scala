@@ -122,7 +122,7 @@ class NotificationService @Inject()(
       }
       .getOrElse(Nil)
 
-  private def withExistingSlackChannel[A](teamName: String)(f: String => Future[NotificationResult])(
+  private def withExistingSlackChannel(teamName: String)(f: String => Future[NotificationResult])(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
     userManagementConnector
       .getTeamDetails(teamName)
