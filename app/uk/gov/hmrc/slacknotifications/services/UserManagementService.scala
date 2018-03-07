@@ -30,16 +30,22 @@ import scala.concurrent.duration._
 @Singleton
 class UserManagementService @Inject()(connector: UserManagementConnector, cache: CacheApi) {
 
+  val DUMMY_LDS_ADMIN_COMMITER = "n/a"
+
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
-    for {
-      maybeLdapUsername <- getLdapUsername(githubUsername)
-      teams <- maybeLdapUsername match {
-                case Some(u) => connector.getTeamsForUser(u)
-                case None    => Future.successful(Nil)
-              }
-    } yield {
-      Logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
-      teams
+    if (githubUsername == DUMMY_LDS_ADMIN_COMMITER) {
+      Future.successful(Nil)
+    } else {
+      for {
+        maybeLdapUsername <- getLdapUsername(githubUsername)
+        teams <- maybeLdapUsername match {
+                  case Some(u) => connector.getTeamsForUser(u)
+                  case None    => Future.successful(Nil)
+                }
+      } yield {
+        Logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
+        teams
+      }
     }
 
   def getLdapUsername(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
