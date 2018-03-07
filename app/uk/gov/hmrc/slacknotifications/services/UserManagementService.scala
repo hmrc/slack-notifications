@@ -17,6 +17,7 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import javax.inject.{Inject, Singleton}
+import play.api.Logger
 import scala.concurrent.Future
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
@@ -36,7 +37,10 @@ class UserManagementService @Inject()(connector: UserManagementConnector, cache:
                 case Some(u) => connector.getTeamsForUser(u)
                 case None    => Future.successful(Nil)
               }
-    } yield teams
+    } yield {
+      Logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
+      teams
+    }
 
   def getLdapUsername(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
     val githubBaseUrl = "https://github.com"
