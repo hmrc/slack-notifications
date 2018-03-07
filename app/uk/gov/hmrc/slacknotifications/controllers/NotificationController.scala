@@ -17,6 +17,7 @@
 package uk.gov.hmrc.slacknotifications.controllers
 
 import javax.inject.{Inject, Singleton}
+import play.api.Logger
 import play.api.libs.json.Json
 import play.api.mvc._
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
@@ -30,7 +31,9 @@ class NotificationController @Inject()(notificationService: NotificationService)
   def sendNotification() = Action.async(parse.json) { implicit request =>
     withJsonBody[NotificationRequest] { notificationRequest =>
       notificationService.sendNotification(notificationRequest).map { results =>
-        Ok(Json.toJson(results))
+        val asJson = Json.toJson(results)
+        Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
+        Ok(asJson)
       }
     }
   }
