@@ -57,16 +57,20 @@ class NotificationService @Inject()(
         }.map(flatten)
 
       case ChannelLookup.TeamsOfGithubUser(_, githubUsername) =>
-        userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
-          withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
-            if (nonExcludedTeams.nonEmpty) {
-              traverseFuturesSequentially(nonExcludedTeams) { teamName =>
-                withExistingSlackChannel(teamName) { slackChannel =>
-                  sendSlackMessage(fromNotification(notificationRequest, slackChannel))
-                }
-              }.map(flatten)
-            } else {
-              Future.successful(NotificationResult().addError(TeamsNotFoundForGithubUsername(githubUsername)))
+        if (notRealGithubUsers.contains(githubUsername)) {
+          Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
+        } else {
+          userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
+            withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
+              if (nonExcludedTeams.nonEmpty) {
+                traverseFuturesSequentially(nonExcludedTeams) { teamName =>
+                  withExistingSlackChannel(teamName) { slackChannel =>
+                    sendSlackMessage(fromNotification(notificationRequest, slackChannel))
+                  }
+                }.map(flatten)
+              } else {
+                Future.successful(NotificationResult().addError(TeamsNotFoundForGithubUsername(githubUsername)))
+              }
             }
           }
         }
@@ -115,8 +119,14 @@ class NotificationService @Inject()(
   }
 
   private val notRealTeams =
+    getCommaSeparatedListFromConfig("exclusions.notRealTeams")
+
+  private val notRealGithubUsers =
+    getCommaSeparatedListFromConfig("exclusions.notRealGithubUsers")
+
+  private def getCommaSeparatedListFromConfig(key: String): List[String] =
     configuration
-      .getString("exclusions.notRealTeams")
+      .getString(key)
       .map { v =>
         v.split(",").map(_.trim).toList
       }
@@ -254,6 +264,11 @@ object NotificationService {
   final case class NotARealTeam(name: String) extends Exclusion {
     val code    = "not_a_real_team"
     val message = s"$name is not a real team"
+  }
+
+  final case class NotARealGithubUser(name: String) extends Exclusion {
+    val code    = "not_a_real_github_user"
+    val message = s"$name is not a real Github user"
   }
 
   final case class NotificationResult(

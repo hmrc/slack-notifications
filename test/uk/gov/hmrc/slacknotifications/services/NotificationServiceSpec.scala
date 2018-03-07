@@ -201,6 +201,25 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         exclusions         = List(NotARealTeam(teamName1), NotARealTeam(teamName2))
       )
     }
+    "not include ignored github user names, e.g. LDS dummy commiter for admin endpoints" in new Fixtures {
+      val ignored1               = "n/1"
+      val ignored2               = "ignored2"
+      override val configuration = Configuration("exclusions.notRealGithubUsers" -> s"$ignored1, $ignored2")
+
+      val notificationRequest =
+        NotificationRequest(
+          channelLookup  = TeamsOfGithubUser("", ignored1),
+          messageDetails = exampleMessageDetails
+        )
+
+      val result = service.sendNotification(notificationRequest).futureValue
+
+      result shouldBe NotificationResult(
+        successfullySentTo = Nil,
+        errors             = Nil,
+        exclusions         = List(NotARealGithubUser(ignored1))
+      )
+    }
   }
 
   "Sending a request with github repository lookup" should {

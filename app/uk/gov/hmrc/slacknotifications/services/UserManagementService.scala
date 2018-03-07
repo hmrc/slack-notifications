@@ -18,34 +18,28 @@ package uk.gov.hmrc.slacknotifications.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
-import scala.concurrent.Future
-import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import play.api.cache._
-import scala.util.Success
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, UmpUser}
+import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Success
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, UmpUser}
 
 @Singleton
 class UserManagementService @Inject()(connector: UserManagementConnector, cache: CacheApi) {
 
-  val DUMMY_LDS_ADMIN_COMMITER = "n/a"
-
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
-    if (githubUsername == DUMMY_LDS_ADMIN_COMMITER) {
-      Future.successful(Nil)
-    } else {
-      for {
-        maybeLdapUsername <- getLdapUsername(githubUsername)
-        teams <- maybeLdapUsername match {
-                  case Some(u) => connector.getTeamsForUser(u)
-                  case None    => Future.successful(Nil)
-                }
-      } yield {
-        Logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
-        teams
-      }
+    for {
+      maybeLdapUsername <- getLdapUsername(githubUsername)
+      teams <- maybeLdapUsername match {
+                case Some(u) => connector.getTeamsForUser(u)
+                case None    => Future.successful(Nil)
+              }
+    } yield {
+      Logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
+      teams
     }
 
   def getLdapUsername(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
