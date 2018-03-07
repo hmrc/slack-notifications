@@ -6,7 +6,10 @@ This service enables sending slack notifications on the MDTP.
 
 Notifications can be sent to a correct slack channel based on specified criteria.
 
-## Send to teams that own a repository (as shown in The Catalogue)
+## Send to teams that own a repository
+
+Sends slack messages to all teams contributing to a repo as shown in The Catalogue. 
+If a repository defines owners explicitly in the 'repository.yaml' file, Slack message will be sent only to those teams (relevant mostly for shared repos like app-config-*).
 
 ```
 POST /slack-notifiations/notification 
@@ -55,9 +58,32 @@ body:
 }
 ```
 
+## Send to a team based on a Github username of one of their members
+
+```
+POST /slack-notifiations/notification
+
+body:
+
+{
+    "channelLookup" : {
+        "by" : "teams-of-github-user",
+        "githubUsername" : "a-github-username"
+    },
+    "messageDetails" : {
+        "text" : "message to be posted",
+        "username" : "deployments-info" 
+        "iconEmoji" : ":snowman:", // optional
+        "attachments" : [ // optional
+            "text" : "some-attachment"
+        ]
+    }
+}
+```
+
 ## Response
 
-Response will typically have 201 status code and following details:
+Response will typically have 201 status code and the following details:
 
 ```
 
@@ -84,7 +110,7 @@ Response will typically have 201 status code and following details:
     ]
 }
 
-# error and exclusion codes are stable
+# error/exclusion codes are stable, messages may change
 
 ```
 

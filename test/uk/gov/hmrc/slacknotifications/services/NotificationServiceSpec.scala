@@ -30,8 +30,9 @@ import play.api.libs.json.{JsValue, Json}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFoundException, _}
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel}
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
 import uk.gov.hmrc.slacknotifications.model.{MessageDetails, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
 
@@ -133,18 +134,18 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
   }
 
   "Sending a notification" should {
-
-    "succeed (happy path)" in new Fixtures {
+    "work for all channel lookup types (happy path scenarios)" in new Fixtures {
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
-      val teamDetails = s""" { "slack" : "https://foo.slack.com/$teamChannel" } """
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), team = "n/a")
 
       val channelLookups = List(
         GithubRepository("", "repo"),
-        SlackChannel("", NonEmptyList.of(teamChannel))
+        SlackChannel("", NonEmptyList.of(teamChannel)),
+        TeamsOfGithubUser("", "a-github-handle")
       )
 
       channelLookups.foreach { channelLookup =>
@@ -159,9 +160,8 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
             )
           )
 
-        when(userManagementConnector.getTeamSlackChannel(any())(any()))
-          .thenReturn(Future(HttpResponse(responseStatus = 200, responseJson = Some(Json.parse(teamDetails)))))
-
+        when(userManagementService.getTeamsForGithubUser(any())(any())).thenReturn(Future(List(teamDetails)))
+        when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
         when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
         val result = service.sendNotification(notificationRequest).futureValue
@@ -175,23 +175,49 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
     }
 
-    "don't send notifications for a predefined set of teams" in new Fixtures {
+  }
+
+  "Sending a request for teams of a github user" should {
+    "not include excluded teams based on configuration" in new Fixtures {
+      val teamName1              = "team-to-be-excluded-1"
+      val teamName2              = "team-to-be-excluded-2"
+      override val configuration = Configuration("exclusions.notRealTeams" -> s"$teamName1, $teamName2")
+      val githubUsername         = "a-github-username"
+
+      val notificationRequest =
+        NotificationRequest(
+          channelLookup  = TeamsOfGithubUser("", githubUsername),
+          messageDetails = exampleMessageDetails
+        )
+
+      when(userManagementService.getTeamsForGithubUser(any())(any()))
+        .thenReturn(Future(List(TeamDetails(None, teamName1), TeamDetails(None, teamName2))))
+
+      val result = service.sendNotification(notificationRequest).futureValue
+
+      result shouldBe NotificationResult(
+        successfullySentTo = Nil,
+        errors             = List(TeamsNotFoundForGithubUsername(githubUsername)),
+        exclusions         = List(NotARealTeam(teamName1), NotARealTeam(teamName2))
+      )
+    }
+  }
+
+  "Sending a request with github repository lookup" should {
+    "don't send notifications for a predefined set of ignored teams" in new Fixtures {
       private val teamName1 = "team-to-be-excluded-1"
       private val teamName2 = "team-to-be-excluded-2"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName1, teamName2), owningTeams = Nil))))
+      when(userManagementService.getTeamsForGithubUser(any())(any()))
+        .thenReturn(Future(List(teamName1, teamName2).map(t => TeamDetails(None, t))))
 
       override val configuration = Configuration("exclusions.notRealTeams" -> s"$teamName1, $teamName2")
 
       val notificationRequest =
         NotificationRequest(
-          channelLookup = GithubRepository("", "repo"),
-          messageDetails = MessageDetails(
-            text        = "some-text-to-post-to-slack",
-            username    = "username",
-            iconEmoji   = Some(":snowman:"),
-            attachments = Nil
-          )
+          channelLookup  = GithubRepository("", "repo"),
+          messageDetails = exampleMessageDetails
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -201,6 +227,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         errors             = Nil,
         exclusions         = List(NotARealTeam(teamName1), NotARealTeam(teamName2))
       )
+
     }
 
     "report if a repository does not exist" in new Fixtures {
@@ -208,13 +235,8 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val nonexistentRepoName = "nonexistent-repo"
       private val notificationRequest =
         NotificationRequest(
-          channelLookup = GithubRepository("", nonexistentRepoName),
-          messageDetails = MessageDetails(
-            text        = "some-text-to-post-to-slack",
-            username    = "username",
-            iconEmoji   = Some(":snowman:"),
-            attachments = Nil
-          )
+          channelLookup  = GithubRepository("", nonexistentRepoName),
+          messageDetails = exampleMessageDetails
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -230,17 +252,12 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
-      when(userManagementConnector.getTeamSlackChannel(any())(any()))
-        .thenReturn(Future(HttpResponse(responseStatus = 200, responseJson = Some(Json.obj()))))
+      when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(None))
 
       private val notificationRequest =
         NotificationRequest(
-          channelLookup = GithubRepository("", ""),
-          messageDetails = MessageDetails(
-            text        = "some-text-to-post-to-slack",
-            username    = "username",
-            iconEmoji   = Some(":snowman:"),
-            attachments = Nil)
+          channelLookup  = GithubRepository("", ""),
+          messageDetails = exampleMessageDetails
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -260,13 +277,8 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       val repoName = "repo-name"
       private val notificationRequest =
         NotificationRequest(
-          channelLookup = GithubRepository("", repoName),
-          messageDetails = MessageDetails(
-            text        = "some-text-to-post-to-slack",
-            username    = "username",
-            iconEmoji   = Some(":snowman:"),
-            attachments = Nil
-          )
+          channelLookup  = GithubRepository("", repoName),
+          messageDetails = exampleMessageDetails
         )
 
       val result = service.sendNotification(notificationRequest).futureValue
@@ -302,26 +314,28 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
   "Extracting team slack channel" should {
     "work if slack field exists and contains team name at the end" in new Fixtures {
-      val teamName      = "teamName"
-      val slackLink     = "foo/" + teamName
-      val json: JsValue = Json.obj("slack" -> slackLink)
+      val teamChannelName = "teamChannel"
+      val slackLink       = "foo/" + teamChannelName
+      val teamDetails     = TeamDetails(slack = Some(slackLink), team = "n/a")
 
-      service.extractSlackChannel(json) shouldBe Some(teamName)
+      service.extractSlackChannel(teamDetails) shouldBe Some(teamChannelName)
     }
 
     "return None if slack field exists but there is no slack channel in it" in new Fixtures {
-      val slackLink     = "link-without-team/"
-      val json: JsValue = Json.obj("slack" -> slackLink)
+      val slackLink   = "link-without-team/"
+      val teamDetails = TeamDetails(slack = Some(slackLink), team = "n/a")
 
-      service.extractSlackChannel(json) shouldBe None
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field doesn't exist" in new Fixtures {
-      service.extractSlackChannel(Json.obj()) shouldBe None
+      val teamDetails = TeamDetails(slack = None, team = "n/a")
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field does not contain a forward slash" in new Fixtures {
-      service.extractSlackChannel(Json.obj("slack" -> "not a url")) shouldBe None
+      val teamDetails = TeamDetails(slack = Some("not a url"), team = "n/a")
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
   }
 
@@ -329,10 +343,25 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     val slackConnector                = mock[SlackConnector]
     val teamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
     val userManagementConnector       = mock[UserManagementConnector]
+    val userManagementService         = mock[UserManagementService]
     val configuration                 = Configuration()
 
+    val exampleMessageDetails =
+      MessageDetails(
+        text        = "some-text-to-post-to-slack",
+        username    = "username",
+        iconEmoji   = Some(":snowman:"),
+        attachments = Nil
+      )
+
     lazy val service =
-      new NotificationService(configuration, slackConnector, teamsAndRepositoriesConnector, userManagementConnector)
+      new NotificationService(
+        configuration,
+        slackConnector,
+        teamsAndRepositoriesConnector,
+        userManagementConnector,
+        userManagementService)
+
   }
 
 }
