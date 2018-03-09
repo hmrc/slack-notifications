@@ -58,7 +58,7 @@ body:
 }
 ```
 
-## Send to a team based on a Github username of one of their members
+## Send to a team based on a Github username of one of its members
 
 ```
 POST /slack-notifiations/notification
