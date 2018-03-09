@@ -117,5 +117,3 @@ Response will typically have 201 status code and the following details:
 ### License
 
 This code is open source software licensed under the [Apache 2.0 License]("http://www.apache.org/licenses/LICENSE-2.0.html")
-
-This is just a test application.secret = unencrypted some other text here and secret again application.secret = unencrypted anad again why not application.secret = unencrypted9 fdsafkajlfdas
