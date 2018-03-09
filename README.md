@@ -12,7 +12,7 @@ Sends slack messages to all teams contributing to a repo as shown in The Catalog
 If a repository defines owners explicitly in the 'repository.yaml' file, Slack message will be sent only to those teams (relevant mostly for shared repos like app-config-*).
 
 ```
-POST /slack-notifiations/notification 
+POST /slack-notifications/notification 
 
 body:
 
@@ -35,7 +35,7 @@ body:
 ## Send to multiple channels by specifying their names directly
 
 ```
-POST /slack-notifiations/notification
+POST /slack-notifications/notification
 
 body:
 
@@ -61,7 +61,7 @@ body:
 ## Send to a team based on a Github username of one of its members
 
 ```
-POST /slack-notifiations/notification
+POST /slack-notifications/notification
 
 body:
 
