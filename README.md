@@ -32,6 +32,13 @@ body:
 }
 ```
 
+example curl request:
+```
+curl -X POST -H 'Content-type: application/json' \
+    --data '{"channelLookup" : { "by" : "github-repository", "repositoryName" : "foo" }, "messageDetails" : { "text" : "Testing if slack-notifications work", "username" : "foo" } }' \
+    localhost:8866/slack-notifications/notification
+```
+
 ## Send to multiple channels by specifying their names directly
 
 ```
