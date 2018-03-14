@@ -18,10 +18,40 @@ package uk.gov.hmrc.slacknotifications.model
 
 import play.api.libs.json.{Json, OFormat}
 
-case class Attachment(text: String)
+/**
+  *  More details: https://api.slack.com/docs/message-attachments
+  */
+case class Attachment(
+  fallback: Option[String],
+  color: Option[String],
+  pretext: Option[String],
+  author_name: Option[String],
+  author_link: Option[String],
+  author_icon: Option[String],
+  title: Option[String],
+  title_link: Option[String],
+  text: Option[String],
+  fields: Option[Seq[Attachment.Field]],
+  image_url: Option[String],
+  thumb_url: Option[String],
+  footer: Option[String],
+  footer_icon: Option[String],
+  ts: Option[Int]
+)
 
 object Attachment {
+  final case class Field(
+    title: String,
+    value: String,
+    short: Boolean
+  )
+
+  object Field {
+    implicit val format: OFormat[Field] = Json.format[Field]
+  }
+
   implicit val format: OFormat[Attachment] = Json.format[Attachment]
+
 }
 
 case class SlackMessage(
