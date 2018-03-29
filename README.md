@@ -121,7 +121,7 @@ Response will typically have 200 status code and the following details:
 
 ```
 
-Possible error codes are: 
+### Possible error codes are:
 
 |Error Code                              | Meaning                                                                |
 |----------------------------------------|------------------------------------------------------------------------|
@@ -132,7 +132,7 @@ Possible error codes are:
 |slack_channel_not_found                 | The slack channel was not found                                        |  
 |slack_error                             | A generic error wrapping an exception coming directly from Slack       |
 
-Possible exclusions are:
+### Possible exclusion codes are:
 
 |Exclusion Code                          | Meaning
 |----------------------------------------|------------------------------------------------------------------------|
