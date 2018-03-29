@@ -90,7 +90,7 @@ body:
 
 ## Response
 
-Response will typically have 201 status code and the following details:
+Response will typically have 200 status code and the following details:
 
 ```
 
@@ -120,6 +120,18 @@ Response will typically have 201 status code and the following details:
 # error/exclusion codes are stable, messages may change
 
 ```
+
+Possible error codes are: 
+
+|Error Code                              | Status Code | Meaning                                                                       |
+|----------------------------------------|-------------|-------------------------------------------------------------------------------|
+|slack_error                             | 4xx/5xx     | A generic error occurring when the service is unable to notify a slack channel|
+|repository_not_found                    | 200         | A repository could not be found                                               |
+|teams_not_found_for_repository          | 200         | The teams responsible for a repository could not be found                     |
+|teams_not_found_for_github_username     | 200         | No teams could be found for the given github user name                        |
+|slack_channel_not_found_for_team_in_ump | 200         | A slack channel was not found for a team in the User Management Portal        |
+|slack_channel_not_found                 | 200         | The slack channel was not found                                               |  
+
 
 ### License
 
