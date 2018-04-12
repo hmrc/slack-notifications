@@ -19,7 +19,7 @@ body:
 {
     "channelLookup" : {
         "by" : "github-repository",
-        "githubRepository" : "name-of-a-repo"
+        "repositoryName" : "name-of-a-repo"
     },
     "messageDetails" : {
         "text" : "message to be posted",
