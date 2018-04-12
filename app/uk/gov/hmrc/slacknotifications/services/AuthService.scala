@@ -35,14 +35,11 @@ class AuthConfiguration @Inject()(configuration: Configuration) {
 
   val authorisedServices: Seq[Service] =
     configuration.underlying
-      .getConfig("authorisedServices")
-      .toOrThrow[Seq[Service]]
-      .map { user =>
-        val decodedPwd = new String(BaseEncoding.base64().decode(user.password))
-        user.copy(password = decodedPwd)
-      }
-
+      .toOrThrow[AuthorizedServices]
+      .authorizedServices
 }
+
+case class AuthorizedServices(authorizedServices: List[Service])
 
 case class Service(name: String, password: String)
 

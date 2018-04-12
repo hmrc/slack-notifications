@@ -16,8 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import com.google.common.base.Charsets
-import com.google.common.io.BaseEncoding
+import com.typesafe.config.ConfigFactory
 import org.scalatest.{Matchers, WordSpec}
 import play.api.Configuration
 
@@ -27,10 +26,32 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
     "return true if the service is present in the configuration" in {
       val user = Service("foo", "bar")
+
+      val typesafeConfig = ConfigFactory.parseString(
+        s"""
+          authorizedServices = [
+            {
+              name = ${user.name}
+              password = ${user.password}
+            }
+          ]
+         """
+      )
+
+      val configuration = Configuration(typesafeConfig)
+
+      val authService = new AuthService(new AuthConfiguration(configuration))
+
+      authService.isAuthorized(user) shouldBe true
+    }
+
+    "return true if the service is present in the configuration (app-config-* style)" in {
+      val user = Service("foo", "bar")
+
       val configuration =
         Configuration(
-          "authorisedServices.0.name"     -> user.name,
-          "authorisedServices.0.password" -> BaseEncoding.base64().encode(user.password.getBytes(Charsets.UTF_8))
+          "authorizedServices.0.name"     -> user.name,
+          "authorizedServices.0.password" -> user.password
         )
 
       val authService = new AuthService(new AuthConfiguration(configuration))
@@ -42,8 +63,8 @@ class AuthServiceSpec extends WordSpec with Matchers {
       val user = Service("foo", "bar")
       val configuration =
         Configuration(
-          "authorisedServices.0.name"     -> user.name,
-          "authorisedServices.0.password" -> BaseEncoding.base64().encode(user.password.getBytes(Charsets.UTF_8))
+          "authorizedServices.0.name"     -> user.name,
+          "authorizedServices.0.password" -> user.password
         )
 
       val authService = new AuthService(new AuthConfiguration(configuration))
