@@ -6,6 +6,9 @@ This service enables sending slack notifications on the MDTP.
 
 Notifications can be sent to a correct slack channel based on specified criteria.
 
+## Auth
+This service uses Basic Auth for access control. If you want to use it please contact team PlatOps.
+
 ## Send to teams that own a repository
 
 Sends slack messages to all teams contributing to a repo as shown in The Catalogue. 
