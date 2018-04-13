@@ -25,53 +25,73 @@ class AuthServiceSpec extends WordSpec with Matchers {
   "Checking if user is authorised" should {
 
     "return true if the service is present in the configuration" in {
-      val user = Service("foo", "bar")
+      val service = Service("foo", "bar")
 
       val typesafeConfig = ConfigFactory.parseString(
         s"""
-          authorizedServices = [
-            {
-              name = ${user.name}
-              password = ${user.password}
-            }
-          ]
+          auth {
+            enabled = true
+            authorizedServices = [
+              {
+                name = ${service.name}
+                password = ${service.password}
+              }
+            ]
+          }
          """
       )
 
       val configuration = Configuration(typesafeConfig)
 
-      val authService = new AuthService(new AuthConfiguration(configuration))
+      val authService = new AuthService(configuration)
 
-      authService.isAuthorized(user) shouldBe true
+      authService.isAuthorized(service) shouldBe true
     }
 
     "return true if the service is present in the configuration (app-config-* style)" in {
-      val user = Service("foo", "bar")
+      val service = Service("foo", "bar")
 
       val configuration =
         Configuration(
-          "authorizedServices.0.name"     -> user.name,
-          "authorizedServices.0.password" -> user.password
+          "auth.enabled"                       -> true,
+          "auth.authorizedServices.0.name"     -> service.name,
+          "auth.authorizedServices.0.password" -> service.password
         )
 
-      val authService = new AuthService(new AuthConfiguration(configuration))
+      val authService = new AuthService(configuration)
 
-      authService.isAuthorized(user) shouldBe true
+      authService.isAuthorized(service) shouldBe true
     }
 
-    "return false otherwise" in {
-      val user = Service("foo", "bar")
+    "return false if no matching service is found in config" in {
+      val service = Service("foo", "bar")
       val configuration =
         Configuration(
-          "authorizedServices.0.name"     -> user.name,
-          "authorizedServices.0.password" -> user.password
+          "auth.enabled"                       -> true,
+          "auth.authorizedServices.0.name"     -> service.name,
+          "auth.authorizedServices.0.password" -> service.password
         )
 
-      val authService = new AuthService(new AuthConfiguration(configuration))
+      val authService = new AuthService(configuration)
 
-      val anotherUserNotInConfig = Service("x", "y")
+      val anotherServiceNotInConfig = Service("x", "y")
 
-      authService.isAuthorized(anotherUserNotInConfig) shouldBe false
+      authService.isAuthorized(anotherServiceNotInConfig) shouldBe false
+    }
+
+    "return true if auth not enabled" in {
+      val typesafeConfig = ConfigFactory.parseString(
+        s"""
+          auth {
+            enabled = false
+            authorizedServices = []
+          }
+         """
+      )
+
+      val authService = new AuthService(Configuration(typesafeConfig))
+
+      authService.isAuthorized(Service("foo", "bar")) shouldBe true
     }
 
   }

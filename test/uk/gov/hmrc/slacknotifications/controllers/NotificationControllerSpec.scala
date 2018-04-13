@@ -18,6 +18,8 @@ package uk.gov.hmrc.slacknotifications.controllers
 
 import org.mockito.Matchers.{any, eq => is}
 import org.mockito.Mockito.when
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}

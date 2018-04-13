@@ -16,37 +16,41 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import javax.inject.Inject
-
+import javax.inject.{Inject, Singleton}
 import com.google.common.io.BaseEncoding
 import play.api.{Configuration, Logger}
 import pureconfig.syntax._
 import pureconfig.{CamelCase, ConfigFieldMapping, ProductHint}
 import uk.gov.hmrc.http.logging.Authorization
 
-class AuthService @Inject()(config: AuthConfiguration) {
-  def isAuthorized(service: Service): Boolean = config.authorisedServices.contains(service)
-}
-
-class AuthConfiguration @Inject()(configuration: Configuration) {
+@Singleton
+class AuthService @Inject()(configuration: Configuration) {
 
   implicit def hint[T]: ProductHint[T] =
     ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
 
-  val authorisedServices: Seq[Service] =
-    configuration.underlying
-      .toOrThrow[AuthorizedServices]
-      .authorizedServices
+  val authConfiguration: AuthConfiguration =
+    configuration.underlying.getConfig("auth").toOrThrow[AuthConfiguration]
+
+  def isAuthorized(service: Service): Boolean =
+    if (authConfiguration.enabled) {
+      authConfiguration.authorizedServices.contains(service)
+    } else {
+      true
+    }
 }
 
-case class AuthorizedServices(authorizedServices: List[Service])
+final case class AuthConfiguration(
+  enabled: Boolean,
+  authorizedServices: List[Service]
+)
 
-case class Service(name: String, password: String)
+final case class Service(
+  name: String,
+  password: String
+)
 
 object Service {
-
-  def base64Decode(s: String): String = new String(BaseEncoding.base64().decode(s))
-
   def fromAuthorization(authorization: Authorization): Option[Service] =
     base64Decode(authorization.value.stripPrefix("Basic ")).split(":") match {
       case Array(serviceName, password) =>
@@ -56,4 +60,6 @@ object Service {
           s"Invalid credentials format. Expected: 'Basic [base64(name:password)]'. Got: ${authorization.value}")
         None
     }
+
+  def base64Decode(s: String): String = new String(BaseEncoding.base64().decode(s))
 }
