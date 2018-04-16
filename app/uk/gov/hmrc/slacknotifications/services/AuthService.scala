@@ -32,9 +32,9 @@ class AuthService @Inject()(configuration: Configuration) {
   val authConfiguration: AuthConfiguration =
     configuration.underlying.getConfig("auth").toOrThrow[AuthConfiguration]
 
-  def isAuthorized(service: Service): Boolean =
+  def isAuthorized(service: Option[Service]): Boolean =
     if (authConfiguration.enabled) {
-      authConfiguration.authorizedServices.contains(service)
+      authConfiguration.authorizedServices.exists(v => service.contains(v))
     } else {
       true
     }

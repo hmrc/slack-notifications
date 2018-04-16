@@ -45,7 +45,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
       val authService = new AuthService(configuration)
 
-      authService.isAuthorized(service) shouldBe true
+      authService.isAuthorized(Some(service)) shouldBe true
     }
 
     "return true if the service is present in the configuration (app-config-* style)" in {
@@ -60,7 +60,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
       val authService = new AuthService(configuration)
 
-      authService.isAuthorized(service) shouldBe true
+      authService.isAuthorized(Some(service)) shouldBe true
     }
 
     "return false if no matching service is found in config" in {
@@ -76,7 +76,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
       val anotherServiceNotInConfig = Service("x", "y")
 
-      authService.isAuthorized(anotherServiceNotInConfig) shouldBe false
+      authService.isAuthorized(Some(anotherServiceNotInConfig)) shouldBe false
     }
 
     "return true if auth not enabled" in {
@@ -91,7 +91,8 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
       val authService = new AuthService(Configuration(typesafeConfig))
 
-      authService.isAuthorized(Service("foo", "bar")) shouldBe true
+      authService.isAuthorized(Some(Service("foo", "bar"))) shouldBe true
+      authService.isAuthorized(None)                        shouldBe true
     }
 
   }

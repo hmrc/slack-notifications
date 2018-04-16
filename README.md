@@ -36,8 +36,10 @@ body:
 ```
 
 example curl request:
+(assuming basic auth credentials for user: foo, pass: bar)
+
 ```
-curl -X POST -H 'Content-type: application/json' \
+curl -X POST -H 'Content-type: application/json' -H 'Authorization: Basic Zm9vOmJhcg==' \
     --data '{"channelLookup" : { "by" : "github-repository", "repositoryName" : "foo" }, "messageDetails" : { "text" : "Testing if slack-notifications work", "username" : "foo" } }' \
     localhost:8866/slack-notifications/notification
 ```

@@ -40,7 +40,7 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
       val validCredentials = "Zm9vOmJhcg==" // foo:bar base64 encoded
       val request          = baseRequest.withHeaders("Authorization" -> s"Basic $validCredentials")
 
-      when(authService.isAuthorized(is(Service("foo", "bar")))).thenReturn(true)
+      when(authService.isAuthorized(is(Some(Service("foo", "bar"))))).thenReturn(true)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 200
@@ -55,7 +55,7 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
       val invalidCredentials = "Zm9vOmJhcg=="
       val request            = baseRequest.withHeaders("Authorization" -> s"Basic $invalidCredentials")
 
-      when(authService.isAuthorized(is(Service("foo", "bar")))).thenReturn(false)
+      when(authService.isAuthorized(is(Some(Service("foo", "bar"))))).thenReturn(false)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 401

@@ -47,18 +47,13 @@ class NotificationController @Inject()(authService: AuthService, notificationSer
   }
 
   def withAuthorization(block: => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
-    val maybeAuthorized =
-      for {
-        authorization <- hc.authorization
-        service       <- Service.fromAuthorization(authorization)
-      } yield authService.isAuthorized(service)
-
-    maybeAuthorized match {
-      case Some(true) => block
-      case _ =>
-        val message            = "Invalid credentials. Requires basic authentication"
-        implicit val erFormats = Json.format[ErrorResponse]
-        Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message))))
+    val maybeService = hc.authorization.flatMap(Service.fromAuthorization)
+    if (authService.isAuthorized(maybeService)) {
+      block
+    } else {
+      val message            = "Invalid credentials. Requires basic authentication"
+      implicit val erFormats = Json.format[ErrorResponse]
+      Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message))))
     }
   }
 
