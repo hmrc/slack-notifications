@@ -17,24 +17,43 @@
 package uk.gov.hmrc.slacknotifications.controllers
 
 import javax.inject.{Inject, Singleton}
+
 import play.api.Logger
 import play.api.libs.json.Json
 import play.api.mvc._
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
+import uk.gov.hmrc.play.bootstrap.http.ErrorResponse
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.slacknotifications.model.NotificationRequest
-import uk.gov.hmrc.slacknotifications.services.NotificationService
+import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService, Service}
+
+import scala.concurrent.Future
 
 @Singleton()
-class NotificationController @Inject()(notificationService: NotificationService) extends BaseController {
+class NotificationController @Inject()(authService: AuthService, notificationService: NotificationService)
+    extends BaseController {
 
   def sendNotification() = Action.async(parse.json) { implicit request =>
-    withJsonBody[NotificationRequest] { notificationRequest =>
-      notificationService.sendNotification(notificationRequest).map { results =>
-        val asJson = Json.toJson(results)
-        Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
-        Ok(asJson)
+    withAuthorization {
+      withJsonBody[NotificationRequest] { notificationRequest =>
+        notificationService.sendNotification(notificationRequest).map { results =>
+          val asJson = Json.toJson(results)
+          Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
+          Ok(asJson)
+        }
       }
+    }
+  }
+
+  def withAuthorization(block: => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
+    val maybeService = hc.authorization.flatMap(Service.fromAuthorization)
+    if (authService.isAuthorized(maybeService)) {
+      block
+    } else {
+      val message            = "Invalid credentials. Requires basic authentication"
+      implicit val erFormats = Json.format[ErrorResponse]
+      Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message))))
     }
   }
 
