@@ -17,7 +17,6 @@
 package uk.gov.hmrc.slacknotifications.controllers
 
 import javax.inject.{Inject, Singleton}
-
 import play.api.Logger
 import play.api.libs.json.Json
 import play.api.mvc._
@@ -26,7 +25,7 @@ import uk.gov.hmrc.play.bootstrap.controller.BaseController
 import uk.gov.hmrc.play.bootstrap.http.ErrorResponse
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.slacknotifications.model.NotificationRequest
-import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService, Service}
+import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
 
 import scala.concurrent.Future
 
@@ -47,7 +46,7 @@ class NotificationController @Inject()(authService: AuthService, notificationSer
   }
 
   def withAuthorization(block: => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
-    val maybeService = hc.authorization.flatMap(Service.fromAuthorization)
+    val maybeService = hc.authorization.flatMap(AuthService.Service.fromAuthorization)
     if (authService.isAuthorized(maybeService)) {
       block
     } else {

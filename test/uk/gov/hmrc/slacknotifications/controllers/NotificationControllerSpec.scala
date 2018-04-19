@@ -18,8 +18,6 @@ package uk.gov.hmrc.slacknotifications.controllers
 
 import org.mockito.Matchers.{any, eq => is}
 import org.mockito.Mockito.when
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}
@@ -27,8 +25,9 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Headers, Result}
 import play.api.test.FakeRequest
 import play.test.Helpers
+import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService.NotificationResult
-import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService, Service}
+import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
 
 import scala.concurrent.Future
 
