@@ -16,18 +16,38 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import javax.inject.{Inject, Singleton}
 import com.google.common.io.BaseEncoding
-import play.api.{Configuration, Logger}
+import javax.inject.{Inject, Singleton}
+import play.api.Configuration
+import pureconfig.error.CannotConvert
 import pureconfig.syntax._
-import pureconfig.{CamelCase, ConfigFieldMapping, ProductHint}
+import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader, ProductHint}
 import uk.gov.hmrc.http.logging.Authorization
+
+import scala.util.Try
 
 @Singleton
 class AuthService @Inject()(configuration: Configuration) {
 
+  import AuthService._
+
   implicit def hint[T]: ProductHint[T] =
     ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
+
+  implicit val serviceReader =
+    ConfigReader[Service]
+      .emap {
+        case Service(name, Base64String(decoded)) =>
+          Right(Service(name, decoded))
+        case serviceWithoutBase64EncPass =>
+          Left(
+            CannotConvert(
+              value   = serviceWithoutBase64EncPass.toString,
+              toType  = "Service",
+              because = "password was not base64 encoded"
+            )
+          )
+      }
 
   val authConfiguration: AuthConfiguration =
     configuration.underlying.getConfig("auth").toOrThrow[AuthConfiguration]
@@ -40,26 +60,32 @@ class AuthService @Inject()(configuration: Configuration) {
     }
 }
 
-final case class AuthConfiguration(
-  enabled: Boolean,
-  authorizedServices: List[Service]
-)
+object AuthService {
 
-final case class Service(
-  name: String,
-  password: String
-)
+  object Base64String {
+    def unapply(s: String): Option[String] = decode(s)
 
-object Service {
-  def fromAuthorization(authorization: Authorization): Option[Service] =
-    base64Decode(authorization.value.stripPrefix("Basic ")).split(":") match {
-      case Array(serviceName, password) =>
-        Some(Service(serviceName, password))
-      case _ =>
-        Logger.warn(
-          s"Invalid credentials format. Expected: 'Basic [base64(name:password)]'. Got: ${authorization.value}")
-        None
-    }
+    def decode(s: String): Option[String] =
+      Try(new String(BaseEncoding.base64().decode(s))).toOption
+  }
 
-  def base64Decode(s: String): String = new String(BaseEncoding.base64().decode(s))
+  final case class AuthConfiguration(
+    enabled: Boolean,
+    authorizedServices: List[Service]
+  )
+
+  final case class Service(
+    name: String,
+    password: String
+  )
+
+  object Service {
+    def fromAuthorization(authorization: Authorization): Option[Service] =
+      Base64String
+        .decode(authorization.value.stripPrefix("Basic "))
+        .map(_.split(":"))
+        .collect {
+          case Array(serviceName, password) => Service(serviceName, password)
+        }
+  }
 }
