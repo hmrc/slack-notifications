@@ -57,7 +57,7 @@ class UserManagementServiceSpec extends WordSpec with Matchers with MockitoSugar
       val ldapUsername      = "ldap-username"
       val service           = new UserManagementService(mockedUMPConnector, cacheApi)
       val umpUsers          = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
-      val teams             = List(TeamDetails(slack = None, team = "n/a"))
+      val teams             = List(TeamDetails(slack = None, slackNotification = None, team = "n/a"))
 
       when(mockedUMPConnector.getAllUsers(any())).thenReturn(Future.successful(umpUsers))
       when(mockedUMPConnector.getTeamsForUser(any())(any())).thenReturn(Future(teams))
