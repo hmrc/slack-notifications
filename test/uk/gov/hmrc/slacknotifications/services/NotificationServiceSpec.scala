@@ -140,7 +140,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
-      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), team = "n/a")
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = "n/a")
 
       val channelLookups = List(
         GithubRepository("", "repo"),
@@ -191,7 +191,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
         )
 
       when(userManagementService.getTeamsForGithubUser(any())(any()))
-        .thenReturn(Future(List(TeamDetails(None, teamName1), TeamDetails(None, teamName2))))
+        .thenReturn(Future(List(TeamDetails(None, None, teamName1), TeamDetails(None, None, teamName2))))
 
       val result = service.sendNotification(notificationRequest).futureValue
 
@@ -229,7 +229,7 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName1, teamName2), owningTeams = Nil))))
       when(userManagementService.getTeamsForGithubUser(any())(any()))
-        .thenReturn(Future(List(teamName1, teamName2).map(t => TeamDetails(None, t))))
+        .thenReturn(Future(List(teamName1, teamName2).map(t => TeamDetails(None, None, t))))
 
       override val configuration = Configuration("exclusions.notRealTeams" -> s"$teamName1, $teamName2")
 
@@ -335,25 +335,34 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "work if slack field exists and contains team name at the end" in new Fixtures {
       val teamChannelName = "teamChannel"
       val slackLink       = "foo/" + teamChannelName
-      val teamDetails     = TeamDetails(slack = Some(slackLink), team = "n/a")
+      val teamDetails     = TeamDetails(slack = Some(slackLink), slackNotification = None, team = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe Some(teamChannelName)
     }
 
+    "return the slackNotification channel when present" in new Fixtures {
+      val teamChannelName = "teamChannel"
+      val slackLink       = "foo/" + teamChannelName
+      val teamDetails     = TeamDetails(slack = Some(slackLink), slackNotification = Some(s"foo/$teamChannelName-notification"), team = "n/a")
+
+      service.extractSlackChannel(teamDetails) shouldBe Some(s"$teamChannelName-notification")
+    }
+
+
     "return None if slack field exists but there is no slack channel in it" in new Fixtures {
       val slackLink   = "link-without-team/"
-      val teamDetails = TeamDetails(slack = Some(slackLink), team = "n/a")
+      val teamDetails = TeamDetails(slack = Some(slackLink), None, team = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field doesn't exist" in new Fixtures {
-      val teamDetails = TeamDetails(slack = None, team = "n/a")
+      val teamDetails = TeamDetails(slack = None, None, team = "n/a")
       service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field does not contain a forward slash" in new Fixtures {
-      val teamDetails = TeamDetails(slack = Some("not a url"), team = "n/a")
+      val teamDetails = TeamDetails(slack = Some("not a url"), None, team = "n/a")
       service.extractSlackChannel(teamDetails) shouldBe None
     }
   }
