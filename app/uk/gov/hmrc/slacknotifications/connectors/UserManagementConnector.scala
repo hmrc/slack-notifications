@@ -42,10 +42,10 @@ class UserManagementConnector @Inject()(
   }
 
   def getAllUsers(implicit hc: HeaderCarrier): Future[List[UmpUser]] =
-    http.GET[List[UmpUser]](s"$url/v2/organisations/users")
+    http.GET[UmpUsers](s"$url/v2/organisations/users").map(_.users)
 
   def getTeamsForUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
-    http.GET[List[TeamDetails]](s"$url/v2/organisations/users/$ldapUsername/teams")
+    http.GET[UmpTeams](s"$url/v2/organisations/users/$ldapUsername/teams").map(_.teams)
 
   def getTeamDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
     http.GET[Option[TeamDetails]](s"$url/v2/organisations/teams/$teamName")
@@ -54,6 +54,12 @@ class UserManagementConnector @Inject()(
 
 object UserManagementConnector {
 
+  final case class UmpUsers(users: List[UmpUser])
+
+  object UmpUsers {
+    implicit val format: Format[UmpUsers] = Json.format[UmpUsers]
+  }
+
   final case class UmpUser(
     github: Option[String],
     username: Option[String]
@@ -61,6 +67,12 @@ object UserManagementConnector {
 
   object UmpUser {
     implicit val format: Format[UmpUser] = Json.format[UmpUser]
+  }
+
+  final case class UmpTeams(teams: List[TeamDetails])
+
+  object UmpTeams {
+    implicit val format: Format[UmpTeams] = Json.format[UmpTeams]
   }
 
   final case class TeamDetails(
