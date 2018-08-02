@@ -175,6 +175,30 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
     }
 
+    "report if no teams are found for a user" in new Fixtures {
+      private val teamName = "team-name"
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
+        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+
+      val githubUsername = "a-github-username"
+
+      val notificationRequest =
+        NotificationRequest(
+          channelLookup  = TeamsOfGithubUser("", githubUsername),
+          messageDetails = exampleMessageDetails
+        )
+
+      when(userManagementService.getTeamsForGithubUser(any())(any())).thenReturn(Future(List.empty))
+
+      val result = service.sendNotification(notificationRequest).futureValue
+
+      result shouldBe NotificationResult(
+        successfullySentTo = Nil,
+        errors             = List(TeamsNotFoundForGithubUsername(githubUsername)),
+        exclusions         = Nil
+      )
+    }
+
   }
 
   "Sending a request for teams of a github user" should {
@@ -343,11 +367,13 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
     "return the slackNotification channel when present" in new Fixtures {
       val teamChannelName = "teamChannel"
       val slackLink       = "foo/" + teamChannelName
-      val teamDetails     = TeamDetails(slack = Some(slackLink), slackNotification = Some(s"foo/$teamChannelName-notification"), team = "n/a")
+      val teamDetails = TeamDetails(
+        slack             = Some(slackLink),
+        slackNotification = Some(s"foo/$teamChannelName-notification"),
+        team              = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe Some(s"$teamChannelName-notification")
     }
-
 
     "return None if slack field exists but there is no slack channel in it" in new Fixtures {
       val slackLink   = "link-without-team/"
