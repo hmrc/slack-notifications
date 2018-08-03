@@ -98,6 +98,21 @@ class UserManagementConnectorSpec
         TeamDetails(Some("foo/team-A"), Some("foo/team-A-notifications"), "team-A"))
     }
 
+    "return an empty list of teams if the user has no teams" in {
+
+      stubFor(
+        get(urlEqualTo("/v2/organisations/users/ldapUsername/teams"))
+          .willReturn(
+            aResponse()
+              .withStatus(404)
+              .withBody("""
+                          |{
+                          |reason: "Not Found"
+                          |}""".stripMargin)))
+
+      ump.getTeamsForUser("ldapUsername").futureValue shouldBe List.empty
+    }
+
     "get team details" in {
 
       stubFor(

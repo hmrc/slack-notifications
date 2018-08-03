@@ -45,7 +45,9 @@ class UserManagementConnector @Inject()(
     http.GET[UmpUsers](s"$url/v2/organisations/users").map(_.users)
 
   def getTeamsForUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
-    http.GET[UmpTeams](s"$url/v2/organisations/users/$ldapUsername/teams").map(_.teams)
+    http
+      .GET[Option[UmpTeams]](s"$url/v2/organisations/users/$ldapUsername/teams")
+      .map(_.map(_.teams).getOrElse(List.empty))
 
   def getTeamDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
     http.GET[Option[TeamDetails]](s"$url/v2/organisations/teams/$teamName")
