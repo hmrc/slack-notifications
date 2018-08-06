@@ -26,10 +26,10 @@ body:
     },
     "messageDetails" : {
         "text" : "message to be posted",
-        "username" : "deployments-info"
+        "username" : "deployments-info",
         "iconEmoji" : ":snowman:", // optional
         "attachments" : [ // optional
-            "text" : "some-attachment"
+            { "text" : "some-attachment" }
         ]    
     }
 }
@@ -61,10 +61,10 @@ body:
     },
     "messageDetails" : {
         "text" : "message to be posted",
-        "username" : "deployments-info" 
+        "username" : "deployments-info", 
         "iconEmoji" : ":snowman:", // optional
         "attachments" : [ // optional
-            "text" : "some-attachment"
+            { "text" : "some-attachment" }
         ]
     }
 }
