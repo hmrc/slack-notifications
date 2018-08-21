@@ -2,16 +2,12 @@ import play.core.PlayVersion
 import play.sbt.PlayImport._
 import sbt._
 
-object MicroServiceBuild extends Build with MicroService {
-
-  val appName = "slack-notifications"
-
-  override lazy val appDependencies: Seq[ModuleID] = compile ++ test
+object AppDependencies {
 
   val compile = Seq(
     "uk.gov.hmrc"           %% "play-reactivemongo" % "6.2.0",
     "org.typelevel"         %% "cats-core"          % "1.0.1",
-    "uk.gov.hmrc"           %% "bootstrap-play-25"  % "1.6.0",
+    "uk.gov.hmrc"           %% "bootstrap-play-25"  % "1.7.0",
     "com.github.pureconfig" %% "pureconfig"         % "0.9.1",
     ws,
     cache

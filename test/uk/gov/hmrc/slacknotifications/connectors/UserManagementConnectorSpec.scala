@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.connectors
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpec}
 import play.api.{Configuration, Environment}
@@ -37,7 +37,8 @@ class UserManagementConnectorSpec
     with MockitoSugar
     with ScalaFutures
     with BeforeAndAfterEach
-    with GuiceOneAppPerSuite {
+    with GuiceOneAppPerSuite
+    with IntegrationPatience {
 
   val Port           = 8080
   val Host           = "localhost"
