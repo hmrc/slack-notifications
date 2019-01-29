@@ -23,14 +23,13 @@ import play.api.mvc._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 import uk.gov.hmrc.play.bootstrap.http.ErrorResponse
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 import uk.gov.hmrc.slacknotifications.model.NotificationRequest
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
 
-import scala.concurrent.Future
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton()
-class NotificationController @Inject()(authService: AuthService, notificationService: NotificationService)
+class NotificationController @Inject() (authService: AuthService, notificationService: NotificationService)(implicit ec: ExecutionContext)
     extends BaseController {
 
   def sendNotification() = Action.async(parse.json) { implicit request =>

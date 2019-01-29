@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import play.test.Helpers
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService.NotificationResult
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.Future
 

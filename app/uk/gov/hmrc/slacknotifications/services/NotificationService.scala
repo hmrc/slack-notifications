@@ -22,18 +22,12 @@ import play.api.{Configuration, Logger}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import uk.gov.hmrc.http._
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
 
 @Singleton
-class NotificationService @Inject()(
-  configuration: Configuration,
-  slackConnector: SlackConnector,
-  teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
-  userManagementConnector: UserManagementConnector,
-  userManagementService: UserManagementService) {
+class NotificationService @Inject() (configuration: Configuration, slackConnector: SlackConnector, teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector, userManagementConnector: UserManagementConnector, userManagementService: UserManagementService)(implicit ec: ExecutionContext) {
   import NotificationService._
 
   def sendNotification(notificationRequest: NotificationRequest)(

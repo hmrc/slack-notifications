@@ -19,16 +19,15 @@ package uk.gov.hmrc.slacknotifications.services
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
 import play.api.cache._
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Success
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, UmpUser}
+import scala.concurrent.{ ExecutionContext, Future }
 
 @Singleton
-class UserManagementService @Inject()(connector: UserManagementConnector, cache: CacheApi) {
+class UserManagementService @Inject() (connector: UserManagementConnector, cache: CacheApi)(implicit ec: ExecutionContext) {
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
     for {
