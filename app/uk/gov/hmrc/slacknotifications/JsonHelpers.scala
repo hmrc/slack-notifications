@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ trait JsonHelpers {
 
   implicit def nonEmptyListReads[A: Reads]: Reads[NonEmptyList[A]] = Reads { jsValue =>
     jsValue.validate[Seq[A]].flatMap {
-      case Nil          => JsError("Expected a non-empty list")
+      case Nil => JsError("Expected a non-empty list")
       case head :: tail => JsSuccess(NonEmptyList(head, tail))
     }
   }

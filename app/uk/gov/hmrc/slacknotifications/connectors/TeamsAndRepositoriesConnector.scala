@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,21 +19,17 @@ package uk.gov.hmrc.slacknotifications.connectors
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Format, Json}
 import play.api.{Configuration, Environment}
-import scala.concurrent.Future
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.config.ServicesConfig
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class TeamsAndRepositoriesConnector @Inject()(
-  http: HttpClient,
-  override val runModeConfiguration: Configuration,
-  environment: Environment)
-    extends ServicesConfig {
+class TeamsAndRepositoriesConnector @Inject()(http: HttpClient, override val runModeConfiguration: Configuration, environment: Environment)(implicit ec: ExecutionContext)
+  extends ServicesConfig {
 
   val mode = environment.mode
-  val url  = baseUrl("teams-and-repositories")
+  val url = baseUrl("teams-and-repositories")
 
   def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
     http.GET[Option[RepositoryDetails]](s"$url/api/repositories/$repositoryName")

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import play.test.Helpers
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService.NotificationResult
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.concurrent.Future
 
@@ -71,17 +72,18 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
       .thenReturn(Future.successful(NotificationResult()))
 
     val controller = new NotificationController(authService, notificationService)
-    val body       = """
-                 |{
-                 |    "channelLookup" : {
-                 |        "by" : "github-repository",
-                 |        "repositoryName" : "name-of-a-repo"
-                 |    },
-                 |    "messageDetails" : {
-                 |        "text" : "message to be posted",
-                 |        "username" : "deployments-info"
-                 |    }
-                 |}""".stripMargin
+    val body =
+      """
+        |{
+        |    "channelLookup" : {
+        |        "by" : "github-repository",
+        |        "repositoryName" : "name-of-a-repo"
+        |    },
+        |    "messageDetails" : {
+        |        "text" : "message to be posted",
+        |        "username" : "deployments-info"
+        |    }
+        |}""".stripMargin
 
     val baseRequest =
       FakeRequest[JsValue](
@@ -90,4 +92,5 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
         Headers("Content-Type" -> "application/json"),
         Json.parse(body))
   }
+
 }

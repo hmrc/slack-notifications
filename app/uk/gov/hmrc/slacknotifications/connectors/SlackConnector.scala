@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,13 @@ package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
-import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
 import uk.gov.hmrc.slacknotifications.model.SlackMessage
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlackConnector @Inject()(http: HttpClient, configuration: Configuration) {
+class SlackConnector @Inject()(http: HttpClient, configuration: Configuration)(implicit ec: ExecutionContext) {
 
   val slackWebHookUri = {
     val key = "slack.webhookUrl"

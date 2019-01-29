@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,11 +36,11 @@ class UserManagementServiceSpec extends WordSpec with Matchers with MockitoSugar
 
   "Service" should {
     "lookup LDAP username based on a Github handle using cached UMP response" in new Fixtures {
-      val githubUsername    = "user-1"
+      val githubUsername = "user-1"
       val githubUsernameUrl = s"https://github.com/$githubUsername"
-      val ldapUsername      = "ldap-username"
-      val service           = new UserManagementService(mockedUMPConnector, cacheApi)
-      val umpUsers          = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
+      val ldapUsername = "ldap-username"
+      val service = new UserManagementService(mockedUMPConnector, cacheApi)
+      val umpUsers = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
 
       when(mockedUMPConnector.getAllUsers(any()))
         .thenReturn(Future(umpUsers))
@@ -52,12 +52,12 @@ class UserManagementServiceSpec extends WordSpec with Matchers with MockitoSugar
     }
 
     "lookup MDTP teams for a Github user" in new Fixtures {
-      val githubUsername    = "user-1"
+      val githubUsername = "user-1"
       val githubUsernameUrl = s"https://github.com/$githubUsername"
-      val ldapUsername      = "ldap-username"
-      val service           = new UserManagementService(mockedUMPConnector, cacheApi)
-      val umpUsers          = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
-      val teams             = List(TeamDetails(slack = None, slackNotification = None, team = "n/a"))
+      val ldapUsername = "ldap-username"
+      val service = new UserManagementService(mockedUMPConnector, cacheApi)
+      val umpUsers = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
+      val teams = List(TeamDetails(slack = None, slackNotification = None, team = "n/a"))
 
       when(mockedUMPConnector.getAllUsers(any())).thenReturn(Future.successful(umpUsers))
       when(mockedUMPConnector.getTeamsForUser(any())(any())).thenReturn(Future(teams))
@@ -71,7 +71,7 @@ class UserManagementServiceSpec extends WordSpec with Matchers with MockitoSugar
     val mockedUMPConnector = mock[UserManagementConnector]
     val cacheApi: CacheApi = {
       val cacheManager = CacheManager.create()
-      val cacheName    = UUID.randomUUID().toString
+      val cacheName = UUID.randomUUID().toString
       cacheManager.addCache(cacheName)
       val cache = cacheManager.getCache(cacheName)
       new EhCacheApi(cache)

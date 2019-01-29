@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 HM Revenue & Customs
+ * Copyright 2019 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,18 +19,14 @@ package uk.gov.hmrc.slacknotifications.connectors
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Format, Json}
 import play.api.{Configuration, Environment}
-import scala.concurrent.Future
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.config.ServicesConfig
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UserManagementConnector @Inject()(
-  http: HttpClient,
-  override val runModeConfiguration: Configuration,
-  environment: Environment)
-    extends ServicesConfig {
+class UserManagementConnector @Inject()(http: HttpClient, override val runModeConfiguration: Configuration, environment: Environment)(implicit ec: ExecutionContext)
+  extends ServicesConfig {
 
   val mode = environment.mode
 
@@ -63,9 +59,9 @@ object UserManagementConnector {
   }
 
   final case class UmpUser(
-    github: Option[String],
-    username: Option[String]
-  )
+                            github: Option[String],
+                            username: Option[String]
+                          )
 
   object UmpUser {
     implicit val format: Format[UmpUser] = Json.format[UmpUser]
@@ -78,10 +74,10 @@ object UserManagementConnector {
   }
 
   final case class TeamDetails(
-    slack: Option[String],
-    slackNotification: Option[String],
-    team: String
-  )
+                                slack: Option[String],
+                                slackNotification: Option[String],
+                                team: String
+                              )
 
   object TeamDetails {
     implicit val format: Format[TeamDetails] = Json.format[TeamDetails]
