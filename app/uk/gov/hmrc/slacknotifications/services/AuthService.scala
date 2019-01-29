@@ -42,8 +42,8 @@ class AuthService @Inject()(configuration: Configuration) {
         case serviceWithoutBase64EncPass =>
           Left(
             CannotConvert(
-              value   = serviceWithoutBase64EncPass.toString,
-              toType  = "Service",
+              value = serviceWithoutBase64EncPass.toString,
+              toType = "Service",
               because = "password was not base64 encoded"
             )
           )
@@ -70,14 +70,14 @@ object AuthService {
   }
 
   final case class AuthConfiguration(
-    enabled: Boolean,
-    authorizedServices: List[Service]
-  )
+                                      enabled: Boolean,
+                                      authorizedServices: List[Service]
+                                    )
 
   final case class Service(
-    name: String,
-    password: String
-  )
+                            name: String,
+                            password: String
+                          )
 
   object Service {
     def fromAuthorization(authorization: Authorization): Option[Service] =
@@ -88,4 +88,5 @@ object AuthService {
           case Array(serviceName, password) => Service(serviceName, password)
         }
   }
+
 }

@@ -28,7 +28,7 @@ trait JsonHelpers {
 
   implicit def nonEmptyListReads[A: Reads]: Reads[NonEmptyList[A]] = Reads { jsValue =>
     jsValue.validate[Seq[A]].flatMap {
-      case Nil          => JsError("Expected a non-empty list")
+      case Nil => JsError("Expected a non-empty list")
       case head :: tail => JsSuccess(NonEmptyList(head, tail))
     }
   }

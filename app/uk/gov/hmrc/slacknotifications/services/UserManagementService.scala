@@ -24,18 +24,18 @@ import scala.util.Success
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, UmpUser}
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UserManagementService @Inject() (connector: UserManagementConnector, cache: CacheApi)(implicit ec: ExecutionContext) {
+class UserManagementService @Inject()(connector: UserManagementConnector, cache: CacheApi)(implicit ec: ExecutionContext) {
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
     for {
       maybeLdapUsername <- getLdapUsername(githubUsername)
       teams <- maybeLdapUsername match {
-                case Some(u) => connector.getTeamsForUser(u)
-                case None    => Future.successful(Nil)
-              }
+        case Some(u) => connector.getTeamsForUser(u)
+        case None => Future.successful(Nil)
+      }
     } yield {
       Logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
       teams

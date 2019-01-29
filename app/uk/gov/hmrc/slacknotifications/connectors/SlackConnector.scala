@@ -21,10 +21,10 @@ import play.api.Configuration
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.slacknotifications.model.SlackMessage
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlackConnector @Inject() (http: HttpClient, configuration: Configuration)(implicit ec: ExecutionContext) {
+class SlackConnector @Inject()(http: HttpClient, configuration: Configuration)(implicit ec: ExecutionContext) {
 
   val slackWebHookUri = {
     val key = "slack.webhookUrl"

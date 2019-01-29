@@ -28,20 +28,22 @@ sealed trait ChannelLookup {
 object ChannelLookup extends JsonHelpers {
 
   final case class GithubRepository(by: String, repositoryName: String) extends ChannelLookup
+
   final case class SlackChannel(by: String, slackChannels: NonEmptyList[String]) extends ChannelLookup
+
   final case class TeamsOfGithubUser(by: String, githubUsername: String) extends ChannelLookup
 
-  private val githubRepositoryReads  = Json.reads[GithubRepository].map(upcastAsChannelLookup)
-  private val slackChannelReads      = Json.reads[SlackChannel].map(upcastAsChannelLookup)
+  private val githubRepositoryReads = Json.reads[GithubRepository].map(upcastAsChannelLookup)
+  private val slackChannelReads = Json.reads[SlackChannel].map(upcastAsChannelLookup)
   private val teamsOfGithubUserReads = Json.reads[TeamsOfGithubUser].map(upcastAsChannelLookup)
 
   implicit val reads: Reads[ChannelLookup] =
     Reads[ChannelLookup] { json =>
       (json \ "by").validate[String].flatMap {
-        case "github-repository"    => json.validate(githubRepositoryReads)
-        case "slack-channel"        => json.validate(slackChannelReads)
+        case "github-repository" => json.validate(githubRepositoryReads)
+        case "slack-channel" => json.validate(slackChannelReads)
         case "teams-of-github-user" => json.validate(teamsOfGithubUserReads)
-        case _                      => JsError("Unknown channel lookup type")
+        case _ => JsError("Unknown channel lookup type")
       }
     }
 

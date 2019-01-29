@@ -24,7 +24,7 @@ import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, Sla
 class ChannelLookupSpec extends WordSpec with Matchers {
   "Channel lookup" should {
     "be possible by github repository name" in {
-      val by       = "github-repository"
+      val by = "github-repository"
       val repoName = "a-repo-name"
       val json =
         s"""
@@ -38,7 +38,7 @@ class ChannelLookupSpec extends WordSpec with Matchers {
     }
 
     "be possible directly by slack channel name" in {
-      val by           = "slack-channel"
+      val by = "slack-channel"
       val slackChannel = "a-team-channel"
       val json =
         s"""
@@ -73,7 +73,7 @@ class ChannelLookupSpec extends WordSpec with Matchers {
     }
 
     "be possible by github username for their teams" in {
-      val by             = "teams-of-github-user"
+      val by = "teams-of-github-user"
       val githubUsername = "a-github-username"
       val json =
         s"""

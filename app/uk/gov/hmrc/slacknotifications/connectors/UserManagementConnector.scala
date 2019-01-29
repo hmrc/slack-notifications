@@ -22,11 +22,11 @@ import play.api.{Configuration, Environment}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.config.ServicesConfig
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UserManagementConnector @Inject() (http: HttpClient, override val runModeConfiguration: Configuration, environment: Environment)(implicit ec: ExecutionContext)
-    extends ServicesConfig {
+class UserManagementConnector @Inject()(http: HttpClient, override val runModeConfiguration: Configuration, environment: Environment)(implicit ec: ExecutionContext)
+  extends ServicesConfig {
 
   val mode = environment.mode
 
@@ -59,9 +59,9 @@ object UserManagementConnector {
   }
 
   final case class UmpUser(
-    github: Option[String],
-    username: Option[String]
-  )
+                            github: Option[String],
+                            username: Option[String]
+                          )
 
   object UmpUser {
     implicit val format: Format[UmpUser] = Json.format[UmpUser]
@@ -74,10 +74,10 @@ object UserManagementConnector {
   }
 
   final case class TeamDetails(
-    slack: Option[String],
-    slackNotification: Option[String],
-    team: String
-  )
+                                slack: Option[String],
+                                slackNotification: Option[String],
+                                team: String
+                              )
 
   object TeamDetails {
     implicit val format: Format[TeamDetails] = Json.format[TeamDetails]

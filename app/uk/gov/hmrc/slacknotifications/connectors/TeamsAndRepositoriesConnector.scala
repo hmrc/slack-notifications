@@ -22,14 +22,14 @@ import play.api.{Configuration, Environment}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.config.ServicesConfig
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class TeamsAndRepositoriesConnector @Inject() (http: HttpClient, override val runModeConfiguration: Configuration, environment: Environment)(implicit ec: ExecutionContext)
-    extends ServicesConfig {
+class TeamsAndRepositoriesConnector @Inject()(http: HttpClient, override val runModeConfiguration: Configuration, environment: Environment)(implicit ec: ExecutionContext)
+  extends ServicesConfig {
 
   val mode = environment.mode
-  val url  = baseUrl("teams-and-repositories")
+  val url = baseUrl("teams-and-repositories")
 
   def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
     http.GET[Option[RepositoryDetails]](s"$url/api/repositories/$repositoryName")

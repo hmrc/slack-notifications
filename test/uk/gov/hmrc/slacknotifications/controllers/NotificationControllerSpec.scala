@@ -72,17 +72,18 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
       .thenReturn(Future.successful(NotificationResult()))
 
     val controller = new NotificationController(authService, notificationService)
-    val body       = """
-                 |{
-                 |    "channelLookup" : {
-                 |        "by" : "github-repository",
-                 |        "repositoryName" : "name-of-a-repo"
-                 |    },
-                 |    "messageDetails" : {
-                 |        "text" : "message to be posted",
-                 |        "username" : "deployments-info"
-                 |    }
-                 |}""".stripMargin
+    val body =
+      """
+        |{
+        |    "channelLookup" : {
+        |        "by" : "github-repository",
+        |        "repositoryName" : "name-of-a-repo"
+        |    },
+        |    "messageDetails" : {
+        |        "text" : "message to be posted",
+        |        "username" : "deployments-info"
+        |    }
+        |}""".stripMargin
 
     val baseRequest =
       FakeRequest[JsValue](
@@ -91,4 +92,5 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
         Headers("Content-Type" -> "application/json"),
         Json.parse(body))
   }
+
 }
