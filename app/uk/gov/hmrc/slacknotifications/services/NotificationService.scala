@@ -141,8 +141,16 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
 
   private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
     teamDetails.slackNotification.orElse(teamDetails.slack).flatMap { slackChannelUrl =>
-      val slashPos = slackChannelUrl.lastIndexOf("/")
-      val s = slackChannelUrl.substring(slashPos + 1)
+
+
+      val urlWithoutTrailingSpace = if (slackChannelUrl.endsWith("/")) {
+        slackChannelUrl.init
+      } else {
+        slackChannelUrl
+      }
+
+      val slashPos = urlWithoutTrailingSpace.lastIndexOf("/")
+      val s = urlWithoutTrailingSpace.substring(slashPos + 1)
       if (slashPos > 0 && s.nonEmpty) Some(s) else None
     }
 
