@@ -17,7 +17,6 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import cats.data.NonEmptyList
-import concurrent.duration._
 import org.mockito.Matchers.any
 import org.mockito.Mockito.when
 import org.scalacheck.Gen
@@ -26,15 +25,16 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{Matchers, WordSpec}
 import play.api.Configuration
-import play.api.libs.json.{JsValue, Json}
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFoundException, _}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
 import uk.gov.hmrc.slacknotifications.model.{MessageDetails, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration._
 
 class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with PropertyChecks {
 
@@ -141,6 +141,47 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
 
       val teamChannel = "team-channel"
       val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = "n/a")
+
+      val channelLookups = List(
+        GithubRepository("", "repo"),
+        SlackChannel("", NonEmptyList.of(teamChannel)),
+        TeamsOfGithubUser("", "a-github-handle")
+      )
+
+      channelLookups.foreach { channelLookup =>
+        val notificationRequest =
+          NotificationRequest(
+            channelLookup = channelLookup,
+            messageDetails = MessageDetails(
+              text = "some-text-to-post-to-slack",
+              username = "username",
+              iconEmoji = Some(":snowman:"),
+              attachments = Nil
+            )
+          )
+
+        when(userManagementService.getTeamsForGithubUser(any())(any())).thenReturn(Future(List(teamDetails)))
+        when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
+        when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
+
+        val result = service.sendNotification(notificationRequest).futureValue
+
+        result shouldBe NotificationResult(
+          successfullySentTo = List(teamChannel),
+          errors = Nil,
+          exclusions = Nil
+        )
+      }
+
+    }
+
+    "work for all channel lookup types (happy path scenarios)with trailing / at the end" in new Fixtures {
+      private val teamName = "team-name"
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
+        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+
+      val teamChannel = "team-channel"
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel/"), None, team = "n/a")
 
       val channelLookups = List(
         GithubRepository("", "repo"),
@@ -392,6 +433,8 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       service.extractSlackChannel(teamDetails) shouldBe None
     }
   }
+
+
 
   trait Fixtures {
     val slackConnector = mock[SlackConnector]
