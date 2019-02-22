@@ -16,24 +16,26 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
+import akka.actor.ActorSystem
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpec}
-import play.api.{Configuration, Environment}
+import play.api.{Configuration, Environment, Play}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.hooks.HttpHook
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.ws.WSHttp
 import com.github.tomakehurst.wiremock.client.WireMock._
+import com.typesafe.config.Config
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class UserManagementConnectorSpec
-  extends WordSpec
+    extends WordSpec
     with Matchers
     with MockitoSugar
     with ScalaFutures
@@ -41,8 +43,8 @@ class UserManagementConnectorSpec
     with GuiceOneAppPerSuite
     with IntegrationPatience {
 
-  val Port = 8080
-  val Host = "localhost"
+  val Port           = 8080
+  val Host           = "localhost"
   val wireMockServer = new WireMockServer(wireMockConfig().port(Port))
 
   override def beforeEach {
@@ -56,6 +58,10 @@ class UserManagementConnectorSpec
 
   val httpClient = new HttpClient with WSHttp {
     override val hooks: Seq[HttpHook] = Seq.empty
+
+    override protected def actorSystem: ActorSystem = Play.current.actorSystem
+
+    override protected def configuration: Option[Config] = Option(Play.current.configuration.underlying)
   }
 
   "The connector" should {
@@ -85,8 +91,7 @@ class UserManagementConnectorSpec
           .willReturn(
             aResponse()
               .withStatus(200)
-              .withBody(
-                """
+              .withBody("""
                   |{
                   |  "teams": [
                   |    {
@@ -108,8 +113,7 @@ class UserManagementConnectorSpec
           .willReturn(
             aResponse()
               .withStatus(404)
-              .withBody(
-                """
+              .withBody("""
                   |{
                   |reason: "Not Found"
                   |}""".stripMargin)))
@@ -124,8 +128,7 @@ class UserManagementConnectorSpec
           .willReturn(
             aResponse()
               .withStatus(200)
-              .withBody(
-                """
+              .withBody("""
                   |{
                   |  "slack": "foo/team-A",
                   |  "slackNotification": "foo/team-A-notifications",
