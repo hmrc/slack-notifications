@@ -9,13 +9,26 @@ Notifications can be sent to a correct slack channel based on specified criteria
 ## Auth
 This service uses Basic Auth for access control. If you want to use it please contact team PlatOps.
 
+## Adding new users able to send Slack Notifications
+
+If you would like to add a new user that is able to send Slack notifications then you will need to submit a PR to the following repos:
+
+  1. https://github.com/hmrc/app-config-platapps-labs/blob/master/slack-notifications.yaml#L73-L74
+  1. https://github.com/hmrc/app-config-platapps-live/blob/master/slack-notifications.yaml#L75-L76
+
+Passwords need to be base64 encoded and then encrypted (as described in the configs above)
+
+Once we receive the PR we will review, before redeploying the app.
+
+**N.B.** This only applies to users within the HMRC organisation on github
+
 ## Send to teams that own a repository
 
-Sends slack messages to all teams contributing to a repo as shown in The Catalogue. 
+Sends slack messages to all teams contributing to a repo as shown in The Catalogue.
 If a repository defines owners explicitly in the 'repository.yaml' file, Slack message will be sent only to those teams (relevant mostly for shared repos like app-config-*).
 
 ```
-POST /slack-notifications/notification 
+POST /slack-notifications/notification
 
 body:
 
@@ -54,14 +67,14 @@ body:
 {
     "channelLookup" : {
         "by" : "slack-channel",
-        "slackChannels" : [ 
+        "slackChannels" : [
             "channel1",
-            "channel2" 
+            "channel2"
         ]
     },
     "messageDetails" : {
         "text" : "message to be posted",
-        "username" : "deployments-info", 
+        "username" : "deployments-info",
         "iconEmoji" : ":snowman:", // optional
         "attachments" : [ // optional
             { "text" : "some-attachment" }
@@ -84,7 +97,7 @@ body:
     },
     "messageDetails" : {
         "text" : "message to be posted",
-        "username" : "deployments-info" 
+        "username" : "deployments-info"
         "iconEmoji" : ":snowman:", // optional
         "attachments" : [ // optional
             "text" : "some-attachment"
@@ -100,11 +113,11 @@ Response will typically have 200 status code and the following details:
 ```
 
 {
-    "successfullySentTo" : [ 
+    "successfullySentTo" : [
         "channel1",
-        "channel2" 
+        "channel2"
     ],
-    "errors" : [ 
+    "errors" : [
         {   
             "code" : "error_code_1",
             "message" : "Details of a problem"
@@ -147,4 +160,3 @@ Response will typically have 200 status code and the following details:
 ### License
 
 This code is open source software licensed under the [Apache 2.0 License]("http://www.apache.org/licenses/LICENSE-2.0.html")
-
