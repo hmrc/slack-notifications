@@ -49,7 +49,7 @@ body:
 ```
 
 example curl request:
-(assuming basic auth credentials for user: foo, pass: bar)
+(assuming basic auth credentials for user: foo, pass: bar, i.e.: user:bar (Base64 encoded) = Zm9vOmJhcg==)
 
 ```
 curl -X POST -H 'Content-type: application/json' -H 'Authorization: Basic Zm9vOmJhcg==' \
