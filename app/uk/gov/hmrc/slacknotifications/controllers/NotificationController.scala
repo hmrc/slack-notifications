@@ -27,6 +27,7 @@ import uk.gov.hmrc.slacknotifications.model.NotificationRequest
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Success, Try}
 
 @Singleton()
 class NotificationController @Inject()(authService: AuthService, notificationService: NotificationService)(implicit ec: ExecutionContext)
@@ -35,10 +36,17 @@ class NotificationController @Inject()(authService: AuthService, notificationSer
   def sendNotification() = Action.async(parse.json) { implicit request =>
     withAuthorization {
       withJsonBody[NotificationRequest] { notificationRequest =>
-        notificationService.sendNotification(notificationRequest).map { results =>
-          val asJson = Json.toJson(results)
-          Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
-          Ok(asJson)
+        val maybeService = hc.authorization.flatMap(AuthService.Service.fromAuthorization)
+        Try(notificationRequest.messageDetails.username.equals(maybeService.get.displayName)) match {
+          case Success(true) =>
+            notificationService.sendNotification(notificationRequest).map { results =>
+              val asJson = Json.toJson(results)
+              Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
+              Ok(asJson)
+            }
+          case _ =>
+            implicit val erFormats = Json.format[ErrorResponse]
+            Future.successful(BadRequest(Json.toJson(ErrorResponse(400, "Invalid display name."))))
         }
       }
     }

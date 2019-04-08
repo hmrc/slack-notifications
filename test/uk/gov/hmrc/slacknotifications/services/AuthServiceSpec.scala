@@ -28,7 +28,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
   "Checking if user is authorised" should {
 
     "return true if the service is present in the configuration" in {
-      val service = Service("foo", "bar")
+      val service = Service("foo", "bar", "foo")
 
       val typesafeConfig = ConfigFactory.parseString(
         s"""
@@ -38,6 +38,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
               {
                 name = ${service.name}
                 password = ${base64Encode(service.password)}
+                displayName = ${service.displayName}
               }
             ]
           }
@@ -52,13 +53,14 @@ class AuthServiceSpec extends WordSpec with Matchers {
     }
 
     "return true if the service is present in the configuration (app-config-* style)" in {
-      val service = Service("foo", "bar")
+      val service = Service("foo", "bar", "boo")
 
       val configuration =
         Configuration(
           "auth.enabled" -> true,
           "auth.authorizedServices.0.name" -> service.name,
-          "auth.authorizedServices.0.password" -> base64Encode(service.password)
+          "auth.authorizedServices.0.password" -> base64Encode(service.password),
+          "auth.authorizedServices.0.displayName" -> service.displayName
         )
 
       val authService = new AuthService(configuration)
@@ -67,17 +69,18 @@ class AuthServiceSpec extends WordSpec with Matchers {
     }
 
     "return false if no matching service is found in config" in {
-      val service = Service("foo", "bar")
+      val service = Service("foo", "bar", "foo")
       val configuration =
         Configuration(
           "auth.enabled" -> true,
           "auth.authorizedServices.0.name" -> service.name,
-          "auth.authorizedServices.0.password" -> service.password
-        )
+          "auth.authorizedServices.0.password" -> service.password,
+          "auth.authorizedServices.0.displayName" -> service.displayName
+      )
 
       val authService = new AuthService(configuration)
 
-      val anotherServiceNotInConfig = Service("x", "y")
+      val anotherServiceNotInConfig = Service("x", "y", "z")
 
       authService.isAuthorized(Some(anotherServiceNotInConfig)) shouldBe false
     }
@@ -94,7 +97,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
       val authService = new AuthService(Configuration(typesafeConfig))
 
-      authService.isAuthorized(Some(Service("foo", "bar"))) shouldBe true
+      authService.isAuthorized(Some(Service("foo", "bar", "foo"))) shouldBe true
       authService.isAuthorized(None) shouldBe true
     }
 
@@ -106,7 +109,8 @@ class AuthServiceSpec extends WordSpec with Matchers {
         Configuration(
           "auth.enabled" -> true,
           "auth.authorizedServices.0.name" -> "name",
-          "auth.authorizedServices.0.password" -> "not base64 encoded $%£*&^"
+          "auth.authorizedServices.0.password" -> "not base64 encoded $%£*&^",
+          "auth.authorizedServices.0.displayName" -> "displayName"
         )
 
       val exception = intercept[ConfigReaderException[AuthConfiguration]] {
