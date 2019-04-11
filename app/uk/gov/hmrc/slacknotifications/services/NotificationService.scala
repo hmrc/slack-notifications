@@ -19,12 +19,13 @@ package uk.gov.hmrc.slacknotifications.services
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.{Configuration, Logger}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class NotificationService @Inject()(configuration: Configuration, slackConnector: SlackConnector, teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector, userManagementConnector: UserManagementConnector, userManagementService: UserManagementService)(implicit ec: ExecutionContext) {
@@ -70,6 +71,21 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
           }
         }
     }
+
+  def sanitiseNotification(notificationRequest: NotificationRequest, displayName: String): NotificationRequest = {
+
+    val sanitisedAttachments = notificationRequest.messageDetails.attachments.map(
+      a => a.copy(
+        author_name = Some(displayName),
+        author_icon = None))
+
+    notificationRequest.copy(
+      messageDetails = notificationRequest.messageDetails.copy(
+        username = displayName,
+        iconEmoji = None,
+        attachments = sanitisedAttachments)
+    )
+  }
 
   private def flatten(results: Seq[NotificationResult]): NotificationResult =
     results.foldLeft(NotificationResult()) { (acc, current) =>

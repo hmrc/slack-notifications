@@ -18,7 +18,7 @@ package uk.gov.hmrc.slacknotifications.controllers
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
@@ -27,26 +27,26 @@ import uk.gov.hmrc.slacknotifications.model.NotificationRequest
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Success, Try}
 
 @Singleton()
 class NotificationController @Inject()(authService: AuthService, notificationService: NotificationService)(implicit ec: ExecutionContext)
   extends BaseController {
 
-  def sendNotification() = Action.async(parse.json) { implicit request =>
+  def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     withAuthorization {
       withJsonBody[NotificationRequest] { notificationRequest =>
         val maybeService = hc.authorization.flatMap(AuthService.Service.fromAuthorization)
-        Try(notificationRequest.messageDetails.username.equals(maybeService.get.displayName)) match {
-          case Success(true) =>
-            notificationService.sendNotification(notificationRequest).map { results =>
+        (maybeService, authService.isValidatedNotificationRequest(notificationRequest)) match {
+          case (Some(s), true) =>
+            val sanitisedNotification = notificationService.sanitiseNotification(notificationRequest, s.displayName)
+            notificationService.sendNotification(sanitisedNotification).map { results =>
               val asJson = Json.toJson(results)
               Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
               Ok(asJson)
             }
           case _ =>
             implicit val erFormats = Json.format[ErrorResponse]
-            Future.successful(BadRequest(Json.toJson(ErrorResponse(400, "Invalid display name."))))
+            Future.successful(BadRequest(Json.toJson(ErrorResponse(400, "Invalid notification contents."))))
         }
       }
     }

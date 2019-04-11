@@ -21,22 +21,22 @@ import org.mockito.Matchers.any
 import org.mockito.Mockito.when
 import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.prop.PropertyChecks
 import org.scalatest.{Matchers, WordSpec}
+import org.scalatestplus.mockito.MockitoSugar
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
 import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFoundException, _}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
-import uk.gov.hmrc.slacknotifications.model.{MessageDetails, NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{Attachment, MessageDetails, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with PropertyChecks {
+class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures with MockitoSugar with ScalaCheckPropertyChecks {
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(5.second, 15.millis)
@@ -432,6 +432,24 @@ class NotificationServiceSpec extends WordSpec with Matchers with ScalaFutures w
       val teamDetails = TeamDetails(slack = Some("not a url"), None, team = "n/a")
       service.extractSlackChannel(teamDetails) shouldBe None
     }
+  }
+
+  "Sanitising a notification request" should {
+
+    "strip out the emoji and replace username / author name details with configured display name" in new Fixtures {
+      val result = service.sanitiseNotification(NotificationRequest(
+        channelLookup = SlackChannel("", NonEmptyList.of("")),
+        messageDetails = exampleMessageDetails.copy(attachments =
+          Seq(Attachment(None, None, None, author_name = Some("username"),
+            None, Some(":monkey:"), None, None, None, None, None, None, None, None, None
+            )))), "correct-name")
+
+      result.messageDetails.username should be("correct-name")
+      result.messageDetails.iconEmoji should be(None)
+      result.messageDetails.attachments.head.author_name should be(Some("correct-name"))
+      result.messageDetails.attachments.head.author_icon should be(None)
+    }
+
   }
 
 

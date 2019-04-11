@@ -37,7 +37,14 @@ case class Attachment(
                        footer: Option[String],
                        footer_icon: Option[String],
                        ts: Option[Int]
-                     )
+                     ) {
+
+  def getFields: Array[String] = getClass.getDeclaredFields.map(field => {
+    field.setAccessible(true)
+    field.get(this).toString
+  })
+
+}
 
 object Attachment {
 

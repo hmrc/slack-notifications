@@ -16,14 +16,20 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
+import cats.data.NonEmptyList
 import com.google.common.io.BaseEncoding
 import com.typesafe.config.ConfigFactory
+import org.scalacheck.Arbitrary.arbitrary
+import org.scalacheck.Gen
 import org.scalatest.{Matchers, WordSpec}
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
 import pureconfig.error.ConfigReaderException
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.SlackChannel
+import uk.gov.hmrc.slacknotifications.model.{Attachment, MessageDetails, NotificationRequest}
 import uk.gov.hmrc.slacknotifications.services.AuthService.{AuthConfiguration, Service}
 
-class AuthServiceSpec extends WordSpec with Matchers {
+class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks {
 
   "Checking if user is authorised" should {
 
@@ -41,6 +47,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
                 displayName = ${service.displayName}
               }
             ]
+            authorizedUrls = []
           }
          """
       )
@@ -60,7 +67,8 @@ class AuthServiceSpec extends WordSpec with Matchers {
           "auth.enabled" -> true,
           "auth.authorizedServices.0.name" -> service.name,
           "auth.authorizedServices.0.password" -> base64Encode(service.password),
-          "auth.authorizedServices.0.displayName" -> service.displayName
+          "auth.authorizedServices.0.displayName" -> service.displayName,
+          "auth.authorizedUrls.0" -> ""
         )
 
       val authService = new AuthService(configuration)
@@ -75,8 +83,9 @@ class AuthServiceSpec extends WordSpec with Matchers {
           "auth.enabled" -> true,
           "auth.authorizedServices.0.name" -> service.name,
           "auth.authorizedServices.0.password" -> service.password,
-          "auth.authorizedServices.0.displayName" -> service.displayName
-      )
+          "auth.authorizedServices.0.displayName" -> service.displayName,
+          "auth.authorizedUrls.0" -> ""
+        )
 
       val authService = new AuthService(configuration)
 
@@ -91,6 +100,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
           auth {
             enabled = false
             authorizedServices = []
+            authorizedUrls = []
           }
          """
       )
@@ -103,6 +113,123 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
   }
 
+  "Check if a URL provided in the request" should {
+
+    "return false if the URL is not whitelisted" in {
+      val typesafeConfig = ConfigFactory.parseString(
+        s"""
+          auth {
+            enabled = false
+            authorizedServices = []
+            authorizedUrls = []
+          }
+         """
+      )
+
+      val urlGenerator: Gen[String] = arbitrary[String]
+
+      forAll(urlGenerator -> "url") { url: String =>
+        val authService = new AuthService(Configuration(typesafeConfig))
+        authService.isAuthorizedUrl(s"http://$url.com") shouldBe false
+      }
+    }
+
+    "return true if the URL is whitelisted" in {
+      val typesafeConfig = ConfigFactory.parseString(
+        s"""
+          auth {
+            enabled = true
+            authorizedServices = []
+            authorizedUrls = [
+            "https://jira.tools.tax.service.gov.uk"
+            ]
+          }
+         """
+      )
+        val authService = new AuthService(Configuration(typesafeConfig))
+        authService.isAuthorizedUrl("https://jira.tools.tax.service.gov.uk") shouldBe true
+    }
+
+  }
+
+  "Filter fields for URLs" should {
+
+    "correctly identify the presence of URLs" in {
+      val typesafeConfig = ConfigFactory.parseString(
+        s"""
+          auth {
+            enabled = true
+            authorizedServices = []
+            authorizedUrls = []
+          }
+         """
+      )
+
+      val authService = new AuthService(Configuration(typesafeConfig))
+
+      val result = authService.filterFieldsForURLs(Array(
+        "https://jira.tools.tax.service.gov.uk",
+        "there is a URL here http://jira.tools.tax.service.gov.uk in this text"))
+
+      result.length should be(2)
+    }
+
+  }
+
+  "Check if a request contains only valid URLs" should {
+
+    "return true if there are only whitelisted URLs present" in {
+      val typesafeConfig = ConfigFactory.parseString(
+        s"""
+          auth {
+            enabled = true
+            authorizedServices = []
+            authorizedUrls = [
+            "https://jira.tools.tax.service.gov.uk",
+            "https://aws.amazon.com"
+            ]
+          }
+         """
+      )
+      val authService = new AuthService(Configuration(typesafeConfig))
+
+      val notificationRequest = NotificationRequest(
+        SlackChannel("", NonEmptyList.of("test")),
+        MessageDetails("", "aaaaaaa", None, Seq(Attachment(None,None,Some("aaaaaaaa"),None,None,
+          None,None,Some("https://aws.amazon.com"),Some("https://jira.tools.tax.service.gov.uk"),
+          None,None,Some("aws.amazon.com"),None,Some("jira.tools.tax.service.gov.uk"),None))))
+
+      authService.isValidatedNotificationRequest(notificationRequest) shouldBe true
+    }
+
+    "return false if there are any non-whitelisted URLs present" in {
+      val typesafeConfig = ConfigFactory.parseString(
+        s"""
+          auth {
+            enabled = true
+            authorizedServices = []
+            authorizedUrls = [
+            "https://jira.tools.tax.service.gov.uk",
+            "https://aws.amazon.com"
+            ]
+          }
+         """
+      )
+      val authService = new AuthService(Configuration(typesafeConfig))
+
+      val urlGenerator: Gen[String] = arbitrary[String]
+
+      forAll(urlGenerator -> "url") { url: String =>
+        val notificationRequest = NotificationRequest(
+          SlackChannel("", NonEmptyList.of("test")),
+          MessageDetails("", s"http://$url.com", None, Seq(Attachment(Some("aaaaaaaaa"),None,None,
+            None,None,None,None,Some("https://jira.tools.tax.service.gov.uk"),Some(s"https://$url.co.uk"),
+            None,None,None,None,Some(s"$url.com"),None))))
+        authService.isValidatedNotificationRequest(notificationRequest) shouldBe false
+      }
+    }
+  }
+
   "Instantiating AuthService" should {
     "fail if password is not base64 encoded" in {
       val configuration =
@@ -110,7 +237,8 @@ class AuthServiceSpec extends WordSpec with Matchers {
           "auth.enabled" -> true,
           "auth.authorizedServices.0.name" -> "name",
           "auth.authorizedServices.0.password" -> "not base64 encoded $%£*&^",
-          "auth.authorizedServices.0.displayName" -> "displayName"
+          "auth.authorizedServices.0.displayName" -> "displayName",
+          "auth.authorizedUrls.0" -> ""
         )
 
       val exception = intercept[ConfigReaderException[AuthConfiguration]] {

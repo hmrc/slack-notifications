@@ -25,7 +25,14 @@ final case class MessageDetails(
                                  username: String,
                                  iconEmoji: Option[String] = None,
                                  attachments: Seq[Attachment] = Nil
-                               )
+                               ) {
+
+  def getFields: Array[String] = getClass.getDeclaredFields.map(field => {
+    field.setAccessible(true)
+    field.getName -> field.get(this).toString
+  }).filter(f => f._1 != "attachments").map(_._2)
+
+}
 
 object MessageDetails {
   implicit val reads: Reads[MessageDetails] = (

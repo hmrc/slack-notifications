@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
+import java.net.URL
+
 import com.google.common.io.BaseEncoding
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
@@ -23,8 +25,9 @@ import pureconfig.error.CannotConvert
 import pureconfig.syntax._
 import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader, ProductHint}
 import uk.gov.hmrc.http.logging.Authorization
+import uk.gov.hmrc.slacknotifications.model.{Attachment, NotificationRequest}
 
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 @Singleton
 class AuthService @Inject()(configuration: Configuration) {
@@ -58,6 +61,27 @@ class AuthService @Inject()(configuration: Configuration) {
     } else {
       true
     }
+
+  def isAuthorizedUrl(url: String): Boolean = authConfiguration.authorizedUrls.contains(url)
+
+  def filterFieldsForURLs(fields: Array[String]): Array[String] = fields.flatMap(
+    f => {
+      f.split(" ")
+//        .filter(s => s.startsWith("http") || s.startsWith("https") || s.startsWith("www"))
+        .map(segment => Try(new URL(segment.trim)))
+        .filter(possibleUrl => possibleUrl.isSuccess)
+        .map(url => url.getOrElse("").toString)
+    })
+
+  def isValidatedNotificationRequest(notificationRequest: NotificationRequest): Boolean = {
+
+    val messageValues = filterFieldsForURLs(notificationRequest.messageDetails.getFields)
+    val attachmentValues = notificationRequest.messageDetails.attachments.flatMap(
+      (attachment: Attachment) => filterFieldsForURLs(attachment.getFields))
+
+    messageValues.forall(isAuthorizedUrl) && attachmentValues.forall(isAuthorizedUrl)
+  }
+
 }
 
 object AuthService {
@@ -71,7 +95,8 @@ object AuthService {
 
   final case class AuthConfiguration(
                                       enabled: Boolean,
-                                      authorizedServices: List[Service]
+                                      authorizedServices: List[Service],
+                                      authorizedUrls: List[String]
                                     )
 
   final case class Service(
