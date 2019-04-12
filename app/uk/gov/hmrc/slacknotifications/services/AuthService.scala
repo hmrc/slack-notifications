@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import java.net.URL
-
 import com.google.common.io.BaseEncoding
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
@@ -27,7 +25,7 @@ import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader, ProductHint}
 import uk.gov.hmrc.http.logging.Authorization
 import uk.gov.hmrc.slacknotifications.model.{Attachment, NotificationRequest}
 
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 @Singleton
 class AuthService @Inject()(configuration: Configuration) {
@@ -64,20 +62,30 @@ class AuthService @Inject()(configuration: Configuration) {
 
   def isAuthorizedUrl(url: String): Boolean = authConfiguration.authorizedUrls.contains(url)
 
-  def filterFieldsForURLs(fields: Array[String]): Array[String] = fields.flatMap(
-    f => {
-      f.split(" ")
-//        .filter(s => s.startsWith("http") || s.startsWith("https") || s.startsWith("www"))
-        .map(segment => Try(new URL(segment.trim)))
-        .filter(possibleUrl => possibleUrl.isSuccess)
-        .map(url => url.getOrElse("").toString)
-    })
+  def filterFieldsForURLs(fields: Array[String]): Array[String] = {
+    val pattern =
+      ("(?:[a-zA-Z]+:)?(?:\\/\\/)?(?:[\\w-]+:[\\w-]+@)?(?:[\\w-]+\\.)+[a-zA-Z]+" +
+        "(?:[\\w$-_.+!*'(),,;/?:@=&\"<>#%{}|\\\\^~\\[\\]\\`]*)?").r
+    fields.flatMap(
+      f => {
+        f.split(" ")
+          .map(segment => pattern.findAllIn(segment.trim))
+          .filter(iterator => iterator.nonEmpty)
+          .map(
+            v =>
+              v.next()
+                .replaceAll("https://", "")
+                .split("/")
+                .head)
+      }
+    )
+  }
 
   def isValidatedNotificationRequest(notificationRequest: NotificationRequest): Boolean = {
 
     val messageValues = filterFieldsForURLs(notificationRequest.messageDetails.getFields)
     val attachmentValues = notificationRequest.messageDetails.attachments.flatMap(
-      (attachment: Attachment) => filterFieldsForURLs(attachment.getFields))
+      (attachment: Attachment) => filterFieldsForURLs(attachment.getFields.map(_.toString)))
 
     messageValues.forall(isAuthorizedUrl) && attachmentValues.forall(isAuthorizedUrl)
   }

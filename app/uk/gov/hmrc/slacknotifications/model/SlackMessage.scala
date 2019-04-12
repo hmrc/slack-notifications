@@ -39,10 +39,25 @@ case class Attachment(
                        ts: Option[Int]
                      ) {
 
-  def getFields: Array[String] = getClass.getDeclaredFields.map(field => {
-    field.setAccessible(true)
-    field.get(this).toString
-  })
+  def getFields: Array[String] = {
+    val baseFields = Array(
+      this.fallback,
+      this.color,
+      this.pretext,
+      this.author_name,
+      this.author_link,
+      this.author_icon,
+      this.title,
+      this.title,
+      this.text,
+      this.image_url,
+      this.thumb_url,
+      this.footer,
+      this.footer_icon
+    )
+
+    baseFields.flatten
+  }
 
 }
 

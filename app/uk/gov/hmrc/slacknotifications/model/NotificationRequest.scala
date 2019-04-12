@@ -30,7 +30,7 @@ final case class MessageDetails(
   def getFields: Array[String] = getClass.getDeclaredFields.map(field => {
     field.setAccessible(true)
     field.getName -> field.get(this).toString
-  }).filter(f => f._1 != "attachments").map(_._2)
+  }).filter(_._1 != "attachments").map(_._2)
 
 }
 

@@ -19,7 +19,6 @@ package uk.gov.hmrc.slacknotifications.services
 import cats.data.NonEmptyList
 import com.google.common.io.BaseEncoding
 import com.typesafe.config.ConfigFactory
-import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen
 import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -126,7 +125,7 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
          """
       )
 
-      val urlGenerator: Gen[String] = arbitrary[String]
+      val urlGenerator: Gen[String] = Gen.alphaStr.suchThat(s => s.length > 0)
 
       forAll(urlGenerator -> "url") { url: String =>
         val authService = new AuthService(Configuration(typesafeConfig))
@@ -146,8 +145,8 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
           }
          """
       )
-        val authService = new AuthService(Configuration(typesafeConfig))
-        authService.isAuthorizedUrl("https://jira.tools.tax.service.gov.uk") shouldBe true
+      val authService = new AuthService(Configuration(typesafeConfig))
+      authService.isAuthorizedUrl("https://jira.tools.tax.service.gov.uk") shouldBe true
     }
 
   }
@@ -169,63 +168,133 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
 
       val result = authService.filterFieldsForURLs(Array(
         "https://jira.tools.tax.service.gov.uk",
-        "there is a URL here http://jira.tools.tax.service.gov.uk in this text"))
+        "there is a URL here http://jira.tools.tax.service.gov.uk in this text",
+        "jira.tools.tax.service.gov.uk",
+        "fake.domain",
+        "text fake.domain text fake.domain",
+        "aws.amazon.com/aaa/aaa",
+        "https://.com",
+        "www.something.gov"))
 
-      result.length should be(2)
+      result.length should be(8)
     }
 
   }
 
   "Check if a request contains only valid URLs" should {
 
-    "return true if there are only whitelisted URLs present" in {
-      val typesafeConfig = ConfigFactory.parseString(
-        s"""
+    val typesafeConfig = ConfigFactory.parseString(
+      s"""
           auth {
             enabled = true
             authorizedServices = []
             authorizedUrls = [
-            "https://jira.tools.tax.service.gov.uk",
-            "https://aws.amazon.com"
+            "jira.tools.tax.service.gov.uk",
+            "aws.amazon.com"
             ]
           }
          """
-      )
-      val authService = new AuthService(Configuration(typesafeConfig))
+    )
+    val authService = new AuthService(Configuration(typesafeConfig))
 
-      val notificationRequest = NotificationRequest(
-        SlackChannel("", NonEmptyList.of("test")),
-        MessageDetails("", "aaaaaaa", None, Seq(Attachment(None,None,Some("aaaaaaaa"),None,None,
-          None,None,Some("https://aws.amazon.com"),Some("https://jira.tools.tax.service.gov.uk"),
-          None,None,Some("aws.amazon.com"),None,Some("jira.tools.tax.service.gov.uk"),None))))
-
-      authService.isValidatedNotificationRequest(notificationRequest) shouldBe true
-    }
-
-    "return false if there are any non-whitelisted URLs present" in {
-      val typesafeConfig = ConfigFactory.parseString(
-        s"""
-          auth {
-            enabled = true
-            authorizedServices = []
-            authorizedUrls = [
-            "https://jira.tools.tax.service.gov.uk",
-            "https://aws.amazon.com"
-            ]
-          }
-         """
-      )
-      val authService = new AuthService(Configuration(typesafeConfig))
-
-      val urlGenerator: Gen[String] = arbitrary[String]
-
-      forAll(urlGenerator -> "url") { url: String =>
+    "return true" when {
+      "there are only whitelisted URLs present in message details" in {
         val notificationRequest = NotificationRequest(
           SlackChannel("", NonEmptyList.of("test")),
-          MessageDetails("", s"http://$url.com", None, Seq(Attachment(Some("aaaaaaaaa"),None,None,
-            None,None,None,None,Some("https://jira.tools.tax.service.gov.uk"),Some(s"https://$url.co.uk"),
-            None,None,None,None,Some(s"$url.com"),None))))
-        authService.isValidatedNotificationRequest(notificationRequest) shouldBe false
+          MessageDetails("jira.tools.tax.service.gov.uk", "https://jira.tools.tax.service.gov.uk/aaa/aaa/aaa", None, Seq()))
+
+        authService.isValidatedNotificationRequest(notificationRequest) shouldBe true
+      }
+
+      "there are only whitelisted URLs present in attachments" in {
+
+        val notificationRequest = NotificationRequest(
+          SlackChannel("", NonEmptyList.of("test")),
+          MessageDetails(
+            "",
+            "",
+            None,
+            Seq(
+              Attachment(
+                None,
+                None,
+                Some("aaaaaaaa"),
+                None,
+                None,
+                None,
+                None,
+                Some("https://aws.amazon.com"),
+                Some("https://jira.tools.tax.service.gov.uk/aaa/aaa"),
+                None,
+                None,
+                Some("aws.amazon.com/aaa/aaa"),
+                None,
+                Some("jira.tools.tax.service.gov.uk"),
+                None
+              ))
+          )
+        )
+
+        authService.isValidatedNotificationRequest(notificationRequest) shouldBe true
+      }
+
+    }
+    "return false" when {
+
+      val urlGenerator: Gen[String] = Gen.alphaStr.suchThat(s => s.length > 0)
+
+      "there are any non-whitelisted URLs present in message details" in {
+
+        forAll(urlGenerator -> "url") { url: String =>
+          val notificationRequest = NotificationRequest(
+            SlackChannel("", NonEmptyList.of("test")),
+            MessageDetails("", s"$url.$url", None, Seq()))
+          authService.isValidatedNotificationRequest(notificationRequest) shouldBe false
+        }
+      }
+
+      "there are any non-whitelisted URLs present in attachments" in {
+
+        forAll(urlGenerator -> "url") { url: String => val notificationRequest = NotificationRequest(
+          SlackChannel("", NonEmptyList.of("test")),
+          MessageDetails("", "", None, Seq(
+            Attachment(
+              None,
+              None,
+              Some("aaaaaaaa"),
+              None,
+              None,
+              None,
+              None,
+              Some("https://aws.amazon.com"),
+              Some("https://jira.tools.tax.service.gov.uk/aaa/aaa"),
+              None,
+              None,
+              Some("aws.amazon.com/aaa/aaa"),
+              None,
+              Some("jira.tools.tax.service.gov.uk"),
+              None
+            ),
+            Attachment(
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              Some("aws.amazon.com/aaa/aaa"),
+              None,
+              Some(s"http://$url.com"),
+              None
+            )
+          )))
+          authService.isValidatedNotificationRequest(notificationRequest) shouldBe false
+        }
       }
     }
   }
