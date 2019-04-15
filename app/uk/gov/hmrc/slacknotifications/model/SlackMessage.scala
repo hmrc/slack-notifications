@@ -22,22 +22,22 @@ import play.api.libs.json.{Json, OFormat}
   * More details: https://api.slack.com/docs/message-attachments
   */
 case class Attachment(
-                       fallback: Option[String],
-                       color: Option[String],
-                       pretext: Option[String],
-                       author_name: Option[String],
-                       author_link: Option[String],
-                       author_icon: Option[String],
-                       title: Option[String],
-                       title_link: Option[String],
-                       text: Option[String],
-                       fields: Option[Seq[Attachment.Field]],
-                       image_url: Option[String],
-                       thumb_url: Option[String],
-                       footer: Option[String],
-                       footer_icon: Option[String],
-                       ts: Option[Int]
-                     ) {
+  fallback: Option[String],
+  color: Option[String],
+  pretext: Option[String],
+  author_name: Option[String],
+  author_link: Option[String],
+  author_icon: Option[String],
+  title: Option[String],
+  title_link: Option[String],
+  text: Option[String],
+  fields: Option[Seq[Attachment.Field]],
+  image_url: Option[String],
+  thumb_url: Option[String],
+  footer: Option[String],
+  footer_icon: Option[String],
+  ts: Option[Int]
+) {
 
   def getFields: Array[String] = {
     val baseFields = Array(
@@ -56,7 +56,9 @@ case class Attachment(
       this.footer_icon
     )
 
-    val additionalFields: Array[String] = if(this.fields.isDefined) this.fields.map(fieldSeq => fieldSeq.flatMap(_.fields).toArray).get else Array[String]()
+    val additionalFields: Array[String] =
+      if (this.fields.isDefined) this.fields.map(fieldSeq => fieldSeq.flatMap(_.fields).toArray).get
+      else Array[String]()
 
     baseFields.flatten ++ additionalFields
   }
@@ -66,11 +68,11 @@ case class Attachment(
 object Attachment {
 
   final case class Field(
-                          title: String,
-                          value: String,
-                          short: Boolean
-                        ) {
-    def fields = Array(this.title,this.value)
+    title: String,
+    value: String,
+    short: Boolean
+  ) {
+    def fields = Array(this.title, this.value)
   }
 
   object Field {
@@ -82,12 +84,12 @@ object Attachment {
 }
 
 case class SlackMessage(
-                         channel: String,
-                         text: String,
-                         username: String,
-                         icon_emoji: Option[String],
-                         attachments: Seq[Attachment]
-                       )
+  channel: String,
+  text: String,
+  username: String,
+  icon_emoji: Option[String],
+  attachments: Seq[Attachment]
+)
 
 object SlackMessage {
   implicit val format: OFormat[SlackMessage] = Json.format[SlackMessage]

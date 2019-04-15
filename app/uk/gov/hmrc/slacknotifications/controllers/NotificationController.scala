@@ -29,8 +29,9 @@ import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton()
-class NotificationController @Inject()(authService: AuthService, notificationService: NotificationService)(implicit ec: ExecutionContext)
-  extends BaseController {
+class NotificationController @Inject()(authService: AuthService, notificationService: NotificationService)(
+  implicit ec: ExecutionContext)
+    extends BaseController {
 
   def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     withAuthorization {
@@ -57,7 +58,7 @@ class NotificationController @Inject()(authService: AuthService, notificationSer
     if (authService.isAuthorized(maybeService)) {
       block
     } else {
-      val message = "Invalid credentials. Requires basic authentication"
+      val message            = "Invalid credentials. Requires basic authentication"
       implicit val erFormats = Json.format[ErrorResponse]
       Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message))))
     }

@@ -43,8 +43,8 @@ class AuthService @Inject()(configuration: Configuration) {
         case serviceWithoutBase64EncPass =>
           Left(
             CannotConvert(
-              value = serviceWithoutBase64EncPass.toString,
-              toType = "Service",
+              value   = serviceWithoutBase64EncPass.toString,
+              toType  = "Service",
               because = "password was not base64 encoded"
             )
           )
@@ -84,8 +84,8 @@ class AuthService @Inject()(configuration: Configuration) {
   def isValidatedNotificationRequest(notificationRequest: NotificationRequest): Boolean = {
 
     val messageValues = filterFieldsForURLs(notificationRequest.messageDetails.getFields)
-    val attachmentValues = notificationRequest.messageDetails.attachments.flatMap(
-      (attachment: Attachment) => filterFieldsForURLs(attachment.getFields.map(_.toString)))
+    val attachmentValues = notificationRequest.messageDetails.attachments.flatMap((attachment: Attachment) =>
+      filterFieldsForURLs(attachment.getFields.map(_.toString)))
 
     messageValues.forall(isAuthorizedUrl) && attachmentValues.forall(isAuthorizedUrl)
   }
@@ -102,16 +102,16 @@ object AuthService {
   }
 
   final case class AuthConfiguration(
-                                      enabled: Boolean,
-                                      authorizedServices: List[Service],
-                                      authorizedUrls: List[String]
-                                    )
+    enabled: Boolean,
+    authorizedServices: List[Service],
+    authorizedUrls: List[String]
+  )
 
   final case class Service(
-                            name: String,
-                            password: String,
-                            displayName: String
-                          )
+    name: String,
+    password: String,
+    displayName: String
+  )
 
   object Service {
     def fromAuthorization(authorization: Authorization): Option[Service] =

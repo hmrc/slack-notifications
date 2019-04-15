@@ -28,7 +28,12 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @Singleton
-class NotificationService @Inject()(configuration: Configuration, slackConnector: SlackConnector, teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector, userManagementConnector: UserManagementConnector, userManagementService: UserManagementService)(implicit ec: ExecutionContext) {
+class NotificationService @Inject()(
+  configuration: Configuration,
+  slackConnector: SlackConnector,
+  teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
+  userManagementConnector: UserManagementConnector,
+  userManagementService: UserManagementService)(implicit ec: ExecutionContext) {
 
   import NotificationService._
 
@@ -74,16 +79,12 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
 
   def sanitiseNotification(notificationRequest: NotificationRequest, displayName: String): NotificationRequest = {
 
-    val sanitisedAttachments = notificationRequest.messageDetails.attachments.map(
-      a => a.copy(
-        author_name = Some(displayName),
-        author_icon = None))
+    val sanitisedAttachments = notificationRequest.messageDetails.attachments.map(a =>
+      a.copy(author_name = Some(displayName), author_icon = None))
 
     notificationRequest.copy(
-      messageDetails = notificationRequest.messageDetails.copy(
-        username = displayName,
-        iconEmoji = None,
-        attachments = sanitisedAttachments)
+      messageDetails = notificationRequest.messageDetails
+        .copy(username = displayName, iconEmoji = None, attachments = sanitisedAttachments)
     )
   }
 
@@ -104,13 +105,13 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
     implicit hc: HeaderCarrier): Future[NotificationResult] =
     teamsAndRepositoriesConnector.getRepositoryDetails(repoName).flatMap {
       case Some(repoDetails) => f(repoDetails)
-      case None => Future.successful(NotificationResult().addError(RepositoryNotFound(repoName)))
+      case None              => Future.successful(NotificationResult().addError(RepositoryNotFound(repoName)))
     }
 
   private def withTeamsResponsibleForRepo[A](repoName: String, repositoryDetails: RepositoryDetails)(
     f: List[String] => Future[NotificationResult])(implicit hc: HeaderCarrier): Future[NotificationResult] =
     getTeamsResponsibleForRepo(repositoryDetails) match {
-      case Nil => Future.successful(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))
+      case Nil   => Future.successful(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))
       case teams => withNonExcludedTeams(teams)(f)
     }
 
@@ -152,13 +153,11 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
       }
       .flatMap {
         case Some(slackChannel) => f(slackChannel)
-        case None => Future.successful(NotificationResult().addError(SlackChannelNotFoundForTeamInUMP(teamName)))
+        case None               => Future.successful(NotificationResult().addError(SlackChannelNotFoundForTeamInUMP(teamName)))
       }
 
   private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
     teamDetails.slackNotification.orElse(teamDetails.slack).flatMap { slackChannelUrl =>
-
-
       val urlWithoutTrailingSpace = if (slackChannelUrl.endsWith("/")) {
         slackChannelUrl.init
       } else {
@@ -166,7 +165,7 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
       }
 
       val slashPos = urlWithoutTrailingSpace.lastIndexOf("/")
-      val s = urlWithoutTrailingSpace.substring(slashPos + 1)
+      val s        = urlWithoutTrailingSpace.substring(slashPos + 1)
       if (slashPos > 0 && s.nonEmpty) Some(s) else None
     }
 
@@ -177,7 +176,7 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
       .map { response =>
         response.status match {
           case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
-          case _ => logAndReturnSlackError(response.status, response.body, slackMessage.channel)
+          case _   => logAndReturnSlackError(response.status, response.body, slackMessage.channel)
         }
       }
       .recoverWith(handleSlackExceptions(slackMessage.channel))
@@ -215,7 +214,7 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
     as.grouped(parallelism).foldLeft(Future.successful(List.empty[B])) { (futAcc, grouped) =>
       for {
         acc <- futAcc
-        b <- Future.sequence(grouped.map(f))
+        b   <- Future.sequence(grouped.map(f))
       } yield {
         acc ++ b
       }
@@ -236,39 +235,39 @@ object NotificationService {
   object Error {
     implicit val writes: Writes[Error] = Writes { error =>
       Json.obj(
-        "code" -> error.code,
+        "code"    -> error.code,
         "message" -> error.message
       )
     }
   }
 
   final case class SlackError(statusCode: Int, slackErrorMsg: String) extends Error {
-    val code = "slack_error"
+    val code    = "slack_error"
     val message = s"Slack error, statusCode: $statusCode, msg: '$slackErrorMsg'"
   }
 
   final case class RepositoryNotFound(repoName: String) extends Error {
-    val code = "repository_not_found"
+    val code    = "repository_not_found"
     val message = s"Repository: '$repoName' not found"
   }
 
   final case class TeamsNotFoundForRepository(repoName: String) extends Error {
-    val code = "teams_not_found_for_repository"
+    val code    = "teams_not_found_for_repository"
     val message = s"Teams not found for repository: '$repoName'"
   }
 
   final case class TeamsNotFoundForGithubUsername(githubUsername: String) extends Error {
-    val code = "teams_not_found_for_github_username"
+    val code    = "teams_not_found_for_github_username"
     val message = s"Teams not found for Github username: '$githubUsername'"
   }
 
   final case class SlackChannelNotFoundForTeamInUMP(teamName: String) extends Error {
-    val code = "slack_channel_not_found_for_team_in_ump"
+    val code    = "slack_channel_not_found_for_team_in_ump"
     val message = s"Slack channel not found for team: '$teamName' in User Management Portal"
   }
 
   final case class SlackChannelNotFound(channelName: String) extends Error {
-    val code = "slack_channel_not_found"
+    val code    = "slack_channel_not_found"
     val message = s"Slack channel: '$channelName' not found"
   }
 
@@ -283,27 +282,27 @@ object NotificationService {
   object Exclusion {
     implicit val writes: Writes[Exclusion] = Writes { exclusion =>
       Json.obj(
-        "code" -> exclusion.code,
+        "code"    -> exclusion.code,
         "message" -> exclusion.message
       )
     }
   }
 
   final case class NotARealTeam(name: String) extends Exclusion {
-    val code = "not_a_real_team"
+    val code    = "not_a_real_team"
     val message = s"$name is not a real team"
   }
 
   final case class NotARealGithubUser(name: String) extends Exclusion {
-    val code = "not_a_real_github_user"
+    val code    = "not_a_real_github_user"
     val message = s"$name is not a real Github user"
   }
 
   final case class NotificationResult(
-                                       successfullySentTo: Seq[String] = Nil,
-                                       errors: Seq[Error] = Nil,
-                                       exclusions: Seq[Exclusion] = Nil
-                                     ) {
+    successfullySentTo: Seq[String] = Nil,
+    errors: Seq[Error]              = Nil,
+    exclusions: Seq[Exclusion]      = Nil
+  ) {
     def addError(e: Error*): NotificationResult = copy(errors = errors ++ e)
 
     def addSuccessfullySent(s: String*): NotificationResult = copy(successfullySentTo = successfullySentTo ++ s)

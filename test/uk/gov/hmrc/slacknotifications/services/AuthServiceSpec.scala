@@ -63,11 +63,11 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
 
       val configuration =
         Configuration(
-          "auth.enabled" -> true,
-          "auth.authorizedServices.0.name" -> service.name,
-          "auth.authorizedServices.0.password" -> base64Encode(service.password),
+          "auth.enabled"                          -> true,
+          "auth.authorizedServices.0.name"        -> service.name,
+          "auth.authorizedServices.0.password"    -> base64Encode(service.password),
           "auth.authorizedServices.0.displayName" -> service.displayName,
-          "auth.authorizedUrls.0" -> ""
+          "auth.authorizedUrls.0"                 -> ""
         )
 
       val authService = new AuthService(configuration)
@@ -79,11 +79,11 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
       val service = Service("foo", "bar", "foo")
       val configuration =
         Configuration(
-          "auth.enabled" -> true,
-          "auth.authorizedServices.0.name" -> service.name,
-          "auth.authorizedServices.0.password" -> service.password,
+          "auth.enabled"                          -> true,
+          "auth.authorizedServices.0.name"        -> service.name,
+          "auth.authorizedServices.0.password"    -> service.password,
           "auth.authorizedServices.0.displayName" -> service.displayName,
-          "auth.authorizedUrls.0" -> ""
+          "auth.authorizedUrls.0"                 -> ""
         )
 
       val authService = new AuthService(configuration)
@@ -107,7 +107,7 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
       val authService = new AuthService(Configuration(typesafeConfig))
 
       authService.isAuthorized(Some(Service("foo", "bar", "foo"))) shouldBe true
-      authService.isAuthorized(None) shouldBe true
+      authService.isAuthorized(None)                               shouldBe true
     }
 
   }
@@ -166,15 +166,17 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
 
       val authService = new AuthService(Configuration(typesafeConfig))
 
-      val result = authService.filterFieldsForURLs(Array(
-        "https://jira.tools.tax.service.gov.uk",
-        "there is a URL here http://jira.tools.tax.service.gov.uk in this text",
-        "jira.tools.tax.service.gov.uk",
-        "fake.domain",
-        "text fake.domain text fake.domain",
-        "aws.amazon.com/aaa/aaa",
-        "https://.com",
-        "www.something.gov"))
+      val result = authService.filterFieldsForURLs(
+        Array(
+          "https://jira.tools.tax.service.gov.uk",
+          "there is a URL here http://jira.tools.tax.service.gov.uk in this text",
+          "jira.tools.tax.service.gov.uk",
+          "fake.domain",
+          "text fake.domain text fake.domain",
+          "aws.amazon.com/aaa/aaa",
+          "https://.com",
+          "www.something.gov"
+        ))
 
       result.length should be(8)
     }
@@ -201,7 +203,12 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
       "there are only whitelisted URLs present in message details" in {
         val notificationRequest = NotificationRequest(
           SlackChannel("", NonEmptyList.of("test")),
-          MessageDetails("jira.tools.tax.service.gov.uk", "https://jira.tools.tax.service.gov.uk/aaa/aaa/aaa", None, Seq()))
+          MessageDetails(
+            "jira.tools.tax.service.gov.uk",
+            "https://jira.tools.tax.service.gov.uk/aaa/aaa/aaa",
+            None,
+            Seq())
+        )
 
         authService.isValidatedNotificationRequest(notificationRequest) shouldBe true
       }
@@ -255,44 +262,51 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
 
       "there are any non-whitelisted URLs present in attachments" in {
 
-        forAll(urlGenerator -> "url") { url: String => val notificationRequest = NotificationRequest(
-          SlackChannel("", NonEmptyList.of("test")),
-          MessageDetails("", "", None, Seq(
-            Attachment(
+        forAll(urlGenerator -> "url") { url: String =>
+          val notificationRequest = NotificationRequest(
+            SlackChannel("", NonEmptyList.of("test")),
+            MessageDetails(
+              "",
+              "",
               None,
-              None,
-              Some("aaaaaaaa"),
-              None,
-              None,
-              None,
-              None,
-              Some("https://aws.amazon.com"),
-              Some("https://jira.tools.tax.service.gov.uk/aaa/aaa"),
-              Some(Seq(Attachment.Field(s"$url.$url","aaaa",false))),
-              None,
-              Some("aws.amazon.com/aaa/aaa"),
-              None,
-              Some("jira.tools.tax.service.gov.uk"),
-              None
-            ),
-            Attachment(
-              None,
-              None,
-              None,
-              None,
-              None,
-              None,
-              None,
-              None,
-              None,
-              None,
-              None,
-              Some("aws.amazon.com/aaa/aaa"),
-              None,
-              Some(s"http://$url.com"),
-              None
+              Seq(
+                Attachment(
+                  None,
+                  None,
+                  Some("aaaaaaaa"),
+                  None,
+                  None,
+                  None,
+                  None,
+                  Some("https://aws.amazon.com"),
+                  Some("https://jira.tools.tax.service.gov.uk/aaa/aaa"),
+                  Some(Seq(Attachment.Field(s"$url.$url", "aaaa", false))),
+                  None,
+                  Some("aws.amazon.com/aaa/aaa"),
+                  None,
+                  Some("jira.tools.tax.service.gov.uk"),
+                  None
+                ),
+                Attachment(
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  None,
+                  Some("aws.amazon.com/aaa/aaa"),
+                  None,
+                  Some(s"http://$url.com"),
+                  None
+                )
+              )
             )
-          )))
+          )
           authService.isValidatedNotificationRequest(notificationRequest) shouldBe false
         }
       }
@@ -303,11 +317,11 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
     "fail if password is not base64 encoded" in {
       val configuration =
         Configuration(
-          "auth.enabled" -> true,
-          "auth.authorizedServices.0.name" -> "name",
-          "auth.authorizedServices.0.password" -> "not base64 encoded $%£*&^",
+          "auth.enabled"                          -> true,
+          "auth.authorizedServices.0.name"        -> "name",
+          "auth.authorizedServices.0.password"    -> "not base64 encoded $%£*&^",
           "auth.authorizedServices.0.displayName" -> "displayName",
-          "auth.authorizedUrls.0" -> ""
+          "auth.authorizedUrls.0"                 -> ""
         )
 
       val exception = intercept[ConfigReaderException[AuthConfiguration]] {
