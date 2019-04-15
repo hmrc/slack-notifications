@@ -268,7 +268,7 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
               None,
               Some("https://aws.amazon.com"),
               Some("https://jira.tools.tax.service.gov.uk/aaa/aaa"),
-              None,
+              Some(Seq(Attachment.Field(s"$url.$url","aaaa",false))),
               None,
               Some("aws.amazon.com/aaa/aaa"),
               None,

@@ -56,7 +56,9 @@ case class Attachment(
       this.footer_icon
     )
 
-    baseFields.flatten
+    val additionalFields: Array[String] = if(this.fields.isDefined) this.fields.map(fieldSeq => fieldSeq.flatMap(_.fields).toArray).get else Array[String]()
+
+    baseFields.flatten ++ additionalFields
   }
 
 }
@@ -67,7 +69,9 @@ object Attachment {
                           title: String,
                           value: String,
                           short: Boolean
-                        )
+                        ) {
+    def fields = Array(this.title,this.value)
+  }
 
   object Field {
     implicit val format: OFormat[Field] = Json.format[Field]
