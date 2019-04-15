@@ -56,9 +56,7 @@ case class Attachment(
       this.footer_icon
     )
 
-    val additionalFields: Array[String] =
-      if (this.fields.isDefined) this.fields.map(fieldSeq => fieldSeq.flatMap(_.fields).toArray).get
-      else Array[String]()
+    val additionalFields: Array[String] = this.fields.fold(Array[String]())(_.flatMap(_.fields).toArray)
 
     baseFields.flatten ++ additionalFields
   }

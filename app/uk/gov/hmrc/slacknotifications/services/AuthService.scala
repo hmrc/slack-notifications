@@ -63,13 +63,13 @@ class AuthService @Inject()(configuration: Configuration) {
   def isAuthorizedUrl(url: String): Boolean = authConfiguration.authorizedUrls.contains(url)
 
   def filterFieldsForURLs(fields: Array[String]): Array[String] = {
-    val pattern =
+    val locatePotentialURL =
       ("(?:[a-zA-Z]+:)?(?:\\/\\/)?(?:[\\w-]+:[\\w-]+@)?(?:[\\w-]+\\.)+[a-zA-Z]+" +
         "(?:[\\w$-_.+!*'(),,;/?:@=&\"<>#%{}|\\\\^~\\[\\]\\`]*)?").r
     fields.flatMap(
       f => {
         f.split(" ")
-          .map(segment => pattern.findAllIn(segment.trim))
+          .map(segment => locatePotentialURL.findAllIn(segment.trim))
           .filter(iterator => iterator.nonEmpty)
           .map(
             v =>

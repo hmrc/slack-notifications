@@ -27,14 +27,7 @@ final case class MessageDetails(
   attachments: Seq[Attachment] = Nil
 ) {
 
-  def getFields: Array[String] =
-    getClass.getDeclaredFields
-      .map(field => {
-        field.setAccessible(true)
-        field.getName -> field.get(this).toString
-      })
-      .filter(_._1 != "attachments")
-      .map(_._2)
+  def getFields: Array[String] = Array(this.text,this.username,this.iconEmoji.getOrElse(""))
 
 }
 
