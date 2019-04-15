@@ -27,7 +27,7 @@ final case class MessageDetails(
   attachments: Seq[Attachment] = Nil
 ) {
 
-  def getFields: Array[String] = Array(this.text,this.username,this.iconEmoji.getOrElse(""))
+  def getFields: Array[String] = Array(text, username, iconEmoji.getOrElse(""))
 
 }
 

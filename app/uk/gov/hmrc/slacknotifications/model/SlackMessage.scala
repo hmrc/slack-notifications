@@ -41,22 +41,22 @@ case class Attachment(
 
   def getFields: Array[String] = {
     val baseFields = Array(
-      this.fallback,
-      this.color,
-      this.pretext,
-      this.author_name,
-      this.author_link,
-      this.author_icon,
-      this.title,
-      this.title,
-      this.text,
-      this.image_url,
-      this.thumb_url,
-      this.footer,
-      this.footer_icon
+      fallback,
+      color,
+      pretext,
+      author_name,
+      author_link,
+      author_icon,
+      title,
+      title,
+      text,
+      image_url,
+      thumb_url,
+      footer,
+      footer_icon
     )
 
-    val additionalFields: Array[String] = this.fields.fold(Array[String]())(_.flatMap(_.fields).toArray)
+    val additionalFields: Array[String] = fields.fold(Array[String]())(_.flatMap(_.fields).toArray)
 
     baseFields.flatten ++ additionalFields
   }
@@ -70,7 +70,7 @@ object Attachment {
     value: String,
     short: Boolean
   ) {
-    def fields = Array(this.title, this.value)
+    def fields = Array(title, value)
   }
 
   object Field {
