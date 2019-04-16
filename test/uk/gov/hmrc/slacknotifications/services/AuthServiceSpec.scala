@@ -167,7 +167,7 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
       val authService = new AuthService(Configuration(typesafeConfig))
 
       val result = authService.filterFieldsForURLs(
-        Array(
+        List(
           "https://jira.tools.tax.service.gov.uk",
           "there is a URL here http://jira.tools.tax.service.gov.uk in this text",
           "jira.tools.tax.service.gov.uk",

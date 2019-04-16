@@ -62,7 +62,7 @@ class AuthService @Inject()(configuration: Configuration) {
 
   def isAuthorizedUrl(url: String): Boolean = authConfiguration.authorizedUrls.contains(url)
 
-  def filterFieldsForURLs(fields: Array[String]): Array[String] = {
+  def filterFieldsForURLs(fields: List[String]): List[String] = {
     val locatePotentialURL =
       ("(?:[a-zA-Z]+:)?(?:\\/\\/)?(?:[\\w-]+:[\\w-]+@)?(?:[\\w-]+\\.)+[a-zA-Z]+" +
         "(?:[\\w$-_.+!*'(),,;/?:@=&\"<>#%{}|\\\\^~\\[\\]\\`]*)?").r

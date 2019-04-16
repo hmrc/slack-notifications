@@ -39,8 +39,8 @@ case class Attachment(
   ts: Option[Int]
 ) {
 
-  def getFields: Array[String] = {
-    val baseFields = Array(
+  def getFields: List[String] = {
+    val baseFields = List(
       fallback,
       color,
       pretext,
@@ -56,7 +56,7 @@ case class Attachment(
       footer_icon
     )
 
-    val additionalFields: Array[String] = fields.fold(Array[String]())(_.flatMap(_.fields).toArray)
+    val additionalFields: List[String] = fields.fold(List[String]())(_.flatMap(_.fields).toList)
 
     baseFields.flatten ++ additionalFields
   }
@@ -70,7 +70,7 @@ object Attachment {
     value: String,
     short: Boolean
   ) {
-    def fields = Array(title, value)
+    def fields = List(title, value)
   }
 
   object Field {
