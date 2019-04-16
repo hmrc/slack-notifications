@@ -25,11 +25,7 @@ final case class MessageDetails(
   username: String,
   iconEmoji: Option[String]    = None,
   attachments: Seq[Attachment] = Nil
-) {
-
-  def getFields: List[String] = List(text, username, iconEmoji.getOrElse(""))
-
-}
+)
 
 object MessageDetails {
   implicit val reads: Reads[MessageDetails] = (

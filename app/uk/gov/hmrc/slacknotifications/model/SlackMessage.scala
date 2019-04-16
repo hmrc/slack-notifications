@@ -37,31 +37,7 @@ case class Attachment(
   footer: Option[String],
   footer_icon: Option[String],
   ts: Option[Int]
-) {
-
-  def getFields: List[String] = {
-    val baseFields = List(
-      fallback,
-      color,
-      pretext,
-      author_name,
-      author_link,
-      author_icon,
-      title,
-      title,
-      text,
-      image_url,
-      thumb_url,
-      footer,
-      footer_icon
-    )
-
-    val additionalFields: List[String] = fields.fold(List[String]())(_.flatMap(_.fields).toList)
-
-    baseFields.flatten ++ additionalFields
-  }
-
-}
+)
 
 object Attachment {
 
@@ -69,9 +45,7 @@ object Attachment {
     title: String,
     value: String,
     short: Boolean
-  ) {
-    def fields = List(title, value)
-  }
+  )
 
   object Field {
     implicit val format: OFormat[Field] = Json.format[Field]
