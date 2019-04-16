@@ -36,18 +36,14 @@ class NotificationController @Inject()(authService: AuthService, notificationSer
   def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     withAuthorization {
       withJsonBody[NotificationRequest] { notificationRequest =>
-        val maybeService = hc.authorization.flatMap(AuthService.Service.fromAuthorization)
-        (maybeService, authService.isValidatedNotificationRequest(notificationRequest)) match {
-          case (Some(s), true) =>
-            val sanitisedNotification = notificationService.sanitiseNotification(notificationRequest, s.displayName)
-            notificationService.sendNotification(sanitisedNotification).map { results =>
-              val asJson = Json.toJson(results)
-              Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
-              Ok(asJson)
-            }
-          case _ =>
-            implicit val erFormats = Json.format[ErrorResponse]
-            Future.successful(BadRequest(Json.toJson(ErrorResponse(400, "Invalid notification contents."))))
+        val service = hc.authorization.flatMap(AuthService.Service.fromAuthorization)
+        val sanitisedNotification =
+          notificationService
+            .sanitiseNotification(notificationRequest, service.map(_.displayName).getOrElse("slack-notifications"))
+        notificationService.sendNotification(sanitisedNotification).map { results =>
+          val asJson = Json.toJson(results)
+          Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
+          Ok(asJson)
         }
       }
     }

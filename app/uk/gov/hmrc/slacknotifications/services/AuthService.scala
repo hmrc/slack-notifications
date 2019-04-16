@@ -23,7 +23,6 @@ import pureconfig.error.CannotConvert
 import pureconfig.syntax._
 import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader, ProductHint}
 import uk.gov.hmrc.http.logging.Authorization
-import uk.gov.hmrc.slacknotifications.model.{Attachment, NotificationRequest}
 
 import scala.util.Try
 
@@ -59,37 +58,6 @@ class AuthService @Inject()(configuration: Configuration) {
     } else {
       true
     }
-
-  def isAuthorizedUrl(url: String): Boolean = authConfiguration.authorizedUrls.contains(url)
-
-  def filterFieldsForURLs(fields: List[String]): List[String] = {
-    val locatePotentialURL =
-      ("(?:[a-zA-Z]+:)?(?:\\/\\/)?(?:[\\w-]+:[\\w-]+@)?(?:[\\w-]+\\.)+[a-zA-Z]+" +
-        "(?:[\\w$-_.+!*'(),,;/?:@=&\"<>#%{}|\\\\^~\\[\\]\\`]*)?").r
-    fields.flatMap(
-      f => {
-        f.split(" ")
-          .map(segment => locatePotentialURL.findAllIn(segment.trim))
-          .filter(iterator => iterator.nonEmpty)
-          .map(
-            v =>
-              v.next()
-                .replaceAll("https://", "")
-                .split("/")
-                .head)
-      }
-    )
-  }
-
-  def isValidatedNotificationRequest(notificationRequest: NotificationRequest): Boolean = {
-
-    val messageValues = filterFieldsForURLs(notificationRequest.messageDetails.getFields)
-    val attachmentValues = notificationRequest.messageDetails.attachments.flatMap((attachment: Attachment) =>
-      filterFieldsForURLs(attachment.getFields.map(_.toString)))
-
-    messageValues.forall(isAuthorizedUrl) && attachmentValues.forall(isAuthorizedUrl)
-  }
-
 }
 
 object AuthService {

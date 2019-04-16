@@ -41,7 +41,6 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
       val request          = baseRequest.withHeaders("Authorization" -> s"Basic $validCredentials")
 
       when(authService.isAuthorized(is(Some(Service("foo", "bar", "deployments-info"))))).thenReturn(true)
-      when(authService.isValidatedNotificationRequest(any())).thenReturn(true)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 200
@@ -60,17 +59,6 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 401
-    }
-
-    "return a bad request when a request is made with valid credentials but has invalid contents" in new TestSetup {
-      val validCredentials = "Zm9vOmJhcjpkZXBsb3ltZW50cy1pbmZv" // foo:bar:deployments-info base64 encoded
-      val request          = baseRequest.withHeaders("Authorization" -> s"Basic $validCredentials")
-
-      when(authService.isAuthorized(is(Some(Service("foo", "bar", "deployments-info"))))).thenReturn(true)
-      when(authService.isValidatedNotificationRequest(any())).thenReturn(false)
-
-      val response: Result = controller.sendNotification().apply(request).futureValue
-      response.header.status shouldBe 400
     }
 
   }
