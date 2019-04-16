@@ -42,7 +42,6 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
                 displayName = ${service.displayName}
               }
             ]
-            authorizedUrls = []
           }
          """
       )
@@ -62,8 +61,7 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
           "auth.enabled"                          -> true,
           "auth.authorizedServices.0.name"        -> service.name,
           "auth.authorizedServices.0.password"    -> base64Encode(service.password),
-          "auth.authorizedServices.0.displayName" -> service.displayName,
-          "auth.authorizedUrls.0"                 -> ""
+          "auth.authorizedServices.0.displayName" -> service.displayName
         )
 
       val authService = new AuthService(configuration)
@@ -78,8 +76,7 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
           "auth.enabled"                          -> true,
           "auth.authorizedServices.0.name"        -> service.name,
           "auth.authorizedServices.0.password"    -> service.password,
-          "auth.authorizedServices.0.displayName" -> service.displayName,
-          "auth.authorizedUrls.0"                 -> ""
+          "auth.authorizedServices.0.displayName" -> service.displayName
         )
 
       val authService = new AuthService(configuration)
@@ -95,7 +92,6 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
           auth {
             enabled = false
             authorizedServices = []
-            authorizedUrls = []
           }
          """
       )
@@ -115,8 +111,7 @@ class AuthServiceSpec extends WordSpec with Matchers with ScalaCheckPropertyChec
           "auth.enabled"                          -> true,
           "auth.authorizedServices.0.name"        -> "name",
           "auth.authorizedServices.0.password"    -> "not base64 encoded $%£*&^",
-          "auth.authorizedServices.0.displayName" -> "displayName",
-          "auth.authorizedUrls.0"                 -> ""
+          "auth.authorizedServices.0.displayName" -> "displayName"
         )
 
       val exception = intercept[ConfigReaderException[AuthConfiguration]] {

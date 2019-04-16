@@ -71,8 +71,7 @@ object AuthService {
 
   final case class AuthConfiguration(
     enabled: Boolean,
-    authorizedServices: List[Service],
-    authorizedUrls: List[String]
+    authorizedServices: List[Service]
   )
 
   final case class Service(
