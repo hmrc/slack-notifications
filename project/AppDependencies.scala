@@ -6,7 +6,7 @@ object AppDependencies {
 
   val compile = Seq(
     "org.typelevel"         %% "cats-core"          % "1.6.0",
-    "uk.gov.hmrc"           %% "bootstrap-play-25"  % "4.9.0",
+    "uk.gov.hmrc"           %% "bootstrap-play-25"  % "4.11.0",
     "com.github.pureconfig" %% "pureconfig"         % "0.9.2",
     ws,
     cache
