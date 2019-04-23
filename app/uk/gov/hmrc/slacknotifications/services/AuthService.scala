@@ -37,8 +37,8 @@ class AuthService @Inject()(configuration: Configuration) {
   implicit val serviceReader =
     ConfigReader[Service]
       .emap {
-        case Service(name, Base64String(decoded), displayName) =>
-          Right(Service(name, decoded, displayName))
+        case Service(name, Base64String(decoded)) =>
+          Right(Service(name, decoded))
         case serviceWithoutBase64EncPass =>
           Left(
             CannotConvert(
@@ -76,8 +76,7 @@ object AuthService {
 
   final case class Service(
     name: String,
-    password: String,
-    displayName: String
+    password: String
   )
 
   object Service {
@@ -86,7 +85,7 @@ object AuthService {
         .decode(authorization.value.stripPrefix("Basic "))
         .map(_.split(":"))
         .collect {
-          case Array(serviceName, password, displayName) => Service(serviceName, password, displayName)
+          case Array(serviceName, password) => Service(serviceName, password)
         }
   }
 

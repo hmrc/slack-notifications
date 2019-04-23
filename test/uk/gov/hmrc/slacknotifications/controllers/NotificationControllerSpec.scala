@@ -19,8 +19,8 @@ package uk.gov.hmrc.slacknotifications.controllers
 import org.mockito.Matchers.{any, eq => is}
 import org.mockito.Mockito.when
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}
+import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Headers, Result}
 import play.api.test.FakeRequest
@@ -28,8 +28,8 @@ import play.test.Helpers
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService.NotificationResult
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class NotificationControllerSpec extends WordSpec with Matchers with MockitoSugar with ScalaFutures {
@@ -37,10 +37,10 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
   "The controller" should {
 
     "allow requests with valid credentials in the Authorization header" in new TestSetup {
-      val validCredentials = "Zm9vOmJhcjpkZXBsb3ltZW50cy1pbmZv" // foo:bar:deployments-info base64 encoded
+      val validCredentials = "Zm9vOmJhcg==" // foo:bar:deployments-info base64 encoded
       val request          = baseRequest.withHeaders("Authorization" -> s"Basic $validCredentials")
 
-      when(authService.isAuthorized(is(Some(Service("foo", "bar", "deployments-info"))))).thenReturn(true)
+      when(authService.isAuthorized(is(Some(Service("foo", "bar"))))).thenReturn(true)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 200
@@ -52,10 +52,10 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
     }
 
     "block requests with invalid credentials in the Authorization header" in new TestSetup {
-      val invalidCredentials = "Zm9vOmJhcjpkZXBsb3ltZW50cy1pbmZv" // foo:bar:deployments-info base64 encoded
+      val invalidCredentials = "Zm9vOmJhcg==" // foo:bar base64 encoded
       val request            = baseRequest.withHeaders("Authorization" -> s"Basic $invalidCredentials")
 
-      when(authService.isAuthorized(is(Some(Service("foo", "bar", "deployments-info"))))).thenReturn(false)
+      when(authService.isAuthorized(is(Some(Service("foo", "bar"))))).thenReturn(false)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 401
@@ -68,7 +68,7 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
     val authService         = mock[AuthService]
     val notificationService = mock[NotificationService]
 
-    when(notificationService.sendNotification(any())(any()))
+    when(notificationService.sendNotification(any(), any())(any()))
       .thenReturn(Future.successful(NotificationResult()))
 
     val controller = new NotificationController(authService, notificationService)
@@ -80,8 +80,7 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
         |        "repositoryName" : "name-of-a-repo"
         |    },
         |    "messageDetails" : {
-        |        "text" : "message to be posted",
-        |        "username" : "deployments-info"
+        |        "text" : "message to be posted"
         |    }
         |}""".stripMargin
 

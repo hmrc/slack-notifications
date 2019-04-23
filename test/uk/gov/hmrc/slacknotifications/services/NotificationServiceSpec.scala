@@ -30,6 +30,7 @@ import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDet
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
 import uk.gov.hmrc.slacknotifications.model.{Attachment, MessageDetails, NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -58,7 +59,8 @@ class NotificationServiceSpec
             text        = "text",
             username    = "someUser",
             icon_emoji  = Some(":snowman:"),
-            attachments = Nil))
+            attachments = Nil),
+          Service("", ""))
         .futureValue
 
       result shouldBe NotificationResult().addSuccessfullySent(existingChannel)
@@ -78,7 +80,8 @@ class NotificationServiceSpec
               text        = "text",
               username    = "someUser",
               icon_emoji  = Some(":snowman:"),
-              attachments = Nil))
+              attachments = Nil),
+            Service("", ""))
           .futureValue
 
         result shouldBe NotificationResult().addError(SlackError(statusCode, errorMsg))
@@ -108,7 +111,8 @@ class NotificationServiceSpec
               text        = "text",
               username    = "someUser",
               icon_emoji  = Some(":snowman:"),
-              attachments = Nil))
+              attachments = Nil),
+            Service("", ""))
           .futureValue
 
         result.errors.head shouldBe expectedError
@@ -130,7 +134,8 @@ class NotificationServiceSpec
                 text        = "text",
                 username    = "someUser",
                 icon_emoji  = Some(":snowman:"),
-                attachments = Nil))
+                attachments = Nil),
+              Service("", ""))
             .futureValue
         }
 
@@ -159,8 +164,6 @@ class NotificationServiceSpec
             channelLookup = channelLookup,
             messageDetails = MessageDetails(
               text        = "some-text-to-post-to-slack",
-              username    = "username",
-              iconEmoji   = Some(":snowman:"),
               attachments = Nil
             )
           )
@@ -169,7 +172,7 @@ class NotificationServiceSpec
         when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
         when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-        val result = service.sendNotification(notificationRequest).futureValue
+        val result = service.sendNotification(notificationRequest,Service("","")).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(teamChannel),
@@ -200,8 +203,6 @@ class NotificationServiceSpec
             channelLookup = channelLookup,
             messageDetails = MessageDetails(
               text        = "some-text-to-post-to-slack",
-              username    = "username",
-              iconEmoji   = Some(":snowman:"),
               attachments = Nil
             )
           )
@@ -210,7 +211,7 @@ class NotificationServiceSpec
         when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
         when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-        val result = service.sendNotification(notificationRequest).futureValue
+        val result = service.sendNotification(notificationRequest,Service("","")).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(teamChannel),
@@ -236,7 +237,7 @@ class NotificationServiceSpec
 
       when(userManagementService.getTeamsForGithubUser(any())(any())).thenReturn(Future(List.empty))
 
-      val result = service.sendNotification(notificationRequest).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -263,7 +264,7 @@ class NotificationServiceSpec
       when(userManagementService.getTeamsForGithubUser(any())(any()))
         .thenReturn(Future(List(TeamDetails(None, None, teamName1), TeamDetails(None, None, teamName2))))
 
-      val result = service.sendNotification(notificationRequest).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -282,7 +283,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -309,7 +310,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -328,7 +329,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -349,7 +350,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -370,7 +371,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -439,38 +440,74 @@ class NotificationServiceSpec
     }
   }
 
-  "Sanitising a notification request" should {
+  "Sanitising a slack message" should {
 
-    "strip out the emoji and replace username / author name details with configured display name" in new Fixtures {
-      val result = service.sanitiseNotification(
-        NotificationRequest(
-          channelLookup = SlackChannel("", NonEmptyList.of("")),
-          messageDetails = exampleMessageDetails.copy(
-            attachments = Seq(
-              Attachment(
-                None,
-                None,
-                None,
-                author_name = Some("username"),
-                None,
-                Some(":monkey:"),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None)))
+    "strip out the emoji and use displayName from config to determine author name" in new Fixtures {
+      val result = service.populateNameAndIconInMessage(
+        SlackMessage(
+          channel    = "",
+          text       = "",
+          username   = "",
+          icon_emoji = Some(":eyes:"),
+          attachments = Seq(
+            Attachment(
+              None,
+              None,
+              None,
+              author_name = Some("username"),
+              None,
+              Some(":monkey:"),
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None))
         ),
-        "correct-name"
+        Service("leak-detection", "")
       )
 
-      result.messageDetails.username                     should be("correct-name")
-      result.messageDetails.iconEmoji                    should be(None)
-      result.messageDetails.attachments.head.author_name should be(Some("correct-name"))
-      result.messageDetails.attachments.head.author_icon should be(None)
+      result.username                     should be("leak-detector")
+      result.icon_emoji                   should be(None)
+      result.attachments.head.author_name should be(Some("leak-detector"))
+      result.attachments.head.author_icon should be(None)
+    }
+
+    "strip out the emoji and use name from config to determine author name when no displayName is configured" in new Fixtures {
+      val result = service.populateNameAndIconInMessage(
+        SlackMessage(
+          channel    = "",
+          text       = "",
+          username   = "",
+          icon_emoji = Some(":eyes:"),
+          attachments = Seq(
+            Attachment(
+              None,
+              None,
+              None,
+              author_name = Some("username"),
+              None,
+              Some(":monkey:"),
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None))
+        ),
+        Service("another-service", "")
+      )
+
+      result.username                     should be("another-service")
+      result.icon_emoji                   should be(None)
+      result.attachments.head.author_name should be(Some("another-service"))
+      result.attachments.head.author_icon should be(None)
     }
 
   }
@@ -480,13 +517,20 @@ class NotificationServiceSpec
     val teamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
     val userManagementConnector       = mock[UserManagementConnector]
     val userManagementService         = mock[UserManagementService]
-    val configuration                 = Configuration()
+
+    val configuration =
+      Configuration(
+        "auth.enabled"                          -> true,
+        "auth.authorizedServices.0.name"        -> "leak-detection",
+        "auth.authorizedServices.0.password"    -> "foo",
+        "auth.authorizedServices.0.displayName" -> "leak-detector",
+        "auth.authorizedServices.1.name"        -> "another-service",
+        "auth.authorizedServices.1.password"    -> "foo"
+      )
 
     val exampleMessageDetails =
       MessageDetails(
         text        = "some-text-to-post-to-slack",
-        username    = "username",
-        iconEmoji   = Some(":snowman:"),
         attachments = Nil
       )
 

@@ -19,10 +19,13 @@ package uk.gov.hmrc.slacknotifications.services
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.{Configuration, Logger}
+import pureconfig.syntax._
+import pureconfig.{CamelCase, ConfigFieldMapping, ProductHint}
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, ServiceConfig, SlackMessage}
+import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -37,7 +40,7 @@ class NotificationService @Inject()(
 
   import NotificationService._
 
-  def sendNotification(notificationRequest: NotificationRequest)(
+  def sendNotification(notificationRequest: NotificationRequest, service: Service)(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
     notificationRequest.channelLookup match {
 
@@ -46,7 +49,7 @@ class NotificationService @Inject()(
           withTeamsResponsibleForRepo(name, repositoryDetails) { teamNames =>
             traverseFuturesSequentially(teamNames) { teamName =>
               withExistingSlackChannel(teamName) { slackChannel =>
-                sendSlackMessage(fromNotification(notificationRequest, slackChannel))
+                sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
               }
             }.map(flatten)
           }
@@ -54,7 +57,7 @@ class NotificationService @Inject()(
 
       case ChannelLookup.SlackChannel(_, slackChannels) =>
         traverseFuturesSequentially(slackChannels.toList) { slackChannel =>
-          sendSlackMessage(fromNotification(notificationRequest, slackChannel))
+          sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
         }.map(flatten)
 
       case ChannelLookup.TeamsOfGithubUser(_, githubUsername) =>
@@ -66,7 +69,7 @@ class NotificationService @Inject()(
               if (nonExcludedTeams.nonEmpty) {
                 traverseFuturesSequentially(nonExcludedTeams) { teamName =>
                   withExistingSlackChannel(teamName) { slackChannel =>
-                    sendSlackMessage(fromNotification(notificationRequest, slackChannel))
+                    sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
                   }
                 }.map(flatten)
               } else {
@@ -76,17 +79,6 @@ class NotificationService @Inject()(
           }
         }
     }
-
-  def sanitiseNotification(notificationRequest: NotificationRequest, displayName: String): NotificationRequest = {
-
-    val sanitisedAttachments = notificationRequest.messageDetails.attachments.map(a =>
-      a.copy(author_name = Some(displayName), author_icon = None))
-
-    notificationRequest.copy(
-      messageDetails = notificationRequest.messageDetails
-        .copy(username = displayName, iconEmoji = None, attachments = sanitisedAttachments)
-    )
-  }
 
   private def flatten(results: Seq[NotificationResult]): NotificationResult =
     results.foldLeft(NotificationResult()) { (acc, current) =>
@@ -98,7 +90,7 @@ class NotificationService @Inject()(
 
   private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage = {
     import notificationRequest.messageDetails._
-    SlackMessage(slackChannel, text, username, iconEmoji, attachments)
+    SlackMessage(slackChannel, text, "slack-notifications", None, attachments)
   }
 
   private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[NotificationResult])(
@@ -169,10 +161,24 @@ class NotificationService @Inject()(
       if (slashPos > 0 && s.nonEmpty) Some(s) else None
     }
 
-  private[services] def sendSlackMessage(slackMessage: SlackMessage)(
+  def populateNameAndIconInMessage(slackMessage: SlackMessage, service: Service): SlackMessage = {
+
+    implicit def hint[T]: ProductHint[T] = ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
+
+    val config      = configuration.underlying.getList("auth.authorizedServices").toOrThrow[List[ServiceConfig]]
+    val displayName = config.find(_.name == service.name).flatMap(_.displayName).fold(service.name)(identity)
+
+    slackMessage.copy(
+      username    = displayName,
+      icon_emoji  = None,
+      attachments = slackMessage.attachments.map(a => a.copy(author_name = Some(displayName), author_icon = None))
+    )
+  }
+
+  private[services] def sendSlackMessage(slackMessage: SlackMessage, service: Service)(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
     slackConnector
-      .sendMessage(slackMessage)
+      .sendMessage(populateNameAndIconInMessage(slackMessage, service))
       .map { response =>
         response.status match {
           case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)

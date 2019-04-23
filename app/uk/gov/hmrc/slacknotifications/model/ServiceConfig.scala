@@ -16,26 +16,4 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import play.api.libs.functional.syntax._
-import play.api.libs.json.Reads._
-import play.api.libs.json.{Reads, _}
-
-final case class MessageDetails(
-  text: String,
-  attachments: Seq[Attachment] = Nil
-)
-
-object MessageDetails {
-  implicit val reads: Reads[MessageDetails] = (
-    (__ \ "text").read[String] and (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
-  )(MessageDetails.apply _)
-}
-
-final case class NotificationRequest(
-  channelLookup: ChannelLookup,
-  messageDetails: MessageDetails
-)
-
-object NotificationRequest {
-  implicit val reads: Reads[NotificationRequest] = Json.reads[NotificationRequest]
-}
+case class ServiceConfig(name: String, password: String, displayName: Option[String])

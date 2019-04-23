@@ -36,11 +36,8 @@ class NotificationController @Inject()(authService: AuthService, notificationSer
   def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     withAuthorization {
       withJsonBody[NotificationRequest] { notificationRequest =>
-        val service = hc.authorization.flatMap(AuthService.Service.fromAuthorization)
-        val sanitisedNotification =
-          notificationService
-            .sanitiseNotification(notificationRequest, service.map(_.displayName).getOrElse("slack-notifications"))
-        notificationService.sendNotification(sanitisedNotification).map { results =>
+        val authenticatedService = hc.authorization.flatMap(AuthService.Service.fromAuthorization).get
+        notificationService.sendNotification(notificationRequest, authenticatedService).map { results =>
           val asJson = Json.toJson(results)
           Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
           Ok(asJson)
