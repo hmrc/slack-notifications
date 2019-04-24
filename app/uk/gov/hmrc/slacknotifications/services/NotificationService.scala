@@ -19,12 +19,14 @@ package uk.gov.hmrc.slacknotifications.services
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.{Configuration, Logger}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class NotificationService @Inject()(configuration: Configuration, slackConnector: SlackConnector, teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector, userManagementConnector: UserManagementConnector, userManagementService: UserManagementService)(implicit ec: ExecutionContext) {
@@ -81,7 +83,7 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
 
   private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage = {
     import notificationRequest.messageDetails._
-    SlackMessage(slackChannel, text, username, iconEmoji, attachments)
+    WhitelistedLink.sanitiseNotification(SlackMessage(slackChannel, text, username, iconEmoji, attachments))
   }
 
   private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[NotificationResult])(
