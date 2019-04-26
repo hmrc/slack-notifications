@@ -18,8 +18,6 @@ package uk.gov.hmrc.slacknotifications.utils
 
 import java.net.{URI, URL}
 
-import uk.gov.hmrc.slacknotifications.model.SlackMessage
-
 import scala.annotation.tailrec
 import scala.util.Try
 
@@ -51,10 +49,4 @@ object WhitelistedLink {
     val badLinks: List[URL] = getUris(str).filter((x: URL) => !isWhitelisted(x.getHost, whitelistedDomains)).toList
     overrideLinks(str, overridenNonWhitelistedLink, badLinks)
   }
-
-  val sanitiseNotification: SlackMessage => SlackMessage = msg =>
-    msg.copy(
-      channel = sanitise(msg.channel),
-      text = sanitise(msg.text)
-    )
 }

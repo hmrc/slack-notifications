@@ -23,7 +23,6 @@ import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
-import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -83,7 +82,7 @@ class NotificationService @Inject()(configuration: Configuration, slackConnector
 
   private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage = {
     import notificationRequest.messageDetails._
-    WhitelistedLink.sanitiseNotification(SlackMessage(slackChannel, text, username, iconEmoji, attachments))
+    SlackMessage.sanitise(SlackMessage(slackChannel, text, username, iconEmoji, attachments))
   }
 
   private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[NotificationResult])(

@@ -17,6 +17,7 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import play.api.libs.json.{Json, OFormat}
+import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
 
 /**
   * More details: https://api.slack.com/docs/message-attachments
@@ -65,4 +66,6 @@ case class SlackMessage(
 
 object SlackMessage {
   implicit val format: OFormat[SlackMessage] = Json.format[SlackMessage]
+
+  def sanitise(msg: SlackMessage): SlackMessage = msg.copy(text = WhitelistedLink.sanitise(msg.text))
 }
