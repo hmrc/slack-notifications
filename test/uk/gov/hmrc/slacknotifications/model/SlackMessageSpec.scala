@@ -55,4 +55,43 @@ class SlackMessageSpec extends WordSpec with Matchers {
       sanitisedMessage shouldBe message.copy(text = sanitisedText)
     }
   }
+
+  "An attachment" should {
+    val emptyAttachment = Attachment(
+      fallback = None,
+      color = None,
+      pretext = None,
+      author_name = None,
+      author_link = None,
+      author_icon = None,
+      title = None,
+      title_link = None,
+      text = None,
+      fields = None,
+      image_url = None,
+      thumb_url = None,
+      footer = None,
+      footer_icon = None,
+      ts = None
+    )
+
+    "have sanitised links" in {
+      val attachment = emptyAttachment.copy(
+        author_link = Some("https://github.com/hmrc"),
+        title_link = Some("http://very.bad.url/with-plenty-malware"),
+        image_url = Some("http://url.i.dont?know=about"),
+        thumb_url = Some("https://github.com/hmrc")
+      )
+
+      val expected = emptyAttachment.copy(
+        author_link = Some("https://github.com/hmrc"),
+        title_link = Some("NOT WHITELISTED LINK"),
+        image_url = Some("NOT WHITELISTED LINK"),
+        thumb_url = Some("https://github.com/hmrc")
+      )
+
+      Attachment.sanitise(attachment) shouldBe expected
+    }
+
+  }
 }

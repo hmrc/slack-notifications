@@ -54,6 +54,12 @@ object Attachment {
 
   implicit val format: OFormat[Attachment] = Json.format[Attachment]
 
+  def sanitise(attch: Attachment): Attachment = attch.copy(
+    author_link = attch.author_link.map{WhitelistedLink.sanitise(_)},
+    title_link = attch.title_link.map{WhitelistedLink.sanitise(_)},
+    image_url = attch.image_url.map{WhitelistedLink.sanitise(_)},
+    thumb_url = attch.thumb_url.map{WhitelistedLink.sanitise(_)}
+  )
 }
 
 case class SlackMessage(
@@ -67,5 +73,8 @@ case class SlackMessage(
 object SlackMessage {
   implicit val format: OFormat[SlackMessage] = Json.format[SlackMessage]
 
-  def sanitise(msg: SlackMessage): SlackMessage = msg.copy(text = WhitelistedLink.sanitise(msg.text))
+  def sanitise(msg: SlackMessage): SlackMessage = msg.copy(
+    text = WhitelistedLink.sanitise(msg.text),
+    attachments = msg.attachments.map{ attachement: Attachment => Attachment.sanitise(attachement)}
+  )
 }
