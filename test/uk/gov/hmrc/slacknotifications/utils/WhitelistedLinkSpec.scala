@@ -62,7 +62,8 @@ class WhitelistedLinkSpec extends WordSpec with Matchers {
         ("https://kibana.tools.production.tax.service.gov.uk/app/kibana#/home?_g=()", "https://kibana.tools.production.tax.service.gov.uk/app/kibana#/home?_g=()"),
         ("https://grafana.tools.production.tax.service.gov.uk/", "https://grafana.tools.production.tax.service.gov.uk/"),
         ("https://www.google.com", WhitelistedLink.overridenNonWhitelistedLink),
-        ("http://url.i.dont?know=about", WhitelistedLink.overridenNonWhitelistedLink)
+        ("http://url.i.dont?know=about", WhitelistedLink.overridenNonWhitelistedLink),
+        ("https://hmrc.pagerduty.com/incidents/ABCDEF", "https://hmrc.pagerduty.com/incidents/ABCDEF")
       )
 
       forAll(links) {

@@ -25,7 +25,8 @@ object WhitelistedLink {
   val overridenNonWhitelistedLink = "NOT WHITELISTED LINK"
   val whitelistedDomains = Set(
     "tax.service.gov.uk",
-    "github.com"
+    "github.com",
+    "pagerduty.com"
   )
 
   val getUris : String => Set[URL] = (str) =>
