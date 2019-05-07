@@ -33,7 +33,6 @@ class AuthServiceSpec extends WordSpec with Matchers {
       val typesafeConfig = ConfigFactory.parseString(
         s"""
           auth {
-            enabled = true
             authorizedServices = [
               {
                 name = ${service.name}
@@ -48,7 +47,7 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
       val authService = new AuthService(configuration)
 
-      authService.isAuthorized(Some(service)) shouldBe true
+      authService.isAuthorized(service) shouldBe true
     }
 
     "return true if the service is present in the configuration (app-config-* style)" in {
@@ -56,22 +55,20 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
       val configuration =
         Configuration(
-          "auth.enabled" -> true,
-          "auth.authorizedServices.0.name" -> service.name,
+          "auth.authorizedServices.0.name"     -> service.name,
           "auth.authorizedServices.0.password" -> base64Encode(service.password)
         )
 
       val authService = new AuthService(configuration)
 
-      authService.isAuthorized(Some(service)) shouldBe true
+      authService.isAuthorized(service) shouldBe true
     }
 
     "return false if no matching service is found in config" in {
       val service = Service("foo", "bar")
       val configuration =
         Configuration(
-          "auth.enabled" -> true,
-          "auth.authorizedServices.0.name" -> service.name,
+          "auth.authorizedServices.0.name"     -> service.name,
           "auth.authorizedServices.0.password" -> service.password
         )
 
@@ -79,33 +76,15 @@ class AuthServiceSpec extends WordSpec with Matchers {
 
       val anotherServiceNotInConfig = Service("x", "y")
 
-      authService.isAuthorized(Some(anotherServiceNotInConfig)) shouldBe false
+      authService.isAuthorized(anotherServiceNotInConfig) shouldBe false
     }
-
-    "return true if auth not enabled" in {
-      val typesafeConfig = ConfigFactory.parseString(
-        s"""
-          auth {
-            enabled = false
-            authorizedServices = []
-          }
-         """
-      )
-
-      val authService = new AuthService(Configuration(typesafeConfig))
-
-      authService.isAuthorized(Some(Service("foo", "bar"))) shouldBe true
-      authService.isAuthorized(None) shouldBe true
-    }
-
   }
 
   "Instantiating AuthService" should {
     "fail if password is not base64 encoded" in {
       val configuration =
         Configuration(
-          "auth.enabled" -> true,
-          "auth.authorizedServices.0.name" -> "name",
+          "auth.authorizedServices.0.name"     -> "name",
           "auth.authorizedServices.0.password" -> "not base64 encoded $%£*&^"
         )
 

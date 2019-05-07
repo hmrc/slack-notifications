@@ -42,8 +42,8 @@ class AuthService @Inject()(configuration: Configuration) {
         case serviceWithoutBase64EncPass =>
           Left(
             CannotConvert(
-              value = serviceWithoutBase64EncPass.toString,
-              toType = "Service",
+              value   = serviceWithoutBase64EncPass.toString,
+              toType  = "Service",
               because = "password was not base64 encoded"
             )
           )
@@ -52,12 +52,8 @@ class AuthService @Inject()(configuration: Configuration) {
   val authConfiguration: AuthConfiguration =
     configuration.underlying.getConfig("auth").toOrThrow[AuthConfiguration]
 
-  def isAuthorized(service: Option[Service]): Boolean =
-    if (authConfiguration.enabled) {
-      authConfiguration.authorizedServices.exists(v => service.contains(v))
-    } else {
-      true
-    }
+  def isAuthorized(service: Service): Boolean =
+    authConfiguration.authorizedServices.contains(service)
 }
 
 object AuthService {
@@ -70,14 +66,13 @@ object AuthService {
   }
 
   final case class AuthConfiguration(
-                                      enabled: Boolean,
-                                      authorizedServices: List[Service]
-                                    )
+    authorizedServices: List[Service]
+  )
 
   final case class Service(
-                            name: String,
-                            password: String
-                          )
+    name: String,
+    password: String
+  )
 
   object Service {
     def fromAuthorization(authorization: Authorization): Option[Service] =
