@@ -172,7 +172,7 @@ class NotificationServiceSpec
         when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
         when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-        val result = service.sendNotification(notificationRequest,Service("","")).futureValue
+        val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(teamChannel),
@@ -211,7 +211,7 @@ class NotificationServiceSpec
         when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
         when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
 
-        val result = service.sendNotification(notificationRequest,Service("","")).futureValue
+        val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(teamChannel),
