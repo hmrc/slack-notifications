@@ -25,7 +25,6 @@ import uk.gov.hmrc.play.bootstrap.controller.BaseController
 import uk.gov.hmrc.play.bootstrap.http.ErrorResponse
 import uk.gov.hmrc.slacknotifications.model.NotificationRequest
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
-
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton()
@@ -34,9 +33,8 @@ class NotificationController @Inject()(authService: AuthService, notificationSer
     extends BaseController {
 
   def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
-    withAuthorization {
+    withAuthorization { authenticatedService =>
       withJsonBody[NotificationRequest] { notificationRequest =>
-        val authenticatedService = hc.authorization.flatMap(AuthService.Service.fromAuthorization).get
         notificationService.sendNotification(notificationRequest, authenticatedService).map { results =>
           val asJson = Json.toJson(results)
           Logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
@@ -46,14 +44,15 @@ class NotificationController @Inject()(authService: AuthService, notificationSer
     }
   }
 
-  def withAuthorization(block: => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
-    val maybeService = hc.authorization.flatMap(AuthService.Service.fromAuthorization)
-    if (authService.isAuthorized(maybeService)) {
-      block
-    } else {
+  def withAuthorization(fn: AuthService.Service => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
+    def unauthorized = {
       val message            = "Invalid credentials. Requires basic authentication"
       implicit val erFormats = Json.format[ErrorResponse]
       Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message))))
+    }
+
+    hc.authorization.flatMap(AuthService.Service.fromAuthorization).fold(unauthorized) { service =>
+      if (authService.isAuthorized(service)) fn(service) else unauthorized
     }
   }
 

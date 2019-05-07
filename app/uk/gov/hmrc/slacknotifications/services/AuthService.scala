@@ -52,12 +52,8 @@ class AuthService @Inject()(configuration: Configuration) {
   val authConfiguration: AuthConfiguration =
     configuration.underlying.getConfig("auth").toOrThrow[AuthConfiguration]
 
-  def isAuthorized(service: Option[Service]): Boolean =
-    if (authConfiguration.enabled) {
-      authConfiguration.authorizedServices.exists(v => service.contains(v))
-    } else {
-      true
-    }
+  def isAuthorized(service: Service): Boolean =
+    authConfiguration.authorizedServices.contains(service)
 }
 
 object AuthService {
@@ -70,7 +66,6 @@ object AuthService {
   }
 
   final case class AuthConfiguration(
-    enabled: Boolean,
     authorizedServices: List[Service]
   )
 

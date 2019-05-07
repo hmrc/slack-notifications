@@ -520,7 +520,6 @@ class NotificationServiceSpec
 
     val configuration =
       Configuration(
-        "auth.enabled"                          -> true,
         "auth.authorizedServices.0.name"        -> "leak-detection",
         "auth.authorizedServices.0.password"    -> "foo",
         "auth.authorizedServices.0.displayName" -> "leak-detector",
