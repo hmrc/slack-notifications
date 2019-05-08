@@ -23,30 +23,30 @@ import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
   * More details: https://api.slack.com/docs/message-attachments
   */
 case class Attachment(
-                       fallback: Option[String],
-                       color: Option[String],
-                       pretext: Option[String],
-                       author_name: Option[String],
-                       author_link: Option[String],
-                       author_icon: Option[String],
-                       title: Option[String],
-                       title_link: Option[String],
-                       text: Option[String],
-                       fields: Option[Seq[Attachment.Field]],
-                       image_url: Option[String],
-                       thumb_url: Option[String],
-                       footer: Option[String],
-                       footer_icon: Option[String],
-                       ts: Option[Int]
-                     )
+  fallback: Option[String],
+  color: Option[String],
+  pretext: Option[String],
+  author_name: Option[String],
+  author_link: Option[String],
+  author_icon: Option[String],
+  title: Option[String],
+  title_link: Option[String],
+  text: Option[String],
+  fields: Option[Seq[Attachment.Field]],
+  image_url: Option[String],
+  thumb_url: Option[String],
+  footer: Option[String],
+  footer_icon: Option[String],
+  ts: Option[Int]
+)
 
 object Attachment {
 
   final case class Field(
-                          title: String,
-                          value: String,
-                          short: Boolean
-                        )
+    title: String,
+    value: String,
+    short: Boolean
+  )
 
   object Field {
     implicit val format: OFormat[Field] = Json.format[Field]
@@ -63,12 +63,12 @@ object Attachment {
 }
 
 case class SlackMessage(
-                         channel: String,
-                         text: String,
-                         username: String,
-                         icon_emoji: Option[String],
-                         attachments: Seq[Attachment]
-                       )
+  channel: String,
+  text: String,
+  username: String,
+  icon_emoji: Option[String],
+  attachments: Seq[Attachment]
+)
 
 object SlackMessage {
   implicit val format: OFormat[SlackMessage] = Json.format[SlackMessage]

@@ -20,6 +20,8 @@ Passwords need to be base64 encoded and then encrypted (as described in the conf
 
 Once we receive the PR we will review, before redeploying the app.
 
+A user's notifications will be sent using the `displayName` in the above config file if configured. Otherwise, the `name` will be used.
+
 **N.B.** This only applies to users within the HMRC organisation on github
 
 ## Send to teams that own a repository
@@ -39,8 +41,6 @@ body:
     },
     "messageDetails" : {
         "text" : "message to be posted",
-        "username" : "deployments-info",
-        "iconEmoji" : ":snowman:", // optional
         "attachments" : [ // optional
             { "text" : "some-attachment" }
         ]    
@@ -53,7 +53,7 @@ example curl request:
 
 ```
 curl -X POST -H 'Content-type: application/json' -H 'Authorization: Basic Zm9vOmJhcg==' \
-    --data '{"channelLookup" : { "by" : "github-repository", "repositoryName" : "foo" }, "messageDetails" : { "text" : "Testing if slack-notifications work", "username" : "foo" } }' \
+    --data '{"channelLookup" : { "by" : "github-repository", "repositoryName" : "foo" }, "messageDetails" : { "text" : "Testing if slack-notifications work" } }' \
     localhost:8866/slack-notifications/notification
 ```
 
@@ -74,8 +74,6 @@ body:
     },
     "messageDetails" : {
         "text" : "message to be posted",
-        "username" : "deployments-info",
-        "iconEmoji" : ":snowman:", // optional
         "attachments" : [ // optional
             { "text" : "some-attachment" }
         ]
@@ -97,8 +95,6 @@ body:
     },
     "messageDetails" : {
         "text" : "message to be posted",
-        "username" : "deployments-info"
-        "iconEmoji" : ":snowman:", // optional
         "attachments" : [ // optional
             "text" : "some-attachment"
         ]
