@@ -55,10 +55,19 @@ object Attachment {
   implicit val format: OFormat[Attachment] = Json.format[Attachment]
 
   def sanitise(attch: Attachment): Attachment = attch.copy(
+    fallback = attch.fallback.map{WhitelistedLink.sanitise(_)},
+    color = attch.color.map{WhitelistedLink.sanitise(_)},
+    pretext = attch.pretext.map{WhitelistedLink.sanitise(_)},
+    author_name = attch.author_name.map{WhitelistedLink.sanitise(_)},
     author_link = attch.author_link.map{WhitelistedLink.sanitise(_)},
+    author_icon = attch.author_icon.map{WhitelistedLink.sanitise(_)},
+    title = attch.title.map{WhitelistedLink.sanitise(_)},
     title_link = attch.title_link.map{WhitelistedLink.sanitise(_)},
+    text = attch.text.map{WhitelistedLink.sanitise(_)},
     image_url = attch.image_url.map{WhitelistedLink.sanitise(_)},
-    thumb_url = attch.thumb_url.map{WhitelistedLink.sanitise(_)}
+    thumb_url = attch.thumb_url.map{WhitelistedLink.sanitise(_)},
+    footer = attch.footer.map{WhitelistedLink.sanitise(_)},
+    footer_icon = attch.footer_icon.map{WhitelistedLink.sanitise(_)}
   )
 }
 

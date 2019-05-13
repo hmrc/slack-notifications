@@ -26,7 +26,8 @@ object WhitelistedLink {
   val whitelistedDomains = Set(
     "tax.service.gov.uk",
     "github.com",
-    "pagerduty.com"
+    "pagerduty.com",
+    "console.aws.amazon.com"
   )
 
   val getUris : String => Set[URL] = (str) =>

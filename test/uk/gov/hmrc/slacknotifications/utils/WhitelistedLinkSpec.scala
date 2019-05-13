@@ -44,6 +44,7 @@ class WhitelistedLinkSpec extends WordSpec with Matchers {
         ("https://kibana.tools.production.tax.service.gov.uk/app/kibana#/home?_g=()", true),
         ("https://grafana.tools.production.tax.service.gov.uk/", true),
         ("https://www.google.com", false),
+        ("https://console.aws.amazon.com", true),
         ("http://url.i.dont?know=about", false)
       )
 
@@ -71,6 +72,5 @@ class WhitelistedLinkSpec extends WordSpec with Matchers {
           sanitise(link) shouldBe sanitisedLink
       }
     }
-
   }
 }
