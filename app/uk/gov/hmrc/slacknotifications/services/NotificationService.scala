@@ -90,7 +90,7 @@ class NotificationService @Inject()(
 
   private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage = {
     import notificationRequest.messageDetails._
-    SlackMessage(slackChannel, text, "slack-notifications", None, attachments)
+    SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments))
   }
 
   private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[NotificationResult])(

@@ -17,6 +17,7 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import play.api.libs.json.{Json, OFormat}
+import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
 
 /**
   * More details: https://api.slack.com/docs/message-attachments
@@ -53,6 +54,21 @@ object Attachment {
 
   implicit val format: OFormat[Attachment] = Json.format[Attachment]
 
+  def sanitise(attch: Attachment): Attachment = attch.copy(
+    fallback = attch.fallback.map{WhitelistedLink.sanitise(_)},
+    color = attch.color.map{WhitelistedLink.sanitise(_)},
+    pretext = attch.pretext.map{WhitelistedLink.sanitise(_)},
+    author_name = attch.author_name.map{WhitelistedLink.sanitise(_)},
+    author_link = attch.author_link.map{WhitelistedLink.sanitise(_)},
+    author_icon = attch.author_icon.map{WhitelistedLink.sanitise(_)},
+    title = attch.title.map{WhitelistedLink.sanitise(_)},
+    title_link = attch.title_link.map{WhitelistedLink.sanitise(_)},
+    text = attch.text.map{WhitelistedLink.sanitise(_)},
+    image_url = attch.image_url.map{WhitelistedLink.sanitise(_)},
+    thumb_url = attch.thumb_url.map{WhitelistedLink.sanitise(_)},
+    footer = attch.footer.map{WhitelistedLink.sanitise(_)},
+    footer_icon = attch.footer_icon.map{WhitelistedLink.sanitise(_)}
+  )
 }
 
 case class SlackMessage(
@@ -65,4 +81,9 @@ case class SlackMessage(
 
 object SlackMessage {
   implicit val format: OFormat[SlackMessage] = Json.format[SlackMessage]
+
+  def sanitise(msg: SlackMessage): SlackMessage = msg.copy(
+    text = WhitelistedLink.sanitise(msg.text),
+    attachments = msg.attachments.map{ attachement: Attachment => Attachment.sanitise(attachement)}
+  )
 }
