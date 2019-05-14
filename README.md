@@ -153,6 +153,10 @@ Response will typically have 200 status code and the following details:
 |not_a_real_team                         | Team is not a real MDTP team with human members                        |
 |not_a_real_github_user                  | Github user is not a real person, e.g. CI user                         |
 
+### Whitelisted domains
+
+Any URL can be checked against whitelisted domains stored in WhitelistedLink.scala.
+
 ### License
 
 This code is open source software licensed under the [Apache 2.0 License]("http://www.apache.org/licenses/LICENSE-2.0.html")
