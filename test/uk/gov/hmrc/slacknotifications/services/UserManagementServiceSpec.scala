@@ -21,7 +21,7 @@ import net.sf.ehcache.CacheManager
 import org.mockito.Mockito.when
 import org.mockito.Matchers.any
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}
 import play.api.cache.{CacheApi, EhCacheApi}
 import scala.concurrent.Future

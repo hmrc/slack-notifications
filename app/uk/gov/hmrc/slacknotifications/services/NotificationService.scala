@@ -90,6 +90,8 @@ class NotificationService @Inject()(
 
   private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage = {
     import notificationRequest.messageDetails._
+    // username and user emoji are initially hard-coded to 'slack-notifications' and none,
+    // then overridden from the authorised services config later
     SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments))
   }
 
@@ -161,16 +163,16 @@ class NotificationService @Inject()(
       if (slashPos > 0 && s.nonEmpty) Some(s) else None
     }
 
+  // Override the username used to send the message to what is configured in the config for the sending service
   def populateNameAndIconInMessage(slackMessage: SlackMessage, service: Service): SlackMessage = {
-
-    implicit def hint[T]: ProductHint[T] = ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
-
+    import ServiceConfig.hint
     val config      = configuration.underlying.getList("auth.authorizedServices").toOrThrow[List[ServiceConfig]]
     val displayName = config.find(_.name == service.name).flatMap(_.displayName).fold(service.name)(identity)
+    val userEmoji   = config.find(_.name == service.name).flatMap(_.userEmoji)
 
     slackMessage.copy(
       username    = displayName,
-      icon_emoji  = None,
+      icon_emoji  = userEmoji,
       attachments = slackMessage.attachments.map(a => a.copy(author_name = Some(displayName), author_icon = None))
     )
   }

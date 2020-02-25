@@ -27,7 +27,8 @@ final case class MessageDetails(
 
 object MessageDetails {
   implicit val reads: Reads[MessageDetails] = (
-    (__ \ "text").read[String] and (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
+    (__ \ "text").read[String] and
+      (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
   )(MessageDetails.apply _)
 }
 
