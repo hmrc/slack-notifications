@@ -1,6 +1,6 @@
 # slack-notifications
 
-[![Build Status](https://travis-ci.org/hmrc/slack-notifications.svg)](https://travis-ci.org/hmrc/slack-notifications) [ ![Download](https://api.bintray.com/packages/hmrc/releases/slack-notifications/images/download.svg) ](https://bintray.com/hmrc/releases/slack-notifications/_latestVersion)
+[![Build Status](https://travis-ci.org/hmrc/slack-notifications.svg)](https://travis-ci.org/hmrc/slack-notifications) [![Download](https://api.bintray.com/packages/hmrc/releases/slack-notifications/images/download.svg) ](https://bintray.com/hmrc/releases/slack-notifications/_latestVersion)
 
 This service enables sending slack notifications on the MDTP.
 
@@ -11,16 +11,36 @@ This service uses Basic Auth for access control. If you want to use it please co
 
 ## Adding new users able to send Slack Notifications
 
+The list of users that are able to use the service is predefined by an array in the config:
+
+```
+auth {
+    authorizedServices = [
+        {
+            name = test
+            password = "dGVzdA=="
+            displayName = "My Bot"
+            userEmoji = ":male-mechanic:"
+        }
+    ]
+}
+```
+Where:
+ * `name` is the username
+ * `password` is a base64 encoded password for the user
+ * Optional: `displayName` is a friendly name to use for sending messages as. If not set, will use `name` instead
+ * Optional: `userEmoji` is the icon to use for when sending messages for this user
+
+### In HMRC
+
 If you would like to add a new user that is able to send Slack notifications then you will need to submit a PR to the following repos:
 
   1. https://github.com/hmrc/app-config-platapps-labs/blob/master/slack-notifications.yaml#L73-L74
   1. https://github.com/hmrc/app-config-platapps-live/blob/master/slack-notifications.yaml#L75-L76
 
-Passwords need to be base64 encoded and then encrypted (as described in the configs above)
+> Remember to base64 and then encrypt the passwords (as described in the configs above)
 
 Once we receive the PR we will review, before redeploying the app.
-
-A user's notifications will be sent using the `displayName` in the above config file if configured. Otherwise, the `name` will be used.
 
 **N.B.** This only applies to users within the HMRC organisation on github
 

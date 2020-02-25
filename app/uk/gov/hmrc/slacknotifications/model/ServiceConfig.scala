@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 HM Revenue & Customs
+ * Copyright 2020 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,4 +16,10 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-case class ServiceConfig(name: String, password: String, displayName: Option[String])
+import pureconfig.{CamelCase, ConfigFieldMapping, ProductHint}
+
+case class ServiceConfig(name: String, password: String, displayName: Option[String], userEmoji: Option[String])
+
+object ServiceConfig {
+  implicit def hint[T]: ProductHint[T] = ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
+}
