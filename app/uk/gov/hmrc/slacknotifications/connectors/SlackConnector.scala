@@ -26,10 +26,10 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class SlackConnector @Inject()(http: HttpClient, configuration: Configuration)(implicit ec: ExecutionContext) {
 
-  val slackWebHookUri = {
+  private val slackWebHookUri: String = {
     val key = "slack.webhookUrl"
     configuration
-      .getString(key)
+      .getOptional[String](key)
       .getOrElse(
         throw new RuntimeException(s"Missing required $key configuration")
       )

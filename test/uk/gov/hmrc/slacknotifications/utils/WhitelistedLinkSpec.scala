@@ -23,7 +23,6 @@ import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink._
 
 class WhitelistedLinkSpec extends WordSpec with Matchers {
   private val whitelistedLink = "https://build.tax.service.gov.uk"
-  private val nonWhitelistedLink = "https://nonwhitelist.org"
 
   "Links" can {
     "be extracted from message" in {

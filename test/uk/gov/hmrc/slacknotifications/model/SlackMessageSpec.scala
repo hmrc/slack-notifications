@@ -21,14 +21,6 @@ import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
 
 class SlackMessageSpec extends WordSpec with Matchers {
   "A slack message" should {
-    val message = SlackMessage(
-      channel = "slack_channel",
-      text = "",
-      username = "someone",
-      None,
-      Seq.empty
-    )
-
     "contain a text message with whitelisted links" in {
       val message = SlackMessage(
         channel = "slack_channel",

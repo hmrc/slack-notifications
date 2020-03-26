@@ -18,26 +18,22 @@ package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Format, Json}
-import play.api.{Configuration, Environment}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.play.config.ServicesConfig
+
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UserManagementConnector @Inject()(
-  http: HttpClient,
-  override val runModeConfiguration: Configuration,
-  environment: Environment)(implicit ec: ExecutionContext)
-    extends ServicesConfig {
-
-  val mode = environment.mode
+class UserManagementConnector @Inject()(http: HttpClient,
+                                        servicesConfig: ServicesConfig)
+                                       (implicit ec: ExecutionContext) {
 
   import UserManagementConnector._
 
-  val url: String = {
+  private val url: String = {
     val keyInServices = "user-management.url"
-    getConfString(keyInServices, throw new RuntimeException(s"Could not find config $keyInServices"))
+    servicesConfig.getConfString(keyInServices, throw new RuntimeException(s"Could not find config $keyInServices"))
   }
 
   def getAllUsers(implicit hc: HeaderCarrier): Future[List[UmpUser]] =

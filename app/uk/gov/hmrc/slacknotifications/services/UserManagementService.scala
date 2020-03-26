@@ -19,16 +19,17 @@ package uk.gov.hmrc.slacknotifications.services
 import javax.inject.{Inject, Singleton}
 import play.api.Logger
 import play.api.cache._
-import scala.concurrent.duration._
-import scala.util.Success
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, UmpUser}
+
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UserManagementService @Inject()(connector: UserManagementConnector, cache: CacheApi)(
-  implicit ec: ExecutionContext) {
+class UserManagementService @Inject()(connector: UserManagementConnector,
+                                      cache: AsyncCacheApi)
+                                     (implicit ec: ExecutionContext) {
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
     for {
@@ -53,17 +54,8 @@ class UserManagementService @Inject()(connector: UserManagementConnector, cache:
     }
   }
 
-  private def withCachedUmpUsers[A](f: List[UmpUser] => A)(implicit hc: HeaderCarrier): Future[A] = {
-    val allUsers =
-      cache
-        .get[List[UmpUser]]("all-ump-users")
-        .map(Future.successful)
-        .getOrElse {
-          connector.getAllUsers.andThen {
-            case Success(umpUsers) => cache.set("all-ump-users", umpUsers, 15.minutes)
-          }
-        }
-    allUsers.map(f)
-  }
-
+  private def withCachedUmpUsers[A](f: List[UmpUser] => A)(implicit hc: HeaderCarrier): Future[A] =
+    cache
+      .getOrElseUpdate(key = "all-ump-users", expiration = 15.minutes)(orElse = connector.getAllUsers)
+      .map(f)
 }

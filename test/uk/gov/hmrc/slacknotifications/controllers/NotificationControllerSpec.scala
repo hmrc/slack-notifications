@@ -16,14 +16,14 @@
 
 package uk.gov.hmrc.slacknotifications.controllers
 
-import org.mockito.Matchers.{any, eq => is}
+import org.mockito.ArgumentMatchers.{any, eq => is}
 import org.mockito.Mockito.when
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Headers, Result}
-import play.api.test.FakeRequest
+import play.api.test.{FakeRequest, StubControllerComponentsFactory}
 import play.test.Helpers
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService.NotificationResult
@@ -63,7 +63,7 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
 
   }
 
-  trait TestSetup {
+  private trait TestSetup extends StubControllerComponentsFactory {
 
     val authService         = mock[AuthService]
     val notificationService = mock[NotificationService]
@@ -71,7 +71,7 @@ class NotificationControllerSpec extends WordSpec with Matchers with MockitoSuga
     when(notificationService.sendNotification(any(), any())(any()))
       .thenReturn(Future.successful(NotificationResult()))
 
-    val controller = new NotificationController(authService, notificationService)
+    val controller = new NotificationController(authService, notificationService, stubControllerComponents())
     val body =
       """
         |{
