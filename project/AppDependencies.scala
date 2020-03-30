@@ -5,21 +5,21 @@ import sbt._
 object AppDependencies {
 
   val compile = Seq(
-    "org.typelevel"         %% "cats-core"         % "1.6.0",
-    "uk.gov.hmrc"           %% "bootstrap-play-25" % "4.11.0",
-    "com.github.pureconfig" %% "pureconfig"        % "0.9.2",
+    "uk.gov.hmrc"           %% "bootstrap-play-26" % "1.6.0",
+    "org.typelevel"         %% "cats-core"         % "2.1.1",
+    "com.github.pureconfig" %% "pureconfig"        % "0.12.3",
     ws,
-    cache
+    ehcache
   )
 
   val test = Seq(
-    "org.scalatest"          %% "scalatest"          % "3.0.7"             % "test",
-    "org.scalacheck"         %% "scalacheck"         % "1.13.4"            % "test",
-    "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.1"             % "test",
-    "org.pegdown"            % "pegdown"             % "1.6.0"             % "test",
-    "org.mockito"            % "mockito-all"         % "1.10.19"           % "test",
-    "com.github.tomakehurst" % "wiremock"            % "2.22.0"            % "test",
-    "com.typesafe.play"      %% "play-test"          % PlayVersion.current % "test"
+    "org.scalatest"          %% "scalatest"          % "3.0.8"             % Test,
+    "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2"             % Test,
+    "org.scalacheck"         %% "scalacheck"         % "1.14.3"            % Test,
+    "org.pegdown"             % "pegdown"            % "1.6.0"             % Test,
+    "org.mockito"             % "mockito-core"       % "3.2.4"             % Test,
+    "com.github.tomakehurst"  % "wiremock-jre8"      % "2.26.3"            % Test,
+    "com.typesafe.play"      %% "play-test"          % PlayVersion.current % Test
   )
 
 }

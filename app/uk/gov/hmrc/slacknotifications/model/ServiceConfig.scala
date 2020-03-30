@@ -16,7 +16,8 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import pureconfig.{CamelCase, ConfigFieldMapping, ProductHint}
+import pureconfig.generic.ProductHint
+import pureconfig.{CamelCase, ConfigFieldMapping}
 
 case class ServiceConfig(name: String, password: String, displayName: Option[String], userEmoji: Option[String])
 

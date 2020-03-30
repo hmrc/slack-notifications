@@ -20,10 +20,11 @@ import com.google.common.io.BaseEncoding
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import pureconfig.error.CannotConvert
+import pureconfig.generic.auto._
+import pureconfig.generic.ProductHint
 import pureconfig.syntax._
-import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader, ProductHint}
+import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader}
 import uk.gov.hmrc.http.logging.Authorization
-
 import scala.util.Try
 
 @Singleton

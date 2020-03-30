@@ -19,14 +19,13 @@ package uk.gov.hmrc.slacknotifications.services
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.{Configuration, Logger}
+import pureconfig.generic.auto._
 import pureconfig.syntax._
-import pureconfig.{CamelCase, ConfigFieldMapping, ProductHint}
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, ServiceConfig, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
@@ -103,7 +102,7 @@ class NotificationService @Inject()(
     }
 
   private def withTeamsResponsibleForRepo[A](repoName: String, repositoryDetails: RepositoryDetails)(
-    f: List[String] => Future[NotificationResult])(implicit hc: HeaderCarrier): Future[NotificationResult] =
+    f: List[String] => Future[NotificationResult]): Future[NotificationResult] =
     getTeamsResponsibleForRepo(repositoryDetails) match {
       case Nil   => Future.successful(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))
       case teams => withNonExcludedTeams(teams)(f)
@@ -132,7 +131,7 @@ class NotificationService @Inject()(
 
   private def getCommaSeparatedListFromConfig(key: String): List[String] =
     configuration
-      .getString(key)
+      .getOptional[String](key)
       .map { v =>
         v.split(",").map(_.trim).toList
       }

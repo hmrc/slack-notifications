@@ -21,16 +21,18 @@ import play.api.Logger
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.bootstrap.controller.BaseController
+import uk.gov.hmrc.play.bootstrap.controller.BackendController
 import uk.gov.hmrc.play.bootstrap.http.ErrorResponse
 import uk.gov.hmrc.slacknotifications.model.NotificationRequest
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
+
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton()
-class NotificationController @Inject()(authService: AuthService, notificationService: NotificationService)(
-  implicit ec: ExecutionContext)
-    extends BaseController {
+class NotificationController @Inject()(authService: AuthService,
+                                       notificationService: NotificationService,
+                                       controllerComponents: ControllerComponents)
+                                      (implicit ec: ExecutionContext) extends BackendController(controllerComponents) {
 
   def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     withAuthorization { authenticatedService =>

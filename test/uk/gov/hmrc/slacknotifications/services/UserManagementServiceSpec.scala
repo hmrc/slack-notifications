@@ -17,22 +17,27 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import java.util.UUID
+
 import net.sf.ehcache.CacheManager
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
-import org.mockito.Matchers.any
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}
-import play.api.cache.{CacheApi, EhCacheApi}
-import scala.concurrent.Future
+import org.scalatestplus.mockito.MockitoSugar
+import play.api.cache.AsyncCacheApi
+import play.api.cache.ehcache.EhCacheApi
 import uk.gov.hmrc.http.HeaderCarrier
+
+import scala.concurrent.ExecutionContext
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, UmpUser}
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext.fromLoggingDetails
+
+import scala.concurrent.Future
 
 class UserManagementServiceSpec extends WordSpec with Matchers with MockitoSugar with ScalaFutures {
 
-  implicit val hc = HeaderCarrier()
+  private implicit val hc = HeaderCarrier()
+  private implicit val ec = ExecutionContext.Implicits.global
 
   "Service" should {
     "lookup LDAP username based on a Github handle using cached UMP response" in new Fixtures {
@@ -67,9 +72,9 @@ class UserManagementServiceSpec extends WordSpec with Matchers with MockitoSugar
 
   }
 
-  trait Fixtures {
+  private trait Fixtures {
     val mockedUMPConnector = mock[UserManagementConnector]
-    val cacheApi: CacheApi = {
+    val cacheApi: AsyncCacheApi = {
       val cacheManager = CacheManager.create()
       val cacheName    = UUID.randomUUID().toString
       cacheManager.addCache(cacheName)

@@ -16,22 +16,20 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
-import akka.actor.ActorSystem
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
+import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpec}
-import play.api.{Configuration, Environment, Play}
-import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.http.hooks.HttpHook
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.play.http.ws.WSHttp
-import com.github.tomakehurst.wiremock.client.WireMock._
-import com.typesafe.config.Config
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.{Configuration, Mode}
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.play.bootstrap.config.{RunMode, ServicesConfig}
+import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class UserManagementConnectorSpec
@@ -43,9 +41,14 @@ class UserManagementConnectorSpec
     with GuiceOneAppPerSuite
     with IntegrationPatience {
 
-  val Port           = 8080
-  val Host           = "localhost"
-  val wireMockServer = new WireMockServer(wireMockConfig().port(Port))
+  private val Port           = 8080
+  private val Host           = "localhost"
+  private val wireMockServer = new WireMockServer(wireMockConfig().port(Port))
+  private val servicesConfig = new ServicesConfig(
+    Configuration("microservice.services.user-management.url" -> s"http://$Host:$Port"),
+    new RunMode(Configuration.empty, Mode.Test)
+  )
+  private val httpClient = app.injector.instanceOf[HttpClient]
 
   override def beforeEach {
     wireMockServer.start()
@@ -56,21 +59,11 @@ class UserManagementConnectorSpec
     wireMockServer.stop()
   }
 
-  val httpClient = new HttpClient with WSHttp {
-    override val hooks: Seq[HttpHook] = Seq.empty
-
-    override protected def actorSystem: ActorSystem = Play.current.actorSystem
-
-    override protected def configuration: Option[Config] = Option(Play.current.configuration.underlying)
-  }
-
   "The connector" should {
 
     implicit val hc = HeaderCarrier()
-    val ump = new UserManagementConnector(
-      httpClient,
-      Configuration("microservice.services.user-management.url" -> s"http://$Host:$Port"),
-      Environment.simple())
+
+    val ump = new UserManagementConnector(httpClient, servicesConfig)
 
     "getAllUsers of the organisation" in {
 

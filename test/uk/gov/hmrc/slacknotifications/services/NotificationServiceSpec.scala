@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import cats.data.NonEmptyList
-import org.mockito.Matchers.any
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
@@ -360,7 +360,6 @@ class NotificationServiceSpec
     }
 
     "report if no team is assigned to a repository" in new Fixtures {
-      private val teamName = "team-name"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(), owningTeams = Nil))))
 
