@@ -19,8 +19,6 @@ package uk.gov.hmrc.slacknotifications.controllers
 import org.mockito.ArgumentMatchers.{any, eq => is}
 import org.mockito.Mockito.when
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{Matchers, WordSpec}
-import org.scalatestplus.mockito.MockitoSugar
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.{Headers, Result}
 import play.api.test.{FakeRequest, StubControllerComponentsFactory}
@@ -28,11 +26,12 @@ import play.test.Helpers
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService.NotificationResult
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
+import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class NotificationControllerSpec extends WordSpec with Matchers with MockitoSugar with ScalaFutures {
+class NotificationControllerSpec extends UnitSpec with ScalaFutures {
 
   "The controller" should {
 

@@ -22,8 +22,6 @@ import net.sf.ehcache.CacheManager
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{Matchers, WordSpec}
-import org.scalatestplus.mockito.MockitoSugar
 import play.api.cache.AsyncCacheApi
 import play.api.cache.ehcache.EhCacheApi
 import uk.gov.hmrc.http.HeaderCarrier
@@ -31,10 +29,11 @@ import uk.gov.hmrc.http.HeaderCarrier
 import scala.concurrent.ExecutionContext
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, UmpUser}
+import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.Future
 
-class UserManagementServiceSpec extends WordSpec with Matchers with MockitoSugar with ScalaFutures {
+class UserManagementServiceSpec extends UnitSpec with ScalaFutures {
 
   private implicit val hc = HeaderCarrier()
   private implicit val ec = ExecutionContext.Implicits.global

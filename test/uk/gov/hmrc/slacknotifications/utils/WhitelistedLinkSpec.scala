@@ -18,10 +18,10 @@ package uk.gov.hmrc.slacknotifications.utils
 
 import java.net.URL
 
-import org.scalatest.{Matchers, WordSpec}
+import uk.gov.hmrc.slacknotifications.test.UnitSpec
 import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink._
 
-class WhitelistedLinkSpec extends WordSpec with Matchers {
+class WhitelistedLinkSpec extends UnitSpec {
   private val whitelistedLink = "https://build.tax.service.gov.uk"
 
   "Links" can {

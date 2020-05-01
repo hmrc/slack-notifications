@@ -21,8 +21,6 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{Matchers, WordSpec}
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
 import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFoundException, _}
@@ -32,16 +30,15 @@ import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, Sla
 import uk.gov.hmrc.slacknotifications.model.{Attachment, MessageDetails, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
+import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class NotificationServiceSpec
-    extends WordSpec
-    with Matchers
+    extends UnitSpec
     with ScalaFutures
-    with MockitoSugar
     with ScalaCheckPropertyChecks {
 
   implicit val hc: HeaderCarrier                       = HeaderCarrier()
