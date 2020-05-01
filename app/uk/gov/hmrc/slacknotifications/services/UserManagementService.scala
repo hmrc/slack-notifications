@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import javax.inject.{Inject, Singleton}
-import play.api.Logger
+import play.api.Logging
 import play.api.cache._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
@@ -29,7 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class UserManagementService @Inject()(connector: UserManagementConnector,
                                       cache: AsyncCacheApi)
-                                     (implicit ec: ExecutionContext) {
+                                     (implicit ec: ExecutionContext) extends Logging {
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
     for {
@@ -39,7 +39,7 @@ class UserManagementService @Inject()(connector: UserManagementConnector,
                 case None    => Future.successful(Nil)
               }
     } yield {
-      Logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
+      logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
       teams
     }
 

@@ -18,7 +18,7 @@ package uk.gov.hmrc.slacknotifications.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
-import play.api.{Configuration, Logger}
+import play.api.{Configuration, Logging}
 import pureconfig.generic.auto._
 import pureconfig.syntax._
 import uk.gov.hmrc.http._
@@ -26,6 +26,7 @@ import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDet
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, ServiceConfig, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
@@ -35,7 +36,7 @@ class NotificationService @Inject()(
   slackConnector: SlackConnector,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
   userManagementConnector: UserManagementConnector,
-  userManagementService: UserManagementService)(implicit ec: ExecutionContext) {
+  userManagementService: UserManagementService)(implicit ec: ExecutionContext) extends Logging {
 
   import NotificationService._
 
@@ -200,18 +201,18 @@ class NotificationService @Inject()(
     case ex: Upstream5xxResponse =>
       Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel))
     case NonFatal(ex) =>
-      Logger.error(s"Unable to notify Slack channel $channel", ex)
+      logger.error(s"Unable to notify Slack channel $channel", ex)
       Future.failed(ex)
   }
 
   private def handleChannelNotFound(channel: String): Future[NotificationResult] = {
-    Logger.error(SlackChannelNotFound(channel).message)
+    logger.error(SlackChannelNotFound(channel).message)
     Future.successful(NotificationResult().addError(SlackChannelNotFound(channel)))
   }
 
   private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String): NotificationResult = {
     val slackError = SlackError(statusCode, exceptionMessage)
-    Logger.error(s"Unable to notify Slack channel $channel, the following error occurred: ${slackError.message}")
+    logger.error(s"Unable to notify Slack channel $channel, the following error occurred: ${slackError.message}")
     NotificationResult().addError(slackError)
   }
 
