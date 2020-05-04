@@ -17,8 +17,6 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import cats.data.NonEmptyList
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
 import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -46,7 +44,7 @@ class NotificationServiceSpec
 
   "Sending a Slack message" should {
     "succeed if slack accepted the notification" in new Fixtures {
-      when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier])).thenReturn(Future(HttpResponse(200)))
 
       private val existingChannel = "existingChannel"
       val result = service
@@ -67,7 +65,7 @@ class NotificationServiceSpec
       val invalidStatusCodes = Gen.choose(201, 599)
       forAll(invalidStatusCodes) { statusCode =>
         val errorMsg = "invalid_payload"
-        when(slackConnector.sendMessage(any())(any()))
+        when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
           .thenReturn(Future(HttpResponse(statusCode, responseString = Some(errorMsg))))
 
         val result = service
@@ -98,7 +96,7 @@ class NotificationServiceSpec
         )
 
       forAll(exceptionsAndErrors) { (exception, expectedError) =>
-        when(slackConnector.sendMessage(any())(any()))
+        when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
           .thenReturn(Future.failed(exception))
 
         val result = service
@@ -119,7 +117,7 @@ class NotificationServiceSpec
     "throw an exception if any other non-fatal exception was thrown" in new Fixtures {
       val errorMsg = "non-fatal exception"
 
-      when(slackConnector.sendMessage(any())(any()))
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.failed(new RuntimeException(errorMsg)))
 
       val thrown =
@@ -143,7 +141,7 @@ class NotificationServiceSpec
   "Sending a notification" should {
     "work for all channel lookup types (happy path scenarios)" in new Fixtures {
       private val teamName = "team-name"
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
@@ -165,9 +163,9 @@ class NotificationServiceSpec
             )
           )
 
-        when(userManagementService.getTeamsForGithubUser(any())(any())).thenReturn(Future(List(teamDetails)))
-        when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
-        when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
+        when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier])).thenReturn(Future(List(teamDetails)))
+        when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier])).thenReturn(Future(Some(teamDetails)))
+        when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier])).thenReturn(Future(HttpResponse(200)))
 
         val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
@@ -182,7 +180,7 @@ class NotificationServiceSpec
 
     "work for all channel lookup types (happy path scenarios)with trailing / at the end" in new Fixtures {
       private val teamName = "team-name"
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
@@ -204,9 +202,9 @@ class NotificationServiceSpec
             )
           )
 
-        when(userManagementService.getTeamsForGithubUser(any())(any())).thenReturn(Future(List(teamDetails)))
-        when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(Some(teamDetails)))
-        when(slackConnector.sendMessage(any())(any())).thenReturn(Future(HttpResponse(200)))
+        when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier])).thenReturn(Future(List(teamDetails)))
+        when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier])).thenReturn(Future(Some(teamDetails)))
+        when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier])).thenReturn(Future(HttpResponse(200)))
 
         val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
@@ -220,19 +218,14 @@ class NotificationServiceSpec
     }
 
     "report if no teams are found for a user" in new Fixtures {
-      private val teamName = "team-name"
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
-        .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
-
       val githubUsername = "a-github-username"
-
       val notificationRequest =
         NotificationRequest(
           channelLookup  = TeamsOfGithubUser("", githubUsername),
           messageDetails = exampleMessageDetails
         )
 
-      when(userManagementService.getTeamsForGithubUser(any())(any())).thenReturn(Future(List.empty))
+      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier])).thenReturn(Future(List.empty))
 
       val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
 
@@ -258,7 +251,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      when(userManagementService.getTeamsForGithubUser(any())(any()))
+      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future(List(TeamDetails(None, None, teamName1), TeamDetails(None, None, teamName2))))
 
       val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
@@ -294,10 +287,8 @@ class NotificationServiceSpec
     "don't send notifications for a predefined set of ignored teams" in new Fixtures {
       private val teamName1 = "team-to-be-excluded-1"
       private val teamName2 = "team-to-be-excluded-2"
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName1, teamName2), owningTeams = Nil))))
-      when(userManagementService.getTeamsForGithubUser(any())(any()))
-        .thenReturn(Future(List(teamName1, teamName2).map(t => TeamDetails(None, None, t))))
 
       override val configuration = Configuration("exclusions.notRealTeams" -> s"$teamName1, $teamName2")
 
@@ -318,7 +309,7 @@ class NotificationServiceSpec
     }
 
     "report if a repository does not exist" in new Fixtures {
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any())).thenReturn(Future(None))
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier])).thenReturn(Future(None))
       private val nonexistentRepoName = "nonexistent-repo"
       private val notificationRequest =
         NotificationRequest(
@@ -337,9 +328,9 @@ class NotificationServiceSpec
 
     "report if the team name is not found by the user management service" in new Fixtures {
       private val teamName = "team-name"
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
-      when(userManagementConnector.getTeamDetails(any())(any())).thenReturn(Future(None))
+      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier])).thenReturn(Future(None))
 
       private val notificationRequest =
         NotificationRequest(
@@ -357,7 +348,7 @@ class NotificationServiceSpec
     }
 
     "report if no team is assigned to a repository" in new Fixtures {
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any())(any()))
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future(Some(RepositoryDetails(teamNames = List(), owningTeams = Nil))))
 
       val repoName = "repo-name"

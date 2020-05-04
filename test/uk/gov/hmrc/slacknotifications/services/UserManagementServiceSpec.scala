@@ -19,8 +19,6 @@ package uk.gov.hmrc.slacknotifications.services
 import java.util.UUID
 
 import net.sf.ehcache.CacheManager
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
 import org.scalatest.concurrent.ScalaFutures
 import play.api.cache.AsyncCacheApi
 import play.api.cache.ehcache.EhCacheApi
@@ -46,9 +44,9 @@ class UserManagementServiceSpec extends UnitSpec with ScalaFutures {
       val service           = new UserManagementService(mockedUMPConnector, cacheApi)
       val umpUsers          = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
 
-      when(mockedUMPConnector.getAllUsers(any()))
+      when(mockedUMPConnector.getAllUsers(any[HeaderCarrier]))
         .thenReturn(Future(umpUsers))
-        .thenThrow(new RuntimeException("Caching was supposed to prevent more than 1 call"))
+        .andThenThrow(new RuntimeException("Caching was supposed to prevent more than 1 call"))
 
       (1 to 5).foreach { _ =>
         service.getLdapUsername(githubUsername).futureValue.get shouldBe ldapUsername
@@ -63,8 +61,8 @@ class UserManagementServiceSpec extends UnitSpec with ScalaFutures {
       val umpUsers          = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
       val teams             = List(TeamDetails(slack = None, slackNotification = None, team = "n/a"))
 
-      when(mockedUMPConnector.getAllUsers(any())).thenReturn(Future.successful(umpUsers))
-      when(mockedUMPConnector.getTeamsForUser(any())(any())).thenReturn(Future(teams))
+      when(mockedUMPConnector.getAllUsers(any[HeaderCarrier])).thenReturn(Future.successful(umpUsers))
+      when(mockedUMPConnector.getTeamsForUser(any[String])(any[HeaderCarrier])).thenReturn(Future(teams))
 
       service.getTeamsForGithubUser(githubUsername).futureValue shouldBe teams
     }
