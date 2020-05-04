@@ -18,12 +18,12 @@ package uk.gov.hmrc.slacknotifications.services
 
 import com.google.common.io.BaseEncoding
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{Matchers, WordSpec}
 import play.api.Configuration
 import pureconfig.error.ConfigReaderException
 import uk.gov.hmrc.slacknotifications.services.AuthService.{AuthConfiguration, Service}
+import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
-class AuthServiceSpec extends WordSpec with Matchers {
+class AuthServiceSpec extends UnitSpec {
 
   "Checking if user is authorised" should {
 

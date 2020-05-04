@@ -16,10 +16,10 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import org.scalatest.{Matchers, WordSpec}
+import uk.gov.hmrc.slacknotifications.test.UnitSpec
 import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
 
-class SlackMessageSpec extends WordSpec with Matchers {
+class SlackMessageSpec extends UnitSpec {
   "A slack message" should {
     "contain a text message with whitelisted links" in {
       val message = SlackMessage(

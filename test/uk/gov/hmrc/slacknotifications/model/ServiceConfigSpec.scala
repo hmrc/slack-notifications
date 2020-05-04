@@ -16,12 +16,12 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import org.scalatest.{Matchers, WordSpec}
 import play.api.Configuration
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import pureconfig.generic.auto._
+import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
-class ServiceConfigSpec extends WordSpec with Matchers {
+class ServiceConfigSpec extends UnitSpec {
 
   import pureconfig.syntax._
   import ServiceConfig.hint

@@ -17,11 +17,11 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import cats.data.NonEmptyList
-import org.scalatest.{Matchers, WordSpec}
 import play.api.libs.json.{JsError, Json}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
+import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
-class ChannelLookupSpec extends WordSpec with Matchers {
+class ChannelLookupSpec extends UnitSpec {
   "Channel lookup" should {
     "be possible by github repository name" in {
       val by       = "github-repository"
