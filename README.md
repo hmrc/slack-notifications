@@ -30,7 +30,14 @@ Where:
  * `password` is a base64 encoded password for the user
  * Optional: `displayName` is a friendly name to use for sending messages as. If not set, will use `name` instead
  * Optional: `userEmoji` is the icon to use for when sending messages for this user
+ 
+### Base64 encoded password
 
+Please note that emitting `-n` will result in a new line character as a part of the base64 encoded string. Where this is unintentional, the password from the basic auth header will not match resulting in a 401 auth failed response.
+
+```
+echo -n "password" | base64
+```
 ### In HMRC
 
 If you would like to add a new user that is able to send Slack notifications then you will need to submit a PR to the following repos:
