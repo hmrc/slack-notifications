@@ -21,8 +21,8 @@ import play.api.Logging
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.bootstrap.controller.BackendController
-import uk.gov.hmrc.play.bootstrap.http.ErrorResponse
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
+import uk.gov.hmrc.play.bootstrap.backend.http.ErrorResponse
 import uk.gov.hmrc.slacknotifications.model.NotificationRequest
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
 
@@ -50,7 +50,7 @@ class NotificationController @Inject()(authService: AuthService,
     def unauthorized = {
       val message            = "Invalid credentials. Requires basic authentication"
       implicit val erFormats = Json.format[ErrorResponse]
-      Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message))))
+      Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message, None, None))))
     }
 
     hc.authorization.flatMap(AuthService.Service.fromAuthorization).fold(unauthorized) { service =>

@@ -5,7 +5,7 @@ import sbt._
 object AppDependencies {
 
   val compile = Seq(
-    "uk.gov.hmrc"           %% "bootstrap-backend-play-27" % "2.6.0",
+    "uk.gov.hmrc"           %% "bootstrap-backend-play-27" % "3.2.0",
     "org.typelevel"         %% "cats-core"                 % "2.1.1",
     "com.github.pureconfig" %% "pureconfig"                % "0.12.3",
     ws,
