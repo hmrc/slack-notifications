@@ -20,13 +20,12 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import play.api.{Configuration, Mode}
-import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.bootstrap.config.{RunMode, ServicesConfig}
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import play.api.Configuration
+import uk.gov.hmrc.http.{HeaderCarrier, HttpClient}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector._
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
@@ -43,8 +42,7 @@ class UserManagementConnectorSpec
   private val Host           = "localhost"
   private val wireMockServer = new WireMockServer(wireMockConfig().port(Port))
   private val servicesConfig = new ServicesConfig(
-    Configuration("microservice.services.user-management.url" -> s"http://$Host:$Port"),
-    new RunMode(Configuration.empty, Mode.Test)
+    Configuration("microservice.services.user-management.url" -> s"http://$Host:$Port")
   )
   private val httpClient = app.injector.instanceOf[HttpClient]
 

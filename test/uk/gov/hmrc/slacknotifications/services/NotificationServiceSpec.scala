@@ -66,7 +66,7 @@ class NotificationServiceSpec
       forAll(invalidStatusCodes) { statusCode =>
         val errorMsg = "invalid_payload"
         when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
-          .thenReturn(Future(HttpResponse(statusCode, responseString = Some(errorMsg))))
+          .thenReturn(Future(HttpResponse(statusCode, errorMsg)))
 
         val result = service
           .sendSlackMessage(
@@ -90,8 +90,8 @@ class NotificationServiceSpec
         Table(
           ("exception", "expected error"),
           (new BadRequestException(errorMsg), SlackError(400, errorMsg)),
-          (Upstream4xxResponse(errorMsg, 403, 403), SlackError(403, errorMsg)),
-          (Upstream5xxResponse(errorMsg, 500, 500), SlackError(500, errorMsg)),
+          (UpstreamErrorResponse(errorMsg, 403, 403), SlackError(403, errorMsg)),
+          (UpstreamErrorResponse(errorMsg, 500, 500), SlackError(500, errorMsg)),
           (new NotFoundException(errorMsg), SlackError(404, errorMsg))
         )
 
