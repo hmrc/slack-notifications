@@ -21,34 +21,32 @@ import java.net.{URI, URL}
 import scala.annotation.tailrec
 import scala.util.Try
 
-object WhitelistedLink {
-  val overridenNonWhitelistedLink = "NOT WHITELISTED LINK"
-  val whitelistedDomains = Set(
+object AllowlistedLink {
+  val LinkNotAllowlisted = "LINK NOT ALLOWLISTED"
+  val allowedDomains = Set(
     "tax.service.gov.uk",
     "github.com",
     "pagerduty.com",
     "console.aws.amazon.com"
   )
 
-  val getUris : String => Set[URL] = (str) =>
+  val getUris: String => Set[URL] = (str) =>
     str.split("""\s+""")
       .map{ s => Try{ new URI(s).toURL}}
       .flatMap{ _.toOption }.toSet
 
-  val isWhitelisted : (String, Set[String]) => Boolean = (url, whitelistedDomains) =>
-    whitelistedDomains.filter(url.contains(_))
-      .size > 0
+  val isAllowlisted: (String, Set[String]) => Boolean = (url, allowlist) =>
+    allowlist.exists(url.contains(_))
 
   @tailrec
-  private def overrideLinks(str: String, badLinkMessage: String, links: List[URL]): String = {
+  private def overrideLinks(str: String, badLinkMessage: String, links: List[URL]): String =
     links match {
-      case h :: t => overrideLinks(str.replace(h.toString, overridenNonWhitelistedLink), badLinkMessage, t)
-      case nil => str
+      case h :: t => overrideLinks(str.replace(h.toString, badLinkMessage), badLinkMessage, t)
+      case Nil    => str
     }
-  }
 
   val sanitise: String => String = str => {
-    val badLinks: List[URL] = getUris(str).filter((x: URL) => !isWhitelisted(x.getHost, whitelistedDomains)).toList
-    overrideLinks(str, overridenNonWhitelistedLink, badLinks)
+    val badLinks: List[URL] = getUris(str).filter((x: URL) => !isAllowlisted(x.getHost, allowedDomains)).toList
+    overrideLinks(str, LinkNotAllowlisted, badLinks)
   }
 }

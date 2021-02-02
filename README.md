@@ -180,9 +180,9 @@ Response will typically have 200 status code and the following details:
 |not_a_real_team                         | Team is not a real MDTP team with human members                        |
 |not_a_real_github_user                  | Github user is not a real person, e.g. CI user                         |
 
-### Whitelisted domains
+### Allowlisted domains
 
-Any URL can be checked against whitelisted domains stored in WhitelistedLink.scala.
+Any URL can be checked against the allowlisted domains stored in AllowlistedLink.scala.
 
 ### License
 
