@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
-import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
+import uk.gov.hmrc.slacknotifications.utils.AllowlistedLink.LinkNotAllowlisted
 
 class SlackMessageSpec extends UnitSpec {
   "A slack message" should {
-    "contain a text message with whitelisted links" in {
+    "contain a text message with allowlisted links" in {
       val message = SlackMessage(
         channel = "slack_channel",
         text = "Random text and link to https://github.com/hmrc",
@@ -33,7 +33,7 @@ class SlackMessageSpec extends UnitSpec {
       sanitisedMessage shouldBe message
     }
 
-    "contain a text with hidden non whitelisted links" in {
+    "contain a text with non-allowlisted links replaced" in {
       val message = SlackMessage(
         channel = "slack_channel",
         text = "Evil text with links to http://very.bad.url/with-plenty-malware and http://url.i.dont?know=about",
@@ -43,7 +43,7 @@ class SlackMessageSpec extends UnitSpec {
       )
       val sanitisedMessage = SlackMessage.sanitise(message)
 
-      val sanitisedText = s"Evil text with links to ${WhitelistedLink.overridenNonWhitelistedLink} and ${WhitelistedLink.overridenNonWhitelistedLink}"
+      val sanitisedText = s"Evil text with links to $LinkNotAllowlisted and $LinkNotAllowlisted"
       sanitisedMessage shouldBe message.copy(text = sanitisedText)
     }
   }
@@ -77,8 +77,8 @@ class SlackMessageSpec extends UnitSpec {
 
       val expected = emptyAttachment.copy(
         author_link = Some("https://github.com/hmrc"),
-        title_link = Some("NOT WHITELISTED LINK"),
-        image_url = Some("NOT WHITELISTED LINK"),
+        title_link = Some(LinkNotAllowlisted),
+        image_url = Some(LinkNotAllowlisted),
         thumb_url = Some("https://github.com/hmrc")
       )
 

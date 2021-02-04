@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,14 @@ package uk.gov.hmrc.slacknotifications.utils
 import java.net.URL
 
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
-import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink._
+import uk.gov.hmrc.slacknotifications.utils.AllowlistedLink._
 
-class WhitelistedLinkSpec extends UnitSpec {
-  private val whitelistedLink = "https://build.tax.service.gov.uk"
+class AllowlistedLinkSpec extends UnitSpec {
+  private val allowlistedLink = "https://build.tax.service.gov.uk"
 
   "Links" can {
     "be extracted from message" in {
-      getUris(whitelistedLink) shouldBe Set(new URL(whitelistedLink))
+      getUris(allowlistedLink) shouldBe Set(new URL(allowlistedLink))
       getUris("http://url.i.dont?know=about") shouldBe Set(new URL("http://url.i.dont?know=about"))
     }
   }
@@ -34,9 +34,9 @@ class WhitelistedLinkSpec extends UnitSpec {
   "Links" should {
     import org.scalatest.prop.TableDrivenPropertyChecks._
 
-    "be marked as whitelisted or not" in {
+    "be marked as allowlisted or not" in {
       val links = Table(
-        ("url", "is_whitelisted"),
+        ("url", "is_allowlisted"),
         ("https://build.tax.service.gov.uk", true),
         ("https://build.tax.service.gov.uk/login?from=%2F", true),
         ("https://github.com/hmrc", true),
@@ -48,12 +48,12 @@ class WhitelistedLinkSpec extends UnitSpec {
       )
 
       forAll(links) {
-        (link: String, isWhiteListedLink: Boolean) =>
-          isWhitelisted(link, whitelistedDomains) shouldBe isWhiteListedLink
+        (link: String, isAllowListedLink: Boolean) =>
+          isAllowlisted(link, allowedDomains) shouldBe isAllowListedLink
       }
     }
 
-    "be replaced if they aren't whitelisted" in {
+    "be replaced if they are not allowlisted" in {
       val links = Table(
         ("original_url", "sanitised_url"),
         ("https://build.tax.service.gov.uk", "https://build.tax.service.gov.uk"),
@@ -61,8 +61,8 @@ class WhitelistedLinkSpec extends UnitSpec {
         ("https://github.com/hmrc", "https://github.com/hmrc"),
         ("https://kibana.tools.production.tax.service.gov.uk/app/kibana#/home?_g=()", "https://kibana.tools.production.tax.service.gov.uk/app/kibana#/home?_g=()"),
         ("https://grafana.tools.production.tax.service.gov.uk/", "https://grafana.tools.production.tax.service.gov.uk/"),
-        ("https://www.google.com", WhitelistedLink.overridenNonWhitelistedLink),
-        ("http://url.i.dont?know=about", WhitelistedLink.overridenNonWhitelistedLink),
+        ("https://www.google.com", AllowlistedLink.LinkNotAllowlisted),
+        ("http://url.i.dont?know=about", AllowlistedLink.LinkNotAllowlisted),
         ("https://hmrc.pagerduty.com/incidents/ABCDEF", "https://hmrc.pagerduty.com/incidents/ABCDEF")
       )
 

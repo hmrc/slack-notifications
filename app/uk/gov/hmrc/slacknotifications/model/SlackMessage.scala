@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 HM Revenue & Customs
+ * Copyright 2021 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import play.api.libs.json.{Json, OFormat}
-import uk.gov.hmrc.slacknotifications.utils.WhitelistedLink
+import uk.gov.hmrc.slacknotifications.utils.AllowlistedLink
 
 /**
   * More details: https://api.slack.com/docs/message-attachments
@@ -55,19 +55,19 @@ object Attachment {
   implicit val format: OFormat[Attachment] = Json.format[Attachment]
 
   def sanitise(attch: Attachment): Attachment = attch.copy(
-    fallback = attch.fallback.map{WhitelistedLink.sanitise(_)},
-    color = attch.color.map{WhitelistedLink.sanitise(_)},
-    pretext = attch.pretext.map{WhitelistedLink.sanitise(_)},
-    author_name = attch.author_name.map{WhitelistedLink.sanitise(_)},
-    author_link = attch.author_link.map{WhitelistedLink.sanitise(_)},
-    author_icon = attch.author_icon.map{WhitelistedLink.sanitise(_)},
-    title = attch.title.map{WhitelistedLink.sanitise(_)},
-    title_link = attch.title_link.map{WhitelistedLink.sanitise(_)},
-    text = attch.text.map{WhitelistedLink.sanitise(_)},
-    image_url = attch.image_url.map{WhitelistedLink.sanitise(_)},
-    thumb_url = attch.thumb_url.map{WhitelistedLink.sanitise(_)},
-    footer = attch.footer.map{WhitelistedLink.sanitise(_)},
-    footer_icon = attch.footer_icon.map{WhitelistedLink.sanitise(_)}
+    fallback = attch.fallback.map{AllowlistedLink.sanitise(_)},
+    color = attch.color.map{AllowlistedLink.sanitise(_)},
+    pretext = attch.pretext.map{AllowlistedLink.sanitise(_)},
+    author_name = attch.author_name.map{AllowlistedLink.sanitise(_)},
+    author_link = attch.author_link.map{AllowlistedLink.sanitise(_)},
+    author_icon = attch.author_icon.map{AllowlistedLink.sanitise(_)},
+    title = attch.title.map{AllowlistedLink.sanitise(_)},
+    title_link = attch.title_link.map{AllowlistedLink.sanitise(_)},
+    text = attch.text.map{AllowlistedLink.sanitise(_)},
+    image_url = attch.image_url.map{AllowlistedLink.sanitise(_)},
+    thumb_url = attch.thumb_url.map{AllowlistedLink.sanitise(_)},
+    footer = attch.footer.map{AllowlistedLink.sanitise(_)},
+    footer_icon = attch.footer_icon.map{AllowlistedLink.sanitise(_)}
   )
 }
 
@@ -83,7 +83,7 @@ object SlackMessage {
   implicit val format: OFormat[SlackMessage] = Json.format[SlackMessage]
 
   def sanitise(msg: SlackMessage): SlackMessage = msg.copy(
-    text = WhitelistedLink.sanitise(msg.text),
+    text = AllowlistedLink.sanitise(msg.text),
     attachments = msg.attachments.map{ attachement: Attachment => Attachment.sanitise(attachement)}
   )
 }
