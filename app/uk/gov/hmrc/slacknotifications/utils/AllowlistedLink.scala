@@ -27,7 +27,8 @@ object AllowlistedLink {
     "tax.service.gov.uk",
     "github.com",
     "pagerduty.com",
-    "console.aws.amazon.com"
+    "console.aws.amazon.com",
+    "haveibeenpwned.com"
   )
 
   val getUris: String => Set[URL] = (str) =>
