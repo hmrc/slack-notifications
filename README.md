@@ -42,8 +42,8 @@ echo -n "password" | base64
 
 If you would like to add a new user that is able to send Slack notifications then you will need to submit a PR to the following repos:
 
-  1. https://github.com/hmrc/app-config-platapps-labs/blob/master/slack-notifications.yaml#L73-L74
-  1. https://github.com/hmrc/app-config-platapps-live/blob/master/slack-notifications.yaml#L75-L76
+  1. https://github.com/hmrc/app-config-platapps-labs/blob/HEAD/slack-notifications.yaml#L73-L74
+  1. https://github.com/hmrc/app-config-platapps-live/blob/HEAD/slack-notifications.yaml#L75-L76
 
 > Remember to base64 and then encrypt the passwords (as described in the configs above)
 
