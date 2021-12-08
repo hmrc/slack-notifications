@@ -45,7 +45,6 @@ class AllowlistedLinkSpec extends UnitSpec {
         ("https://www.google.com", false),
         ("https://console.aws.amazon.com", true),
         ("http://url.i.dont?know=about", false)
-        ()
       )
 
       forAll(links) {
