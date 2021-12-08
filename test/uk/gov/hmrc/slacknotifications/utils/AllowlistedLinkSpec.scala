@@ -45,6 +45,7 @@ class AllowlistedLinkSpec extends UnitSpec {
         ("https://www.google.com", false),
         ("https://console.aws.amazon.com", true),
         ("http://url.i.dont?know=about", false)
+        ()
       )
 
       forAll(links) {
@@ -63,6 +64,7 @@ class AllowlistedLinkSpec extends UnitSpec {
         ("https://grafana.tools.production.tax.service.gov.uk/", "https://grafana.tools.production.tax.service.gov.uk/"),
         ("https://www.google.com", AllowlistedLink.LinkNotAllowlisted),
         ("http://url.i.dont?know=about", AllowlistedLink.LinkNotAllowlisted),
+        ("`http://url.i.dont?know=about`", AllowlistedLink.LinkNotAllowlisted),
         ("https://hmrc.pagerduty.com/incidents/ABCDEF", "https://hmrc.pagerduty.com/incidents/ABCDEF")
       )
 
