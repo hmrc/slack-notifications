@@ -63,6 +63,9 @@ class AllowlistedLinkSpec extends UnitSpec {
         ("https://grafana.tools.production.tax.service.gov.uk/", "https://grafana.tools.production.tax.service.gov.uk/"),
         ("https://www.google.com", AllowlistedLink.LinkNotAllowlisted),
         ("http://url.i.dont?know=about", AllowlistedLink.LinkNotAllowlisted),
+        ("randomprefixhttps://example.com", "randomprefix" +  AllowlistedLink.LinkNotAllowlisted),
+        ("`http://url.i.dont?know=about`", s"`${AllowlistedLink.LinkNotAllowlisted}`"),
+        (""""http://url.i.dont?know=about"""", s""""${AllowlistedLink.LinkNotAllowlisted}""""),
         ("https://hmrc.pagerduty.com/incidents/ABCDEF", "https://hmrc.pagerduty.com/incidents/ABCDEF")
       )
 

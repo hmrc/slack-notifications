@@ -31,10 +31,14 @@ object AllowlistedLink {
     "haveibeenpwned.com"
   )
 
-  val getUris: String => Set[URL] = (str) =>
-    str.split("""\s+""")
-      .map{ s => Try{ new URI(s).toURL}}
-      .flatMap{ _.toOption }.toSet
+  private val urlPattern = """(http[s]?.+?)(?="|`|\s|$)""".r
+
+  val getUris: String => Set[URL] = str => {
+    urlPattern.findAllMatchIn(str)
+      .map( m => Try {new URI(m.group(1)).toURL})
+      .flatMap(_.toOption)
+      .toSet
+  }
 
   val isAllowlisted: (String, Set[String]) => Boolean = (url, allowlist) =>
     allowlist.exists(url.contains(_))
