@@ -32,7 +32,7 @@ object AllowlistedLink {
   )
 
   val getUris: String => Set[URL] = str => {
-    val urlPattern = """(http[s]?.+?)(?="|`|\s|$).*""".r
+    val urlPattern = """(http[s]?.+?)(?="|`|\s|$)""".r
     urlPattern.findAllMatchIn(str)
       .map( m => Try {new URI(m.group(1)).toURL})
       .flatMap(_.toOption)
