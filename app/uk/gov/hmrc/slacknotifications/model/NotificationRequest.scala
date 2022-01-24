@@ -21,19 +21,19 @@ import play.api.libs.json.Reads._
 import play.api.libs.json.{Reads, _}
 
 final case class MessageDetails(
-  text: String,
+  text       : String,
   attachments: Seq[Attachment] = Nil
 )
 
 object MessageDetails {
-  implicit val reads: Reads[MessageDetails] = (
-    (__ \ "text").read[String] and
-      (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
-  )(MessageDetails.apply _)
+  implicit val reads: Reads[MessageDetails] =
+    ( (__ \ "text").read[String]
+    ~ (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
+    )(MessageDetails.apply _)
 }
 
 final case class NotificationRequest(
-  channelLookup: ChannelLookup,
+  channelLookup : ChannelLookup,
   messageDetails: MessageDetails
 )
 

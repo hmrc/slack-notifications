@@ -104,6 +104,5 @@ class ChannelLookupSpec extends UnitSpec {
         _ => fail("didn't expect parsing to succeed")
       )
     }
-
   }
 }

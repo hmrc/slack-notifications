@@ -45,7 +45,7 @@ class UserManagementServiceSpec extends UnitSpec with ScalaFutures {
       val umpUsers          = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
 
       when(mockedUMPConnector.getAllUsers(any[HeaderCarrier]))
-        .thenReturn(Future(umpUsers))
+        .thenReturn(Future.successful(umpUsers))
         .andThenThrow(new RuntimeException("Caching was supposed to prevent more than 1 call"))
 
       (1 to 5).foreach { _ =>
@@ -61,12 +61,13 @@ class UserManagementServiceSpec extends UnitSpec with ScalaFutures {
       val umpUsers          = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
       val teams             = List(TeamDetails(slack = None, slackNotification = None, team = "n/a"))
 
-      when(mockedUMPConnector.getAllUsers(any[HeaderCarrier])).thenReturn(Future.successful(umpUsers))
-      when(mockedUMPConnector.getTeamsForUser(any[String])(any[HeaderCarrier])).thenReturn(Future(teams))
+      when(mockedUMPConnector.getAllUsers(any[HeaderCarrier]))
+        .thenReturn(Future.successful(umpUsers))
+      when(mockedUMPConnector.getTeamsForUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(teams))
 
       service.getTeamsForGithubUser(githubUsername).futureValue shouldBe teams
     }
-
   }
 
   private trait Fixtures {
@@ -79,5 +80,4 @@ class UserManagementServiceSpec extends UnitSpec with ScalaFutures {
       new EhCacheApi(cache)
     }
   }
-
 }

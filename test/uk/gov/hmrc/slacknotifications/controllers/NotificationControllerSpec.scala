@@ -34,7 +34,6 @@ import scala.concurrent.Future
 class NotificationControllerSpec extends UnitSpec with ScalaFutures {
 
   "The controller" should {
-
     "allow requests with valid credentials in the Authorization header" in new TestSetup {
       val validCredentials = "Zm9vOmJhcg==" // foo:bar:deployments-info base64 encoded
       val request          = baseRequest.withHeaders("Authorization" -> s"Basic $validCredentials")
@@ -61,7 +60,6 @@ class NotificationControllerSpec extends UnitSpec with ScalaFutures {
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 401
     }
-
   }
 
   private trait TestSetup extends StubControllerComponentsFactory {
@@ -71,23 +69,22 @@ class NotificationControllerSpec extends UnitSpec with ScalaFutures {
     val controller = new NotificationController(authService, notificationService, stubControllerComponents())
 
     val body =
-      """
-        |{
-        |    "channelLookup" : {
-        |        "by" : "github-repository",
-        |        "repositoryName" : "name-of-a-repo"
-        |    },
-        |    "messageDetails" : {
-        |        "text" : "message to be posted"
-        |    }
-        |}""".stripMargin
+      """{
+        "channelLookup" : {
+            "by" : "github-repository",
+            "repositoryName" : "name-of-a-repo"
+        },
+        "messageDetails" : {
+            "text" : "message to be posted"
+        }
+      }"""
 
     val baseRequest =
       FakeRequest[JsValue](
         Helpers.POST,
         "/slack-notifications/notification",
         Headers("Content-Type" -> "application/json"),
-        Json.parse(body))
+        Json.parse(body)
+      )
   }
-
 }

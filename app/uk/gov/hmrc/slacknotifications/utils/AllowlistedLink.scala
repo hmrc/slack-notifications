@@ -33,15 +33,16 @@ object AllowlistedLink {
 
   private val urlPattern = """(http[s]?.+?)(?="|`|\s|$)""".r
 
-  val getUris: String => Set[URL] = str => {
-    urlPattern.findAllMatchIn(str)
-      .map( m => Try {new URI(m.group(1)).toURL})
-      .flatMap(_.toOption)
-      .toSet
-  }
+  val getUris: String => Set[URL] =
+    str =>
+      urlPattern.findAllMatchIn(str)
+        .map( m => Try {new URI(m.group(1)).toURL})
+        .flatMap(_.toOption)
+        .toSet
 
-  val isAllowlisted: (String, Set[String]) => Boolean = (url, allowlist) =>
-    allowlist.exists(url.contains(_))
+  val isAllowlisted: (String, Set[String]) => Boolean =
+    (url, allowlist) =>
+      allowlist.exists(url.contains(_))
 
   @tailrec
   private def overrideLinks(str: String, badLinkMessage: String, links: List[URL]): String =
@@ -50,8 +51,9 @@ object AllowlistedLink {
       case Nil    => str
     }
 
-  val sanitise: String => String = str => {
-    val badLinks: List[URL] = getUris(str).filter((x: URL) => !isAllowlisted(x.getHost, allowedDomains)).toList
-    overrideLinks(str, LinkNotAllowlisted, badLinks)
-  }
+  val sanitise: String => String =
+    str => {
+      val badLinks: List[URL] = getUris(str).filter((x: URL) => !isAllowlisted(x.getHost, allowedDomains)).toList
+      overrideLinks(str, LinkNotAllowlisted, badLinks)
+    }
 }

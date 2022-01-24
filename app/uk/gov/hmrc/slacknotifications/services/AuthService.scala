@@ -73,7 +73,7 @@ object AuthService {
   )
 
   final case class Service(
-    name: String,
+    name    : String,
     password: String
   )
 

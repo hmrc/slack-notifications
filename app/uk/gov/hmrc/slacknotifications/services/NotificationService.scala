@@ -32,11 +32,14 @@ import scala.util.control.NonFatal
 
 @Singleton
 class NotificationService @Inject()(
-  configuration: Configuration,
-  slackConnector: SlackConnector,
+  configuration                : Configuration,
+  slackConnector               : SlackConnector,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
-  userManagementConnector: UserManagementConnector,
-  userManagementService: UserManagementService)(implicit ec: ExecutionContext) extends Logging {
+  userManagementConnector      : UserManagementConnector,
+  userManagementService        : UserManagementService
+)(implicit
+  ec: ExecutionContext
+) extends Logging {
 
   import NotificationService._
 
@@ -61,9 +64,9 @@ class NotificationService @Inject()(
         }.map(flatten)
 
       case ChannelLookup.TeamsOfGithubUser(_, githubUsername) =>
-        if (notRealGithubUsers.contains(githubUsername)) {
+        if (notRealGithubUsers.contains(githubUsername))
           Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
-        } else {
+        else
           userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
             withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
               if (nonExcludedTeams.nonEmpty) {
@@ -77,7 +80,6 @@ class NotificationService @Inject()(
               }
             }
           }
-        }
     }
 
   private def flatten(results: Seq[NotificationResult]): NotificationResult =
@@ -110,14 +112,18 @@ class NotificationService @Inject()(
     }
 
   private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
-    if (repositoryDetails.owningTeams.nonEmpty) {
+    if (repositoryDetails.owningTeams.nonEmpty)
       repositoryDetails.owningTeams
-    } else {
+    else
       repositoryDetails.teamNames
-    }
 
-  def withNonExcludedTeams(allTeamNames: List[String])(f: List[String] => Future[NotificationResult])(
-    implicit ec: ExecutionContext): Future[NotificationResult] = {
+  def withNonExcludedTeams(
+    allTeamNames: List[String]
+  )(
+    f: List[String] => Future[NotificationResult]
+  )(implicit
+    ec: ExecutionContext
+  ): Future[NotificationResult] = {
     val (excluded, toBeProcessed) = allTeamNames.partition(notRealTeams.contains)
     f(toBeProcessed).map { res =>
       res.addExclusion(excluded.map(NotARealTeam.apply): _*)
@@ -152,11 +158,11 @@ class NotificationService @Inject()(
 
   private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
     teamDetails.slackNotification.orElse(teamDetails.slack).flatMap { slackChannelUrl =>
-      val urlWithoutTrailingSpace = if (slackChannelUrl.endsWith("/")) {
-        slackChannelUrl.init
-      } else {
-        slackChannelUrl
-      }
+      val urlWithoutTrailingSpace =
+        if (slackChannelUrl.endsWith("/"))
+          slackChannelUrl.init
+        else
+          slackChannelUrl
 
       val slashPos = urlWithoutTrailingSpace.lastIndexOf("/")
       val s        = urlWithoutTrailingSpace.substring(slashPos + 1)

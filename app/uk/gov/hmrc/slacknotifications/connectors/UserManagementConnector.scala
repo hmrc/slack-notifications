@@ -25,10 +25,10 @@ import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UserManagementConnector @Inject()(http: HttpClient,
-                                        servicesConfig: ServicesConfig)
-                                       (implicit ec: ExecutionContext) {
-
+class UserManagementConnector @Inject()(
+  http: HttpClient,
+  servicesConfig: ServicesConfig
+)(implicit ec: ExecutionContext) {
   import UserManagementConnector._
 
   private val url: String = {
@@ -51,14 +51,16 @@ class UserManagementConnector @Inject()(http: HttpClient,
 
 object UserManagementConnector {
 
-  final case class UmpUsers(users: List[UmpUser])
+  final case class UmpUsers(
+    users: List[UmpUser]
+  )
 
   object UmpUsers {
     implicit val format: Format[UmpUsers] = Json.format[UmpUsers]
   }
 
   final case class UmpUser(
-    github: Option[String],
+    github  : Option[String],
     username: Option[String]
   )
 
@@ -66,20 +68,21 @@ object UserManagementConnector {
     implicit val format: Format[UmpUser] = Json.format[UmpUser]
   }
 
-  final case class UmpTeams(teams: List[TeamDetails])
+  final case class UmpTeams(
+    teams: List[TeamDetails]
+  )
 
   object UmpTeams {
     implicit val format: Format[UmpTeams] = Json.format[UmpTeams]
   }
 
   final case class TeamDetails(
-    slack: Option[String],
+    slack            : Option[String],
     slackNotification: Option[String],
-    team: String
+    team             : String
   )
 
   object TeamDetails {
     implicit val format: Format[TeamDetails] = Json.format[TeamDetails]
   }
-
 }

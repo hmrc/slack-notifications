@@ -32,11 +32,11 @@ import uk.gov.hmrc.slacknotifications.test.UnitSpec
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class UserManagementConnectorSpec
-    extends UnitSpec
-    with ScalaFutures
-    with BeforeAndAfterEach
-    with GuiceOneAppPerSuite
-    with IntegrationPatience {
+  extends UnitSpec
+     with ScalaFutures
+     with BeforeAndAfterEach
+     with GuiceOneAppPerSuite
+     with IntegrationPatience {
 
   private val Port           = 8080
   private val Host           = "localhost"
@@ -68,7 +68,14 @@ class UserManagementConnectorSpec
           .willReturn(
             aResponse()
               .withStatus(200)
-              .withBody("""{ "users": [{ "github": "https://github.com/abc", "username": "abc" } ]}""")))
+              .withBody("""{
+                "users": [
+                  {
+                    "github": "https://github.com/abc",
+                    "username": "abc"
+                  }
+                ]}"""
+              )))
 
       ump.getAllUsers.futureValue shouldBe List(UmpUser(Some("https://github.com/abc"), Some("abc")))
     }
@@ -81,15 +88,16 @@ class UserManagementConnectorSpec
             aResponse()
               .withStatus(200)
               .withBody("""
-                  |{
-                  |  "teams": [
-                  |    {
-                  |      "slack": "foo/team-A",
-                  |      "slackNotification": "foo/team-A-notifications",
-                  |      "team": "team-A"
-                  |    }
-                  |  ]
-                  |}""".stripMargin)))
+                {
+                  "teams": [
+                    {
+                      "slack": "foo/team-A",
+                      "slackNotification": "foo/team-A-notifications",
+                      "team": "team-A"
+                    }
+                  ]
+                }"""
+              )))
 
       ump.getTeamsForUser("ldapUsername").futureValue shouldBe List(
         TeamDetails(Some("foo/team-A"), Some("foo/team-A-notifications"), "team-A"))
@@ -103,9 +111,10 @@ class UserManagementConnectorSpec
             aResponse()
               .withStatus(404)
               .withBody("""
-                  |{
-                  |reason: "Not Found"
-                  |}""".stripMargin)))
+                {
+                  reason: "Not Found"
+                }"""
+              )))
 
       ump.getTeamsForUser("ldapUsername").futureValue shouldBe List.empty
     }
@@ -118,17 +127,15 @@ class UserManagementConnectorSpec
             aResponse()
               .withStatus(200)
               .withBody("""
-                  |{
-                  |  "slack": "foo/team-A",
-                  |  "slackNotification": "foo/team-A-notifications",
-                  |  "team": "team-A"
-                  |}
-                  |""".stripMargin)))
+                {
+                  "slack": "foo/team-A",
+                  "slackNotification": "foo/team-A-notifications",
+                  "team": "team-A"
+                }"""
+              )))
 
       ump.getTeamDetails("team-A").futureValue shouldBe
         Some(TeamDetails(Some("foo/team-A"), Some("foo/team-A-notifications"), "team-A"))
     }
-
   }
-
 }

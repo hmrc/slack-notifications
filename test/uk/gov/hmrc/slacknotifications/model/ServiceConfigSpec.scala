@@ -27,7 +27,6 @@ class ServiceConfigSpec extends UnitSpec {
   import ServiceConfig.hint
 
   "ServiceConfig" should {
-
     "default displayName end userEmoji if not set" in {
       val service = Service("foo", "bar")
       val configuration =
@@ -56,5 +55,4 @@ class ServiceConfigSpec extends UnitSpec {
       config shouldBe List(ServiceConfig(service.name, service.password, Some("custom"), Some(":some-emoji:")))
     }
   }
-
 }
