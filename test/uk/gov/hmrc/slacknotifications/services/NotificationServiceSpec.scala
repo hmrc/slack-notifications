@@ -18,29 +18,28 @@ package uk.gov.hmrc.slacknotifications.services
 
 import cats.data.NonEmptyList
 import org.scalacheck.Gen
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
 import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFoundException, _}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
-import uk.gov.hmrc.slacknotifications.model.{Attachment, MessageDetails, NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{Attachment, MessageDetails, NotificationRequest, Password, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
 class NotificationServiceSpec
-    extends UnitSpec
-    with ScalaFutures
-    with ScalaCheckPropertyChecks {
+  extends UnitSpec
+     with ScalaFutures
+     with IntegrationPatience
+     with ScalaCheckPropertyChecks {
 
-  implicit val hc: HeaderCarrier                       = HeaderCarrier()
-  override implicit val patienceConfig: PatienceConfig = PatienceConfig(5.second, 15.millis)
+  implicit val hc: HeaderCarrier = HeaderCarrier()
 
   "Sending a Slack message" should {
     "succeed if slack accepted the notification" in new Fixtures {
@@ -55,8 +54,10 @@ class NotificationServiceSpec
             text        = "text",
             username    = "someUser",
             icon_emoji  = Some(":snowman:"),
-            attachments = Nil),
-          Service("", ""))
+            attachments = Nil
+          ),
+          Service("", Password(""))
+        )
         .futureValue
 
       result shouldBe NotificationResult().addSuccessfullySent(existingChannel)
@@ -76,8 +77,10 @@ class NotificationServiceSpec
               text        = "text",
               username    = "someUser",
               icon_emoji  = Some(":snowman:"),
-              attachments = Nil),
-            Service("", ""))
+              attachments = Nil
+            ),
+            Service("", Password(""))
+          )
           .futureValue
 
         result shouldBe NotificationResult().addError(SlackError(statusCode, errorMsg))
@@ -107,8 +110,10 @@ class NotificationServiceSpec
               text        = "text",
               username    = "someUser",
               icon_emoji  = Some(":snowman:"),
-              attachments = Nil),
-            Service("", ""))
+              attachments = Nil
+            ),
+            Service("", Password(""))
+          )
           .futureValue
 
         result.errors.head shouldBe expectedError
@@ -130,8 +135,9 @@ class NotificationServiceSpec
                 text        = "text",
                 username    = "someUser",
                 icon_emoji  = Some(":snowman:"),
-                attachments = Nil),
-              Service("", ""))
+                attachments = Nil
+              ),
+              Service("", Password("")))
             .futureValue
         }
 
@@ -171,7 +177,7 @@ class NotificationServiceSpec
         when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
           .thenReturn(Future.successful(HttpResponse(200, "")))
 
-        val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(teamChannel),
@@ -212,7 +218,7 @@ class NotificationServiceSpec
         when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
           .thenReturn(Future.successful(HttpResponse(200, "")))
 
-        val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(teamChannel),
@@ -233,7 +239,7 @@ class NotificationServiceSpec
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(List.empty))
 
-      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -259,7 +265,7 @@ class NotificationServiceSpec
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(List(TeamDetails(None, None, teamName1), TeamDetails(None, None, teamName2))))
 
-      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -278,7 +284,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -303,7 +309,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -323,7 +329,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -345,7 +351,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -365,7 +371,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", "")).futureValue
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -461,7 +467,7 @@ class NotificationServiceSpec
               None,
               None))
         ),
-        Service("leak-detection", "")
+        Service("leak-detection", Password(""))
       )
 
       result.username                     should be("leak-detector")
@@ -495,7 +501,7 @@ class NotificationServiceSpec
               None,
               None))
         ),
-        Service("another-service", "")
+        Service("another-service", Password(""))
       )
 
       result.username                     should be("another-service")
@@ -526,9 +532,11 @@ class NotificationServiceSpec
         attachments = Nil
       )
 
+
     lazy val service =
       new NotificationService(
         configuration,
+        new AuthService(configuration),
         slackConnector,
         teamsAndRepositoriesConnector,
         userManagementConnector,

@@ -16,17 +16,13 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import pureconfig.generic.ProductHint
-import pureconfig.{CamelCase, ConfigFieldMapping}
+case class Password(value: String) extends AnyVal {
+  override def toString = "Password<>"
+}
 
 case class ServiceConfig(
   name       : String,
-  password   : String,
+  password   : Password,
   displayName: Option[String],
   userEmoji  : Option[String]
 )
-
-object ServiceConfig {
-  implicit def hint[T]: ProductHint[T] =
-    ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
-}

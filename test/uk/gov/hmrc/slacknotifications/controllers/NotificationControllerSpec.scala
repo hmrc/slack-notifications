@@ -22,7 +22,7 @@ import play.api.mvc.{Headers, Result}
 import play.api.test.{FakeRequest, StubControllerComponentsFactory}
 import play.test.Helpers
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.slacknotifications.model.NotificationRequest
+import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, Password}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService.NotificationResult
 import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
@@ -40,7 +40,7 @@ class NotificationControllerSpec extends UnitSpec with ScalaFutures {
 
       when(notificationService.sendNotification(any[NotificationRequest], any[Service])(any[HeaderCarrier]))
         .thenReturn(Future.successful(NotificationResult()))
-      when(authService.isAuthorized(eqTo(Service("foo", "bar")))).thenReturn(true)
+      when(authService.isAuthorized(eqTo(Service("foo", Password("bar"))))).thenReturn(true)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 200
@@ -55,7 +55,7 @@ class NotificationControllerSpec extends UnitSpec with ScalaFutures {
       val invalidCredentials = "Zm9vOmJhcg==" // foo:bar base64 encoded
       val request            = baseRequest.withHeaders("Authorization" -> s"Basic $invalidCredentials")
 
-      when(authService.isAuthorized(eqTo(Service("foo", "bar")))).thenReturn(false)
+      when(authService.isAuthorized(eqTo(Service("foo", Password("bar"))))).thenReturn(false)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 401

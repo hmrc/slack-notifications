@@ -9,7 +9,6 @@ object AppDependencies {
   val compile = Seq(
     "uk.gov.hmrc"           %% "bootstrap-backend-play-28" % bootstrapPlayVersion,
     "org.typelevel"         %% "cats-core"                 % "2.1.1",
-    "com.github.pureconfig" %% "pureconfig"                % "0.12.3",
     ws,
     ehcache
   )

@@ -19,12 +19,10 @@ package uk.gov.hmrc.slacknotifications.services
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.{Configuration, Logging}
-import pureconfig.generic.auto._
-import pureconfig.syntax._
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, ServiceConfig, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -33,6 +31,7 @@ import scala.util.control.NonFatal
 @Singleton
 class NotificationService @Inject()(
   configuration                : Configuration,
+  authService                  : AuthService,
   slackConnector               : SlackConnector,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
   userManagementConnector      : UserManagementConnector,
@@ -171,15 +170,17 @@ class NotificationService @Inject()(
 
   // Override the username used to send the message to what is configured in the config for the sending service
   def populateNameAndIconInMessage(slackMessage: SlackMessage, service: Service): SlackMessage = {
-    import ServiceConfig.hint
-    val config      = configuration.underlying.getList("auth.authorizedServices").toOrThrow[List[ServiceConfig]]
-    val displayName = config.find(_.name == service.name).flatMap(_.displayName).fold(service.name)(identity)
-    val userEmoji   = config.find(_.name == service.name).flatMap(_.userEmoji)
+    val config      = authService.serviceConfigs.find(_.name == service.name)
+    val displayName = config.flatMap(_.displayName).getOrElse(service.name)
+    val userEmoji   = config.flatMap(_.userEmoji)
 
     slackMessage.copy(
       username    = displayName,
       icon_emoji  = userEmoji,
-      attachments = slackMessage.attachments.map(a => a.copy(author_name = Some(displayName), author_icon = None))
+      attachments = slackMessage.attachments.map(_.copy(
+                      author_name = Some(displayName),
+                      author_icon = None
+                    ))
     )
   }
 

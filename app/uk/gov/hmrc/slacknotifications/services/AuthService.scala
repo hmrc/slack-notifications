@@ -17,43 +17,43 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import com.google.common.io.BaseEncoding
-
+import com.typesafe.config.Config
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
-import pureconfig.error.CannotConvert
-import pureconfig.generic.auto._
-import pureconfig.generic.ProductHint
-import pureconfig.syntax._
-import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader}
 import uk.gov.hmrc.http.Authorization
+import uk.gov.hmrc.slacknotifications.model.{ServiceConfig, Password}
+import scala.collection.JavaConverters._
+
 
 import scala.util.Try
 
 @Singleton
+// TODO rename AuthConfig
 class AuthService @Inject()(configuration: Configuration) {
-
   import AuthService._
 
-  implicit def hint[T]: ProductHint[T] =
-    ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
+  val serviceConfigs = {
+    def getOptionString(config: Config, path: String) =
+      if (config.hasPath(path)) Some(config.getString(path)) else None
 
-  implicit val serviceReader =
-    ConfigReader[Service]
-      .emap {
-        case Service(name, Base64String(decoded)) =>
-          Right(Service(name, decoded))
-        case serviceWithoutBase64EncPass =>
-          Left(
-            CannotConvert(
-              value   = serviceWithoutBase64EncPass.toString,
-              toType  = "Service",
-              because = "password was not base64 encoded"
-            )
-          )
+    def parseService(config: Config): ServiceConfig = {
+      val name = config.getString("name")
+        ServiceConfig(
+          name        = name,
+          password    = Password(Base64String.decode(config.getString("password")).getOrElse(sys.error(s"Could not base64 decode password for $name"))),
+          displayName = getOptionString(config, "displayName"),
+          userEmoji   = getOptionString(config, "userEmoji")
+        )
       }
 
+    def getConfigList(config: Config, path: String) =
+      if (config.hasPath(path)) config.getConfigList(path).asScala.toList else List.empty
+
+    getConfigList(configuration.underlying, "auth.authorizedServices").map(parseService)
+  }
+
   val authConfiguration: AuthConfiguration =
-    configuration.underlying.getConfig("auth").toOrThrow[AuthConfiguration]
+    AuthConfiguration(serviceConfigs.map(sc => Service(name = sc.name, password = sc.password)))
 
   def isAuthorized(service: Service): Boolean =
     authConfiguration.authorizedServices.contains(service)
@@ -74,7 +74,7 @@ object AuthService {
 
   final case class Service(
     name    : String,
-    password: String
+    password: Password
   )
 
   object Service {
@@ -83,8 +83,7 @@ object AuthService {
         .decode(authorization.value.stripPrefix("Basic "))
         .map(_.split(":"))
         .collect {
-          case Array(serviceName, password) => Service(serviceName, password)
+          case Array(serviceName, password) => Service(serviceName, Password(password))
         }
   }
-
 }
