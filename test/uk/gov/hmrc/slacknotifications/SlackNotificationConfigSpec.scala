@@ -52,6 +52,19 @@ class SlackNotificationConfigSpec extends UnitSpec {
       config shouldBe List(ServiceConfig(service.name, service.password, None, None))
     }
 
+    "remove any trailing newlines in encoded password" in {
+      val service = Service("foo", Password("bar"))
+      val configuration =
+        Configuration(
+          "auth.authorizedServices.0.name"     -> service.name,
+          "auth.authorizedServices.0.password" -> base64Encode(service.password.value + "\n")
+        )
+
+      val config = new SlackNotificationConfig(configuration).serviceConfigs
+
+      config shouldBe List(ServiceConfig(service.name, service.password, None, None))
+    }
+
     "use the specified displayName end userEmoji if set" in {
       val service = Service("foo", Password("bar"))
       val configuration =
