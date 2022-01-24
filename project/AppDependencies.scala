@@ -4,8 +4,10 @@ import sbt._
 
 object AppDependencies {
 
+  val bootstrapPlayVersion = "5.18.0"
+
   val compile = Seq(
-    "uk.gov.hmrc"           %% "bootstrap-backend-play-27" % "5.17.0",
+    "uk.gov.hmrc"           %% "bootstrap-backend-play-28" % bootstrapPlayVersion,
     "org.typelevel"         %% "cats-core"                 % "2.1.1",
     "com.github.pureconfig" %% "pureconfig"                % "0.12.3",
     ws,
@@ -13,13 +15,8 @@ object AppDependencies {
   )
 
   val test = Seq(
-    "org.scalatest"          %% "scalatest"                % "3.1.1"             % Test,
-    "org.scalatestplus.play" %% "scalatestplus-play"       % "4.0.3"             % Test,
+    "uk.gov.hmrc"            %% "bootstrap-test-play-28"  % bootstrapPlayVersion % Test,
     "org.scalatestplus"      %% "scalacheck-1-14"          % "3.1.1.1"           % Test,
-    "com.vladsch.flexmark"    % "flexmark-all"             % "0.35.10"           % Test,
-    "com.github.tomakehurst"  % "wiremock-jre8"            % "2.26.3"            % Test,
-    "com.typesafe.play"      %% "play-test"                % PlayVersion.current % Test,
     "org.mockito"            %% "mockito-scala-scalatest"  % "1.13.10"           % Test
   )
-
 }
