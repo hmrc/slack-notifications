@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,46 +17,19 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import com.google.common.io.BaseEncoding
-
 import javax.inject.{Inject, Singleton}
-import play.api.Configuration
-import pureconfig.error.CannotConvert
-import pureconfig.generic.auto._
-import pureconfig.generic.ProductHint
-import pureconfig.syntax._
-import pureconfig.{CamelCase, ConfigFieldMapping, ConfigReader}
 import uk.gov.hmrc.http.Authorization
+import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
+import uk.gov.hmrc.slacknotifications.model.Password
 
 import scala.util.Try
 
 @Singleton
-class AuthService @Inject()(configuration: Configuration) {
-
+class AuthService @Inject()(slackNotificationConfig: SlackNotificationConfig) {
   import AuthService._
 
-  implicit def hint[T]: ProductHint[T] =
-    ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
-
-  implicit val serviceReader =
-    ConfigReader[Service]
-      .emap {
-        case Service(name, Base64String(decoded)) =>
-          Right(Service(name, decoded))
-        case serviceWithoutBase64EncPass =>
-          Left(
-            CannotConvert(
-              value   = serviceWithoutBase64EncPass.toString,
-              toType  = "Service",
-              because = "password was not base64 encoded"
-            )
-          )
-      }
-
-  val authConfiguration: AuthConfiguration =
-    configuration.underlying.getConfig("auth").toOrThrow[AuthConfiguration]
-
   def isAuthorized(service: Service): Boolean =
-    authConfiguration.authorizedServices.contains(service)
+    slackNotificationConfig.serviceConfigs.find(sc => sc.name == service.name && sc.password == service.password).isDefined
 }
 
 object AuthService {
@@ -68,13 +41,9 @@ object AuthService {
       Try(new String(BaseEncoding.base64().decode(s))).toOption
   }
 
-  final case class AuthConfiguration(
-    authorizedServices: List[Service]
-  )
-
   final case class Service(
-    name: String,
-    password: String
+    name    : String,
+    password: Password
   )
 
   object Service {
@@ -83,8 +52,7 @@ object AuthService {
         .decode(authorization.value.stripPrefix("Basic "))
         .map(_.split(":"))
         .collect {
-          case Array(serviceName, password) => Service(serviceName, password)
+          case Array(serviceName, password) => Service(serviceName, Password(password))
         }
   }
-
 }

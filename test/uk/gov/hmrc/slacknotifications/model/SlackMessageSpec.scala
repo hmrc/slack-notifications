@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ class SlackMessageSpec extends UnitSpec {
   "A slack message" should {
     "contain a text message with allowlisted links" in {
       val message = SlackMessage(
-        channel = "slack_channel",
-        text = "Random text and link to https://github.com/hmrc",
+        channel  = "slack_channel",
+        text     = "Random text and link to https://github.com/hmrc",
         username = "someone",
         None,
         Seq.empty
@@ -35,8 +35,8 @@ class SlackMessageSpec extends UnitSpec {
 
     "contain a text with non-allowlisted links replaced" in {
       val message = SlackMessage(
-        channel = "slack_channel",
-        text = "Evil text with links to http://very.bad.url/with-plenty-malware and http://url.i.dont?know=about",
+        channel  = "slack_channel",
+        text     = "Evil text with links to http://very.bad.url/with-plenty-malware and http://url.i.dont?know=about",
         username = "someone",
         None,
         Seq.empty
@@ -50,40 +50,39 @@ class SlackMessageSpec extends UnitSpec {
 
   "An attachment" should {
     val emptyAttachment = Attachment(
-      fallback = None,
-      color = None,
-      pretext = None,
+      fallback    = None,
+      color       = None,
+      pretext     = None,
       author_name = None,
       author_link = None,
       author_icon = None,
-      title = None,
-      title_link = None,
-      text = None,
-      fields = None,
-      image_url = None,
-      thumb_url = None,
-      footer = None,
+      title       = None,
+      title_link  = None,
+      text        = None,
+      fields      = None,
+      image_url   = None,
+      thumb_url   = None,
+      footer      = None,
       footer_icon = None,
-      ts = None
+      ts          = None
     )
 
     "have sanitised links" in {
       val attachment = emptyAttachment.copy(
         author_link = Some("https://github.com/hmrc"),
-        title_link = Some("http://very.bad.url/with-plenty-malware"),
-        image_url = Some("http://url.i.dont?know=about"),
-        thumb_url = Some("https://github.com/hmrc")
+        title_link  = Some("http://very.bad.url/with-plenty-malware"),
+        image_url   = Some("http://url.i.dont?know=about"),
+        thumb_url   = Some("https://github.com/hmrc")
       )
 
       val expected = emptyAttachment.copy(
         author_link = Some("https://github.com/hmrc"),
-        title_link = Some(LinkNotAllowlisted),
-        image_url = Some(LinkNotAllowlisted),
-        thumb_url = Some("https://github.com/hmrc")
+        title_link  = Some(LinkNotAllowlisted),
+        image_url   = Some(LinkNotAllowlisted),
+        thumb_url   = Some("https://github.com/hmrc")
       )
 
       Attachment.sanitise(attachment) shouldBe expected
     }
-
   }
 }

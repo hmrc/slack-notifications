@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,21 +27,22 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UserManagementService @Inject()(connector: UserManagementConnector,
-                                      cache: AsyncCacheApi)
-                                     (implicit ec: ExecutionContext) extends Logging {
+class UserManagementService @Inject()(
+  connector: UserManagementConnector,
+  cache    : AsyncCacheApi
+)(implicit
+  ec: ExecutionContext
+) extends Logging {
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
     for {
       maybeLdapUsername <- getLdapUsername(githubUsername)
-      teams <- maybeLdapUsername match {
-                case Some(u) => connector.getTeamsForUser(u)
-                case None    => Future.successful(Nil)
-              }
-    } yield {
-      logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
-      teams
-    }
+      teams             <- maybeLdapUsername match {
+                            case Some(u) => connector.getTeamsForUser(u)
+                            case None    => Future.successful(Nil)
+                          }
+      _                 =  logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
+    } yield teams
 
   def getLdapUsername(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
     val githubBaseUrl = "https://github.com"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,19 +21,19 @@ import play.api.libs.json.Reads._
 import play.api.libs.json.{Reads, _}
 
 final case class MessageDetails(
-  text: String,
+  text       : String,
   attachments: Seq[Attachment] = Nil
 )
 
 object MessageDetails {
-  implicit val reads: Reads[MessageDetails] = (
-    (__ \ "text").read[String] and
-      (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
-  )(MessageDetails.apply _)
+  implicit val reads: Reads[MessageDetails] =
+    ( (__ \ "text").read[String]
+    ~ (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
+    )(MessageDetails.apply _)
 }
 
 final case class NotificationRequest(
-  channelLookup: ChannelLookup,
+  channelLookup : ChannelLookup,
   messageDetails: MessageDetails
 )
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import pureconfig.generic.ProductHint
-import pureconfig.{CamelCase, ConfigFieldMapping}
-
-case class ServiceConfig(name: String, password: String, displayName: Option[String], userEmoji: Option[String])
-
-object ServiceConfig {
-  implicit def hint[T]: ProductHint[T] = ProductHint[T](ConfigFieldMapping(CamelCase, CamelCase))
+case class Password(value: String) extends AnyVal {
+  override def toString = "Password<>"
 }
+
+case class ServiceConfig(
+  name       : String,
+  password   : Password,
+  displayName: Option[String],
+  userEmoji  : Option[String]
+)

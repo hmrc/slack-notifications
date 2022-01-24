@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,18 +24,21 @@ import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class TeamsAndRepositoriesConnector @Inject()(http: HttpClient,
-                                              servicesConfig: ServicesConfig)
-                                             (implicit ec: ExecutionContext) {
+class TeamsAndRepositoriesConnector @Inject()(
+  http          : HttpClient,
+  servicesConfig: ServicesConfig
+)(implicit ec: ExecutionContext) {
 
   private val url  = servicesConfig.baseUrl("teams-and-repositories")
 
   def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
     http.GET[Option[RepositoryDetails]](s"$url/api/repositories/$repositoryName")
-
 }
 
-final case class RepositoryDetails(teamNames: List[String], owningTeams: List[String])
+final case class RepositoryDetails(
+  teamNames  : List[String],
+  owningTeams: List[String]
+)
 
 object RepositoryDetails {
   implicit val format: Format[RepositoryDetails] = Json.format[RepositoryDetails]

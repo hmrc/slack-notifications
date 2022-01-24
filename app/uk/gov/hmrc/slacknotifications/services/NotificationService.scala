@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,12 @@ package uk.gov.hmrc.slacknotifications.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
-import play.api.{Configuration, Logging}
-import pureconfig.generic.auto._
-import pureconfig.syntax._
+import play.api.Logging
 import uk.gov.hmrc.http._
+import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, ServiceConfig, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -32,11 +31,14 @@ import scala.util.control.NonFatal
 
 @Singleton
 class NotificationService @Inject()(
-  configuration: Configuration,
-  slackConnector: SlackConnector,
+  slackNotificationConfig      : SlackNotificationConfig,
+  slackConnector               : SlackConnector,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
-  userManagementConnector: UserManagementConnector,
-  userManagementService: UserManagementService)(implicit ec: ExecutionContext) extends Logging {
+  userManagementConnector      : UserManagementConnector,
+  userManagementService        : UserManagementService
+)(implicit
+  ec: ExecutionContext
+) extends Logging {
 
   import NotificationService._
 
@@ -61,9 +63,9 @@ class NotificationService @Inject()(
         }.map(flatten)
 
       case ChannelLookup.TeamsOfGithubUser(_, githubUsername) =>
-        if (notRealGithubUsers.contains(githubUsername)) {
+        if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
           Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
-        } else {
+        else
           userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
             withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
               if (nonExcludedTeams.nonEmpty) {
@@ -77,7 +79,6 @@ class NotificationService @Inject()(
               }
             }
           }
-        }
     }
 
   private def flatten(results: Seq[NotificationResult]): NotificationResult =
@@ -110,33 +111,23 @@ class NotificationService @Inject()(
     }
 
   private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
-    if (repositoryDetails.owningTeams.nonEmpty) {
+    if (repositoryDetails.owningTeams.nonEmpty)
       repositoryDetails.owningTeams
-    } else {
+    else
       repositoryDetails.teamNames
-    }
 
-  def withNonExcludedTeams(allTeamNames: List[String])(f: List[String] => Future[NotificationResult])(
-    implicit ec: ExecutionContext): Future[NotificationResult] = {
-    val (excluded, toBeProcessed) = allTeamNames.partition(notRealTeams.contains)
+  def withNonExcludedTeams(
+    allTeamNames: List[String]
+  )(
+    f: List[String] => Future[NotificationResult]
+  )(implicit
+    ec: ExecutionContext
+  ): Future[NotificationResult] = {
+    val (excluded, toBeProcessed) = allTeamNames.partition(slackNotificationConfig.notRealTeams.contains)
     f(toBeProcessed).map { res =>
       res.addExclusion(excluded.map(NotARealTeam.apply): _*)
     }
   }
-
-  private val notRealTeams =
-    getCommaSeparatedListFromConfig("exclusions.notRealTeams")
-
-  private val notRealGithubUsers =
-    getCommaSeparatedListFromConfig("exclusions.notRealGithubUsers")
-
-  private def getCommaSeparatedListFromConfig(key: String): List[String] =
-    configuration
-      .getOptional[String](key)
-      .map { v =>
-        v.split(",").map(_.trim).toList
-      }
-      .getOrElse(Nil)
 
   private def withExistingSlackChannel(teamName: String)(f: String => Future[NotificationResult])(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
@@ -152,11 +143,11 @@ class NotificationService @Inject()(
 
   private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
     teamDetails.slackNotification.orElse(teamDetails.slack).flatMap { slackChannelUrl =>
-      val urlWithoutTrailingSpace = if (slackChannelUrl.endsWith("/")) {
-        slackChannelUrl.init
-      } else {
-        slackChannelUrl
-      }
+      val urlWithoutTrailingSpace =
+        if (slackChannelUrl.endsWith("/"))
+          slackChannelUrl.init
+        else
+          slackChannelUrl
 
       val slashPos = urlWithoutTrailingSpace.lastIndexOf("/")
       val s        = urlWithoutTrailingSpace.substring(slashPos + 1)
@@ -165,15 +156,17 @@ class NotificationService @Inject()(
 
   // Override the username used to send the message to what is configured in the config for the sending service
   def populateNameAndIconInMessage(slackMessage: SlackMessage, service: Service): SlackMessage = {
-    import ServiceConfig.hint
-    val config      = configuration.underlying.getList("auth.authorizedServices").toOrThrow[List[ServiceConfig]]
-    val displayName = config.find(_.name == service.name).flatMap(_.displayName).fold(service.name)(identity)
-    val userEmoji   = config.find(_.name == service.name).flatMap(_.userEmoji)
+    val config      = slackNotificationConfig.serviceConfigs.find(_.name == service.name)
+    val displayName = config.flatMap(_.displayName).getOrElse(service.name)
+    val userEmoji   = config.flatMap(_.userEmoji)
 
     slackMessage.copy(
       username    = displayName,
       icon_emoji  = userEmoji,
-      attachments = slackMessage.attachments.map(a => a.copy(author_name = Some(displayName), author_icon = None))
+      attachments = slackMessage.attachments.map(_.copy(
+                      author_name = Some(displayName),
+                      author_icon = None
+                    ))
     )
   }
 

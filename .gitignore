@@ -30,3 +30,7 @@ tmp
 .idea_modules
 bin
 conf/local.conf
+.metals/
+.vscode/
+.bloop/
+project/metals.sbt

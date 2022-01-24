@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 HM Revenue & Customs
+ * Copyright 2022 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,10 +29,13 @@ import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton()
-class NotificationController @Inject()(authService: AuthService,
-                                       notificationService: NotificationService,
-                                       controllerComponents: ControllerComponents)
-                                      (implicit ec: ExecutionContext) extends BackendController(controllerComponents) with Logging {
+class NotificationController @Inject()(
+  authService         : AuthService,
+  notificationService : NotificationService,
+  controllerComponents: ControllerComponents
+)(implicit
+  ec: ExecutionContext
+) extends BackendController(controllerComponents) with Logging {
 
   def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     withAuthorization { authenticatedService =>
@@ -57,5 +60,4 @@ class NotificationController @Inject()(authService: AuthService,
       if (authService.isAuthorized(service)) fn(service) else unauthorized
     }
   }
-
 }
