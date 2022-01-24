@@ -158,11 +158,10 @@ class NotificationService @Inject()(
   def populateNameAndIconInMessage(slackMessage: SlackMessage, service: Service): SlackMessage = {
     val config      = slackNotificationConfig.serviceConfigs.find(_.name == service.name)
     val displayName = config.flatMap(_.displayName).getOrElse(service.name)
-    val userEmoji   = config.flatMap(_.userEmoji)
 
     slackMessage.copy(
       username    = displayName,
-      icon_emoji  = userEmoji,
+      icon_emoji  = config.flatMap(_.userEmoji),
       attachments = slackMessage.attachments.map(_.copy(
                       author_name = Some(displayName),
                       author_icon = None

@@ -86,6 +86,6 @@ object SlackMessage {
   def sanitise(msg: SlackMessage): SlackMessage =
     msg.copy(
       text        = AllowlistedLink.sanitise(msg.text),
-      attachments = msg.attachments.map{ attachement: Attachment => Attachment.sanitise(attachement)}
+      attachments = msg.attachments.map(Attachment.sanitise)
     )
 }

@@ -29,7 +29,12 @@ class AuthService @Inject()(slackNotificationConfig: SlackNotificationConfig) {
   import AuthService._
 
   def isAuthorized(service: Service): Boolean =
-    slackNotificationConfig.serviceConfigs.find(sc => sc.name == service.name && sc.password == service.password).isDefined
+    slackNotificationConfig.serviceConfigs
+      .find(sc =>
+        sc.name          == service.name &&
+        sc.password.trim == service.password.trim // \n often added when base64 encoding the password for configuration
+      )
+      .isDefined
 }
 
 object AuthService {

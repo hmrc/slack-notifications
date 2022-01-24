@@ -30,7 +30,29 @@ class AuthServiceSpec extends UnitSpec {
 
       val configuration = mock[SlackNotificationConfig]
       when(configuration.serviceConfigs)
-        .thenReturn(List(ServiceConfig(name = service.name, password = service.password, displayName = None, userEmoji = None)))
+        .thenReturn(List(ServiceConfig(
+          name        = service.name,
+          password    = service.password,
+          displayName = None,
+          userEmoji   = None
+        )))
+
+      val authService = new AuthService(configuration)
+
+      authService.isAuthorized(service) shouldBe true
+    }
+
+    "ignore trailing \n for password in config" in {
+      val service = Service("foo", Password("bar"))
+
+      val configuration = mock[SlackNotificationConfig]
+      when(configuration.serviceConfigs)
+        .thenReturn(List(ServiceConfig(
+          name        = service.name,
+          password    = Password(service.password.value + "\n"),
+          displayName = None,
+          userEmoji   = None
+        )))
 
       val authService = new AuthService(configuration)
 
@@ -42,7 +64,12 @@ class AuthServiceSpec extends UnitSpec {
 
       val configuration = mock[SlackNotificationConfig]
       when(configuration.serviceConfigs)
-        .thenReturn(List(ServiceConfig(name = service.name, password = service.password, displayName = None, userEmoji = None)))
+        .thenReturn(List(ServiceConfig(
+          name        = service.name,
+          password    = service.password,
+          displayName = None,
+          userEmoji   = None
+        )))
 
       val authService = new AuthService(configuration)
 
