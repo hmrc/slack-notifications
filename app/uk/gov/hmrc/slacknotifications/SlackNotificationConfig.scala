@@ -35,7 +35,6 @@ class SlackNotificationConfig @Inject()(configuration: Configuration) {
           password    = Password(
                           Base64String.decode(config.getString("password"))
                             .getOrElse(sys.error(s"Could not base64 decode password for $name"))
-                            .trim // \n often added when base64 encoding the password for configuration
                         ),
           displayName = getOptionString(config, "displayName"),
           userEmoji   = getOptionString(config, "userEmoji")
