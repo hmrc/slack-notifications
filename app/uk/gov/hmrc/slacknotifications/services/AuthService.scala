@@ -17,46 +17,19 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import com.google.common.io.BaseEncoding
-import com.typesafe.config.Config
 import javax.inject.{Inject, Singleton}
-import play.api.Configuration
 import uk.gov.hmrc.http.Authorization
-import uk.gov.hmrc.slacknotifications.model.{ServiceConfig, Password}
-import scala.collection.JavaConverters._
-
+import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
+import uk.gov.hmrc.slacknotifications.model.Password
 
 import scala.util.Try
 
 @Singleton
-// TODO rename AuthConfig
-class AuthService @Inject()(configuration: Configuration) {
+class AuthService @Inject()(slackNotificationConfig: SlackNotificationConfig) {
   import AuthService._
 
-  val serviceConfigs = {
-    def getOptionString(config: Config, path: String) =
-      if (config.hasPath(path)) Some(config.getString(path)) else None
-
-    def parseService(config: Config): ServiceConfig = {
-      val name = config.getString("name")
-        ServiceConfig(
-          name        = name,
-          password    = Password(Base64String.decode(config.getString("password")).getOrElse(sys.error(s"Could not base64 decode password for $name"))),
-          displayName = getOptionString(config, "displayName"),
-          userEmoji   = getOptionString(config, "userEmoji")
-        )
-      }
-
-    def getConfigList(config: Config, path: String) =
-      if (config.hasPath(path)) config.getConfigList(path).asScala.toList else List.empty
-
-    getConfigList(configuration.underlying, "auth.authorizedServices").map(parseService)
-  }
-
-  val authConfiguration: AuthConfiguration =
-    AuthConfiguration(serviceConfigs.map(sc => Service(name = sc.name, password = sc.password)))
-
   def isAuthorized(service: Service): Boolean =
-    authConfiguration.authorizedServices.contains(service)
+    slackNotificationConfig.serviceConfigs.find(sc => sc.name == service.name && sc.password == service.password).isDefined
 }
 
 object AuthService {
@@ -67,10 +40,6 @@ object AuthService {
     def decode(s: String): Option[String] =
       Try(new String(BaseEncoding.base64().decode(s))).toOption
   }
-
-  final case class AuthConfiguration(
-    authorizedServices: List[Service]
-  )
 
   final case class Service(
     name    : String,

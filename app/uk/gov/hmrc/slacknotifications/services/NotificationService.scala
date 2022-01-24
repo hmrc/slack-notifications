@@ -18,8 +18,9 @@ package uk.gov.hmrc.slacknotifications.services
 
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
-import play.api.{Configuration, Logging}
+import play.api.Logging
 import uk.gov.hmrc.http._
+import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
@@ -30,8 +31,7 @@ import scala.util.control.NonFatal
 
 @Singleton
 class NotificationService @Inject()(
-  configuration                : Configuration,
-  authService                  : AuthService,
+  slackNotificationConfig      : SlackNotificationConfig,
   slackConnector               : SlackConnector,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
   userManagementConnector      : UserManagementConnector,
@@ -63,7 +63,7 @@ class NotificationService @Inject()(
         }.map(flatten)
 
       case ChannelLookup.TeamsOfGithubUser(_, githubUsername) =>
-        if (notRealGithubUsers.contains(githubUsername))
+        if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
           Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
         else
           userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
@@ -123,25 +123,11 @@ class NotificationService @Inject()(
   )(implicit
     ec: ExecutionContext
   ): Future[NotificationResult] = {
-    val (excluded, toBeProcessed) = allTeamNames.partition(notRealTeams.contains)
+    val (excluded, toBeProcessed) = allTeamNames.partition(slackNotificationConfig.notRealTeams.contains)
     f(toBeProcessed).map { res =>
       res.addExclusion(excluded.map(NotARealTeam.apply): _*)
     }
   }
-
-  private val notRealTeams =
-    getCommaSeparatedListFromConfig("exclusions.notRealTeams")
-
-  private val notRealGithubUsers =
-    getCommaSeparatedListFromConfig("exclusions.notRealGithubUsers")
-
-  private def getCommaSeparatedListFromConfig(key: String): List[String] =
-    configuration
-      .getOptional[String](key)
-      .map { v =>
-        v.split(",").map(_.trim).toList
-      }
-      .getOrElse(Nil)
 
   private def withExistingSlackChannel(teamName: String)(f: String => Future[NotificationResult])(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
@@ -170,7 +156,7 @@ class NotificationService @Inject()(
 
   // Override the username used to send the message to what is configured in the config for the sending service
   def populateNameAndIconInMessage(slackMessage: SlackMessage, service: Service): SlackMessage = {
-    val config      = authService.serviceConfigs.find(_.name == service.name)
+    val config      = slackNotificationConfig.serviceConfigs.find(_.name == service.name)
     val displayName = config.flatMap(_.displayName).getOrElse(service.name)
     val userEmoji   = config.flatMap(_.userEmoji)
 
