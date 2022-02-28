@@ -138,8 +138,10 @@ class NotificationService @Inject()(
       }
       .flatMap {
         case Some(slackChannel) => f(slackChannel)
-        case None               => Future.successful(NotificationResult().addError(SlackChannelNotFoundForTeamInUMP(teamName)))
+        case None               => f(predictedTeamName(teamName))
       }
+
+  private def predictedTeamName(teamName: String): String = "team-" + teamName.replace(" ", "-").toLowerCase
 
   private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
     teamDetails.slackNotification.orElse(teamDetails.slack).flatMap { slackChannelUrl =>
@@ -259,11 +261,6 @@ object NotificationService {
   final case class TeamsNotFoundForGithubUsername(githubUsername: String) extends Error {
     val code    = "teams_not_found_for_github_username"
     val message = s"Teams not found for Github username: '$githubUsername'"
-  }
-
-  final case class SlackChannelNotFoundForTeamInUMP(teamName: String) extends Error {
-    val code    = "slack_channel_not_found_for_team_in_ump"
-    val message = s"Slack channel not found for team: '$teamName' in User Management Portal"
   }
 
   final case class SlackChannelNotFound(channelName: String) extends Error {

@@ -26,7 +26,7 @@ import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
-import uk.gov.hmrc.slacknotifications.model.{Attachment, MessageDetails, NotificationRequest, Password, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model._
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
@@ -339,12 +339,14 @@ class NotificationServiceSpec
       )
     }
 
-    "report if the team name is not found by the user management service" in new Fixtures {
-      private val teamName = "team-name"
+    "predict the slack channel if not returned by the user management service" in new Fixtures {
+      private val teamName = "No Slack Config"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
       when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(None))
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
 
       private val notificationRequest =
         NotificationRequest(
@@ -355,9 +357,7 @@ class NotificationServiceSpec
       val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
-        successfullySentTo = Nil,
-        errors             = List(SlackChannelNotFoundForTeamInUMP(teamName)),
-        exclusions         = Nil
+        successfullySentTo = List("team-no-slack-config"),
       )
     }
 
