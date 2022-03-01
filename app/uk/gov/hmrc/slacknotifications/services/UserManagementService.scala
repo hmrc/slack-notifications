@@ -49,7 +49,10 @@ class UserManagementService @Inject()(
     withCachedUmpUsers { users =>
       users
         .find { u =>
-          u.github.contains(s"$githubBaseUrl/$githubUsername")
+          u.github match {
+            case Some(username) => username.equalsIgnoreCase(s"$githubBaseUrl/$githubUsername")
+            case None => false
+          }
         }
         .flatMap(_.username)
     }
