@@ -53,6 +53,19 @@ class UserManagementServiceSpec extends UnitSpec with ScalaFutures {
       }
     }
 
+    "ldap lookup ignores case" in new Fixtures {
+      val githubUsername    = "UserName"
+      val githubUsernameUrl = "https://github.com/username"
+      val ldapUsername      = "ldap-username"
+      val service           = new UserManagementService(mockedUMPConnector, cacheApi)
+      val umpUsers          = List(UmpUser(Some(githubUsernameUrl), Some(ldapUsername)))
+
+      when(mockedUMPConnector.getAllUsers(any[HeaderCarrier]))
+        .thenReturn(Future.successful(umpUsers))
+
+      service.getLdapUsername(githubUsername).futureValue.get shouldBe ldapUsername
+    }
+
     "lookup MDTP teams for a Github user" in new Fixtures {
       val githubUsername    = "user-1"
       val githubUsernameUrl = s"https://github.com/$githubUsername"
