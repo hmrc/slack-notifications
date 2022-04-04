@@ -250,11 +250,64 @@ class NotificationServiceSpec
     }
   }
 
-  "Sending a request for teams of a github user" should {
+  "Disabled notifications" should {
+    "not send alerts for all channel lookup types" in new Fixtures {
+      private val teamName = "team-name"
+      override val configuration = Configuration("slack.notification.enabled" -> false)
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+
+      val teamChannel = "team-channel"
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = "n/a")
+
+      val channelLookups = List(
+        GithubRepository("", "repo"),
+        SlackChannel("", NonEmptyList.of(teamChannel)),
+        TeamsOfGithubUser("", "a-github-handle")
+      )
+
+      channelLookups.foreach { channelLookup =>
+        val notificationRequest =
+          NotificationRequest(
+            channelLookup = channelLookup,
+            messageDetails = MessageDetails(
+              text = "some-text-to-post-to-slack",
+              attachments = Nil
+            )
+          )
+
+        when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(List(teamDetails)))
+        when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(Some(teamDetails)))
+
+        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+        val space = " " //to stop ide from removing end spaces
+
+        val slackMessageStr = s"""
+                               |   Channel: team-channel
+                               |   Message: some-text-to-post-to-slack
+                               |   Username:$space
+                               |   Emoji:$space
+                               |""".stripMargin
+
+        result shouldBe NotificationResult(
+          successfullySentTo = List(),
+          errors = List(),
+          exclusions = List(NotificationDisabled(slackMessageStr)))
+      }
+    }
+  }
+
+
+    "Sending a request for teams of a github user" should {
     "not include excluded teams based on configuration" in new Fixtures {
       val teamName1              = "team-to-be-excluded-1"
       val teamName2              = "team-to-be-excluded-2"
-      override val configuration = Configuration("exclusions.notRealTeams" -> s"$teamName1, $teamName2")
+      override val configuration = Configuration(
+        "exclusions.notRealTeams"            -> s"$teamName1, $teamName2",
+        "slack.notification.enabled"         -> true
+      )
       val githubUsername         = "a-github-username"
 
       val notificationRequest =
@@ -277,7 +330,10 @@ class NotificationServiceSpec
     "not include ignored github user names, e.g. LDS dummy commiter for admin endpoints" in new Fixtures {
       val ignored1               = "n/1"
       val ignored2               = "ignored2"
-      override val configuration = Configuration("exclusions.notRealGithubUsers" -> s"$ignored1, $ignored2")
+      override val configuration = Configuration(
+        "exclusions.notRealGithubUsers"      -> s"$ignored1, $ignored2",
+        "slack.notification.enabled"         -> true
+      )
 
       val notificationRequest =
         NotificationRequest(
@@ -302,7 +358,10 @@ class NotificationServiceSpec
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName1, teamName2), owningTeams = Nil))))
 
-      override val configuration = Configuration("exclusions.notRealTeams" -> s"$teamName1, $teamName2")
+      override val configuration = Configuration(
+        "exclusions.notRealTeams"            -> s"$teamName1, $teamName2",
+        "slack.notification.enabled"         -> true
+      )
 
       val notificationRequest =
         NotificationRequest(
@@ -524,7 +583,8 @@ class NotificationServiceSpec
         "auth.authorizedServices.0.password"    -> "foo",
         "auth.authorizedServices.0.displayName" -> "leak-detector",
         "auth.authorizedServices.1.name"        -> "another-service",
-        "auth.authorizedServices.1.password"    -> "foo"
+        "auth.authorizedServices.1.password"    -> "foo",
+        "slack.notification.enabled"            -> true
       )
 
     val exampleMessageDetails =
@@ -532,7 +592,6 @@ class NotificationServiceSpec
         text        = "some-text-to-post-to-slack",
         attachments = Nil
       )
-
 
     lazy val service =
       new NotificationService(
