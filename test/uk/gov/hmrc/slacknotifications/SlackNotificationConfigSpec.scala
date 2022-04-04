@@ -29,7 +29,8 @@ class SlackNotificationConfigSpec extends UnitSpec {
       val configuration =
         Configuration(
           "auth.authorizedServices.0.name"     -> "name",
-          "auth.authorizedServices.0.password" -> "not base64 encoded $%£*&^"
+          "auth.authorizedServices.0.password" -> "not base64 encoded $%£*&^",
+          "slack.notification.enabled"         -> true
         )
 
       val exception = intercept[Exception] {
@@ -44,7 +45,8 @@ class SlackNotificationConfigSpec extends UnitSpec {
       val configuration =
         Configuration(
           "auth.authorizedServices.0.name"     -> service.name,
-          "auth.authorizedServices.0.password" -> base64Encode(service.password.value)
+          "auth.authorizedServices.0.password" -> base64Encode(service.password.value),
+          "slack.notification.enabled"         -> true
         )
 
       val config = new SlackNotificationConfig(configuration).serviceConfigs
@@ -59,7 +61,8 @@ class SlackNotificationConfigSpec extends UnitSpec {
           "auth.authorizedServices.0.name"        -> service.name,
           "auth.authorizedServices.0.password"    -> base64Encode(service.password.value),
           "auth.authorizedServices.0.displayName" -> "custom",
-          "auth.authorizedServices.0.userEmoji"   -> ":some-emoji:"
+          "auth.authorizedServices.0.userEmoji"   -> ":some-emoji:",
+          "slack.notification.enabled"            -> true
         )
 
       val config = new SlackNotificationConfig(configuration).serviceConfigs

@@ -172,16 +172,32 @@ class NotificationService @Inject()(
   }
 
   private[services] def sendSlackMessage(slackMessage: SlackMessage, service: Service)(
-    implicit hc: HeaderCarrier): Future[NotificationResult] =
-    slackConnector
-      .sendMessage(populateNameAndIconInMessage(slackMessage, service))
-      .map { response =>
-        response.status match {
-          case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
-          case _   => logAndReturnSlackError(response.status, response.body, slackMessage.channel)
+    implicit hc: HeaderCarrier): Future[NotificationResult] = {
+    if (slackNotificationConfig.notificationEnabled) {
+      slackConnector
+        .sendMessage(populateNameAndIconInMessage(slackMessage, service))
+        .map { response =>
+          response.status match {
+            case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
+            case _ => logAndReturnSlackError(response.status, response.body, slackMessage.channel)
+          }
         }
+        .recoverWith(handleSlackExceptions(slackMessage.channel))
+    } else {
+      Future.successful {
+        val messageStr = slackMessageToString(populateNameAndIconInMessage(slackMessage, service))
+        NotificationResult().addExclusion(NotificationDisabled(messageStr))
       }
-      .recoverWith(handleSlackExceptions(slackMessage.channel))
+    }
+  }
+
+  private def slackMessageToString(slackMessage: SlackMessage): String =
+    s"""
+       |   Channel: ${slackMessage.channel}
+       |   Message: ${slackMessage.text}
+       |   Username: ${slackMessage.username}
+       |   Emoji: ${slackMessage.icon_emoji.getOrElse("")}
+       |""".stripMargin
 
   private def handleSlackExceptions(channel: String): PartialFunction[Throwable, Future[NotificationResult]] = {
     case ex: BadRequestException =>
@@ -293,6 +309,11 @@ object NotificationService {
   final case class NotARealGithubUser(name: String) extends Exclusion {
     val code    = "not_a_real_github_user"
     val message = s"$name is not a real Github user"
+  }
+
+  final case class NotificationDisabled(slackMessage: String) extends Exclusion {
+    val code    = "notification_disabled"
+    val message = s"Slack notifications have been disabled. Slack message: $slackMessage"
   }
 
   final case class NotificationResult(

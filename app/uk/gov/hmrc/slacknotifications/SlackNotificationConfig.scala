@@ -27,7 +27,7 @@ import scala.collection.JavaConverters._
 @Singleton
 class SlackNotificationConfig @Inject()(configuration: Configuration) {
 
-  val serviceConfigs = {
+  val serviceConfigs: Seq[ServiceConfig] = {
     def parseService(config: Config): ServiceConfig = {
       val name = config.getString("name")
         ServiceConfig(
@@ -44,11 +44,13 @@ class SlackNotificationConfig @Inject()(configuration: Configuration) {
     getConfigList(configuration.underlying, "auth.authorizedServices").map(parseService)
   }
 
-  val notRealTeams =
+  val notRealTeams: Seq[String] =
     getCommaSeparatedListFromConfig("exclusions.notRealTeams")
 
-  val notRealGithubUsers =
+  val notRealGithubUsers: Seq[String] =
     getCommaSeparatedListFromConfig("exclusions.notRealGithubUsers")
+
+  val notificationEnabled: Boolean = configuration.get[Boolean]("slack.notification.enabled")
 
   private def getCommaSeparatedListFromConfig(key: String): List[String] =
     configuration
