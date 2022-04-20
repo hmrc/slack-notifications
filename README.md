@@ -33,7 +33,7 @@ Where:
  
 ### Base64 encoded password
 
-Please note that emitting `-n` will result in a new line character as a part of the base64 encoded string. Where this is unintentional, the password from the basic auth header will not match resulting in a 401 auth failed response.
+Please note that omitting `-n` will result in a new line character as a part of the base64 encoded string. Where this is unintentional, the password from the basic auth header will not match resulting in a 401 auth failed response.
 
 ```
 echo -n "password" | base64
