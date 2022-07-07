@@ -18,13 +18,12 @@ package uk.gov.hmrc.slacknotifications.connectors
 
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Configuration
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient}
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector._
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
-import uk.gov.hmrc.http.test.WireMockSupport
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -32,21 +31,20 @@ class UserManagementConnectorSpec
   extends UnitSpec
      with ScalaFutures
      with IntegrationPatience
-     with GuiceOneAppPerSuite
-     with WireMockSupport {
-
-  private val servicesConfig =
-    new ServicesConfig(
-      Configuration("microservice.services.user-management.url" -> wireMockUrl)
-    )
-
-  private val httpClient =
-    app.injector.instanceOf[HttpClient]
+     with WireMockSupport
+     with HttpClientV2Support {
 
   "The connector" should {
     implicit val hc = HeaderCarrier()
 
-    val ump = new UserManagementConnector(httpClient, servicesConfig)
+    val userManagementConnector = {
+      val servicesConfig =
+        new ServicesConfig(
+          Configuration("microservice.services.user-management.url" -> wireMockUrl)
+        )
+
+      new UserManagementConnector(httpClientV2, servicesConfig)
+    }
 
     "getAllUsers of the organisation" in {
       stubFor(
@@ -65,7 +63,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      ump.getAllUsers.futureValue shouldBe List(UmpUser(Some("https://github.com/abc"), Some("abc")))
+      userManagementConnector.getAllUsers.futureValue shouldBe List(UmpUser(Some("https://github.com/abc"), Some("abc")))
     }
 
     "get all the teams for a specified user" in {
@@ -88,7 +86,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      ump.getTeamsForUser("ldapUsername").futureValue shouldBe List(
+      userManagementConnector.getTeamsForUser("ldapUsername").futureValue shouldBe List(
         TeamDetails(Some("foo/team-A"), Some("foo/team-A-notifications"), "team-A"))
     }
 
@@ -106,7 +104,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      ump.getTeamsForUser("ldapUsername").futureValue shouldBe List.empty
+      userManagementConnector.getTeamsForUser("ldapUsername").futureValue shouldBe List.empty
     }
 
     "get team details" in {
@@ -125,7 +123,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      ump.getTeamDetails("team-A").futureValue shouldBe
+      userManagementConnector.getTeamDetails("team-A").futureValue shouldBe
         Some(TeamDetails(Some("foo/team-A"), Some("foo/team-A-notifications"), "team-A"))
     }
   }
