@@ -18,18 +18,19 @@ package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Format, Json}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient}
-import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
+import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class UserManagementConnector @Inject()(
-  http: HttpClient,
+  httpClientV2  : HttpClientV2,
   servicesConfig: ServicesConfig
 )(implicit ec: ExecutionContext) {
   import UserManagementConnector._
+  import HttpReads.Implicits._
 
   private val url: String = {
     val keyInServices = "user-management.url"
@@ -37,16 +38,21 @@ class UserManagementConnector @Inject()(
   }
 
   def getAllUsers(implicit hc: HeaderCarrier): Future[List[UmpUser]] =
-    http.GET[UmpUsers](s"$url/v2/organisations/users").map(_.users)
+    httpClientV2
+      .get(url"$url/v2/organisations/users")
+      .execute[UmpUsers]
+      .map(_.users)
 
   def getTeamsForUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
-    http
-      .GET[Option[UmpTeams]](s"$url/v2/organisations/users/$ldapUsername/teams")
+    httpClientV2
+      .get(url"$url/v2/organisations/users/$ldapUsername/teams")
+      .execute[Option[UmpTeams]]
       .map(_.map(_.teams).getOrElse(List.empty))
 
   def getTeamDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
-    http.GET[Option[TeamDetails]](s"$url/v2/organisations/teams/$teamName")
-
+    httpClientV2
+      .get(url"$url/v2/organisations/teams/$teamName")
+      .execute[Option[TeamDetails]]
 }
 
 object UserManagementConnector {

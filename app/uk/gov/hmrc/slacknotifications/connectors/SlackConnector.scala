@@ -18,25 +18,27 @@ package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse}
-import uk.gov.hmrc.http.HttpReads.Implicits._
+import play.api.libs.json.Json
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
+import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.slacknotifications.model.SlackMessage
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SlackConnector @Inject()(http: HttpClient, configuration: Configuration)(implicit ec: ExecutionContext) {
+class SlackConnector @Inject()(
+  httpClientV2 : HttpClientV2,
+  configuration: Configuration
+)(implicit ec: ExecutionContext) {
+  import HttpReads.Implicits._
 
-  private val slackWebHookUri: String = {
-    val key = "slack.webhookUrl"
-    configuration
-      .getOptional[String](key)
-      .getOrElse(
-        throw new RuntimeException(s"Missing required $key configuration")
-      )
-  }
+  private val slackWebHookUri: String =
+    configuration.get[String]("slack.webhookUrl")
 
   def sendMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    http.POST[SlackMessage, HttpResponse](slackWebHookUri, message)
-
+    httpClientV2
+      .post(url"$slackWebHookUri")
+      .withBody(Json.toJson(message))
+      .withProxy
+      .execute[HttpResponse]
 }

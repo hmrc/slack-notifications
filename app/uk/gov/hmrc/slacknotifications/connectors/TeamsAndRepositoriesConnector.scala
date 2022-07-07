@@ -18,21 +18,24 @@ package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json.{Format, Json}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient}
-import uk.gov.hmrc.http.HttpReads.Implicits._
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
+import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class TeamsAndRepositoriesConnector @Inject()(
-  http          : HttpClient,
+  httpClientV2  : HttpClientV2,
   servicesConfig: ServicesConfig
 )(implicit ec: ExecutionContext) {
+  import HttpReads.Implicits._
 
   private val url  = servicesConfig.baseUrl("teams-and-repositories")
 
   def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
-    http.GET[Option[RepositoryDetails]](s"$url/api/repositories/$repositoryName")
+    httpClientV2
+      .get(url"$url/api/repositories/$repositoryName")
+      .execute[Option[RepositoryDetails]]
 }
 
 final case class RepositoryDetails(
