@@ -55,7 +55,8 @@ class NotificationServiceSpec
             text        = "text",
             username    = "someUser",
             icon_emoji  = Some(":snowman:"),
-            attachments = Nil
+            attachments = Nil,
+            showAttachmentAuthor = true
           ),
           Service("", Password(""))
         )
@@ -78,7 +79,8 @@ class NotificationServiceSpec
               text        = "text",
               username    = "someUser",
               icon_emoji  = Some(":snowman:"),
-              attachments = Nil
+              attachments = Nil,
+              showAttachmentAuthor = true
             ),
             Service("", Password(""))
           )
@@ -111,7 +113,8 @@ class NotificationServiceSpec
               text        = "text",
               username    = "someUser",
               icon_emoji  = Some(":snowman:"),
-              attachments = Nil
+              attachments = Nil,
+              showAttachmentAuthor = true
             ),
             Service("", Password(""))
           )
@@ -136,7 +139,8 @@ class NotificationServiceSpec
                 text        = "text",
                 username    = "someUser",
                 icon_emoji  = Some(":snowman:"),
-                attachments = Nil
+                attachments = Nil,
+                showAttachmentAuthor = true
               ),
               Service("", Password("")))
             .futureValue
@@ -300,7 +304,7 @@ class NotificationServiceSpec
   }
 
 
-    "Sending a request for teams of a github user" should {
+  "Sending a request for teams of a github user" should {
     "not include excluded teams based on configuration" in new Fixtures {
       val teamName1              = "team-to-be-excluded-1"
       val teamName2              = "team-to-be-excluded-2"
@@ -525,7 +529,8 @@ class NotificationServiceSpec
               None,
               None,
               None,
-              None))
+              None)),
+          showAttachmentAuthor = true
         ),
         Service("leak-detection", Password(""))
       )
@@ -559,7 +564,8 @@ class NotificationServiceSpec
               None,
               None,
               None,
-              None))
+              None)),
+          showAttachmentAuthor = true
         ),
         Service("another-service", Password(""))
       )
@@ -568,6 +574,37 @@ class NotificationServiceSpec
       result.icon_emoji                   should be(None)
       result.attachments.head.author_name should be(Some("another-service"))
       result.attachments.head.author_icon should be(None)
+    }
+
+    "Don't set author name when showAttachmentAuthor=false" in new Fixtures {
+      val result = service.populateNameAndIconInMessage(
+        SlackMessage(
+          channel = "",
+          text = "",
+          username = "",
+          icon_emoji = Some(":eyes:"),
+          attachments = Seq(
+            Attachment(
+              None,
+              None,
+              None,
+              author_name = Some("username"),
+              None,
+              Some(":monkey:"),
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None,
+              None)),
+          showAttachmentAuthor = false
+        ),
+        Service("another-service", Password(""))
+      )
+      result.attachments.head.author_name should be(None)
     }
   }
 

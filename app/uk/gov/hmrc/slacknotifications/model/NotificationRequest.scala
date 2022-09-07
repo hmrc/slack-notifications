@@ -21,14 +21,16 @@ import play.api.libs.json.Reads._
 import play.api.libs.json.{Reads, _}
 
 final case class MessageDetails(
-  text       : String,
-  attachments: Seq[Attachment] = Nil
+  text                : String,
+  attachments         : Seq[Attachment] = Nil,
+  showAttachmentAuthor: Boolean = true
 )
 
 object MessageDetails {
   implicit val reads: Reads[MessageDetails] =
     ( (__ \ "text").read[String]
     ~ (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
+    ~ (__ \ "showAttachmentAuthor").readNullable[Boolean].map(_.getOrElse(true))
     )(MessageDetails.apply _)
 }
 

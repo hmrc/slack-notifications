@@ -93,7 +93,7 @@ class NotificationService @Inject()(
     import notificationRequest.messageDetails._
     // username and user emoji are initially hard-coded to 'slack-notifications' and none,
     // then overridden from the authorised services config later
-    SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments))
+    SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor))
   }
 
   private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[NotificationResult])(
@@ -165,7 +165,7 @@ class NotificationService @Inject()(
       username    = displayName,
       icon_emoji  = config.flatMap(_.userEmoji),
       attachments = slackMessage.attachments.map(_.copy(
-                      author_name = Some(displayName),
+                      author_name = if(slackMessage.showAttachmentAuthor) Some(displayName) else None,
                       author_icon = None
                     ))
     )
