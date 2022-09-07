@@ -27,7 +27,8 @@ class SlackMessageSpec extends UnitSpec {
         text     = "Random text and link to https://github.com/hmrc",
         username = "someone",
         None,
-        Seq.empty
+        Seq.empty,
+        showAttachmentAuthor = true
       )
       val sanitisedMessage = SlackMessage.sanitise(message)
       sanitisedMessage shouldBe message
@@ -39,7 +40,8 @@ class SlackMessageSpec extends UnitSpec {
         text     = "Evil text with links to http://very.bad.url/with-plenty-malware and http://url.i.dont?know=about",
         username = "someone",
         None,
-        Seq.empty
+        Seq.empty,
+        showAttachmentAuthor = true
       )
       val sanitisedMessage = SlackMessage.sanitise(message)
 
