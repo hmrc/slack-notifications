@@ -51,7 +51,7 @@ class NotificationService @Inject()(
           withTeamsResponsibleForRepo(name, repositoryDetails) { teamNames =>
             traverseFuturesSequentially(teamNames) { teamName =>
               withExistingSlackChannel(teamName) { slackChannel =>
-                sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
+                sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(teamName))
               }
             }.map(flatten)
           }
@@ -171,7 +171,7 @@ class NotificationService @Inject()(
     )
   }
 
-  private[services] def sendSlackMessage(slackMessage: SlackMessage, service: Service)(
+  private[services] def sendSlackMessage(slackMessage: SlackMessage, service: Service, teamName: Option[String] = None)(
     implicit hc: HeaderCarrier): Future[NotificationResult] = {
     if (slackNotificationConfig.notificationEnabled) {
       slackConnector
@@ -179,10 +179,10 @@ class NotificationService @Inject()(
         .map { response =>
           response.status match {
             case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
-            case _ => logAndReturnSlackError(response.status, response.body, slackMessage.channel)
+            case _ => logAndReturnSlackError(response.status, response.body, slackMessage.channel, teamName)
           }
         }
-        .recoverWith(handleSlackExceptions(slackMessage.channel))
+        .recoverWith(handleSlackExceptions(slackMessage.channel, teamName))
     } else {
       Future.successful {
         val messageStr = slackMessageToString(populateNameAndIconInMessage(slackMessage, service))
@@ -199,17 +199,17 @@ class NotificationService @Inject()(
        |   Emoji: ${slackMessage.icon_emoji.getOrElse("")}
        |""".stripMargin
 
-  private def handleSlackExceptions(channel: String): PartialFunction[Throwable, Future[NotificationResult]] = {
+  private def handleSlackExceptions(channel: String, teamName: Option[String]): PartialFunction[Throwable, Future[NotificationResult]] = {
     case ex: BadRequestException =>
-      Future.successful(logAndReturnSlackError(400, ex.message, channel))
+      Future.successful(logAndReturnSlackError(400, ex.message, channel, teamName))
     case ex: Upstream4xxResponse =>
-      Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel))
+      Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel, teamName))
     case ex: NotFoundException if ex.message.contains("channel_not_found") =>
       handleChannelNotFound(channel)
     case ex: NotFoundException =>
-      Future.successful(logAndReturnSlackError(404, ex.message, channel))
+      Future.successful(logAndReturnSlackError(404, ex.message, channel, teamName))
     case ex: Upstream5xxResponse =>
-      Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel))
+      Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel, teamName))
     case NonFatal(ex) =>
       logger.error(s"Unable to notify Slack channel $channel", ex)
       Future.failed(ex)
@@ -220,8 +220,8 @@ class NotificationService @Inject()(
     Future.successful(NotificationResult().addError(SlackChannelNotFound(channel)))
   }
 
-  private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String): NotificationResult = {
-    val slackError = SlackError(statusCode, exceptionMessage)
+  private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String, teamName: Option[String]): NotificationResult = {
+    val slackError = SlackError(statusCode, exceptionMessage, channel, teamName)
     logger.error(s"Unable to notify Slack channel $channel, the following error occurred: ${slackError.message}")
     NotificationResult().addError(slackError)
   }
@@ -259,9 +259,12 @@ object NotificationService {
     }
   }
 
-  final case class SlackError(statusCode: Int, slackErrorMsg: String) extends Error {
+  final case class SlackError(statusCode: Int, slackErrorMsg: String, channel: String, teamName: Option[String]) extends Error {
     val code    = "slack_error"
-    val message = s"Slack error, statusCode: $statusCode, msg: '$slackErrorMsg'"
+    val message = teamName match {
+      case Some(value) =>  s"Slack error, statusCode: $statusCode, msg: '$slackErrorMsg', channel: '$channel', team: '$value'"
+      case None =>  s"Slack error, statusCode: $statusCode, msg: '$slackErrorMsg', channel: '$channel'"
+    }
   }
 
   final case class RepositoryNotFound(repoName: String) extends Error {
