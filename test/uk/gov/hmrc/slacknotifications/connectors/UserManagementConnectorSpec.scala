@@ -16,16 +16,22 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
+import akka.Done
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.Configuration
+import play.api.cache.AsyncCacheApi
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import uk.gov.hmrc.slacknotifications.config.UserManagementAuthConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector._
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.reflect.ClassTag
 
 class UserManagementConnectorSpec
   extends UnitSpec
@@ -43,7 +49,21 @@ class UserManagementConnectorSpec
           Configuration("microservice.services.user-management.url" -> wireMockUrl)
         )
 
-      new UserManagementConnector(httpClientV2, servicesConfig)
+      val umpAuthConfig = new UserManagementAuthConfig(Configuration("ump.auth.enabled" -> false))
+
+      val cache = new AsyncCacheApi {
+        override def set(key: String, value: Any, expiration: Duration): Future[Done] = ???
+
+        override def remove(key: String): Future[Done] = ???
+
+        override def getOrElseUpdate[A](key: String, expiration: Duration)(orElse: =>Future[A])(implicit evidence$1: ClassTag[A]): Future[A] = ???
+
+        override def get[T](key: String)(implicit evidence$2: ClassTag[T]): Future[Option[T]] = ???
+
+        override def removeAll(): Future[Done] = ???
+      }
+
+      new UserManagementConnector(httpClientV2, servicesConfig, umpAuthConfig, cache)
     }
 
     "getAllUsers of the organisation" in {
