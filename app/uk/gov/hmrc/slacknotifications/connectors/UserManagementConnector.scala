@@ -20,6 +20,7 @@ import play.api.cache.AsyncCacheApi
 import play.api.libs.functional.syntax.unlift
 
 import javax.inject.{Inject, Singleton}
+import play.api.Logging
 import play.api.libs.json.{Format, Json}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -32,10 +33,12 @@ import play.api.libs.json._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class UserManagementConnector @Inject()(httpClientV2  : HttpClientV2,
-                                        servicesConfig: ServicesConfig,
-                                        authConfig    : UserManagementAuthConfig,
-                                        tokenCache    : AsyncCacheApi)(implicit ec: ExecutionContext) {
+class UserManagementConnector @Inject()(
+  httpClientV2  : HttpClientV2,
+  servicesConfig: ServicesConfig,
+  authConfig    : UserManagementAuthConfig,
+  tokenCache    : AsyncCacheApi
+)(implicit ec: ExecutionContext) extends Logging {
 
   import UserManagementConnector._
   import authConfig._
@@ -60,6 +63,7 @@ class UserManagementConnector @Inject()(httpClientV2  : HttpClientV2,
 
     for {
       token <- httpClientV2.post(url"$loginUrl").withBody(Json.toJson(login)).execute[UmpAuthToken]
+      _      = logger.info("logged into UMP")
     } yield token
   }
 
