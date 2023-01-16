@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,18 +23,19 @@ trait JsonHelpers {
 
   implicit def nonEmptyListWrites[A: Writes]: Writes[NonEmptyList[A]] =
     new Writes[NonEmptyList[A]] {
-      def writes(nonEmptyList: NonEmptyList[A]): JsValue = Json.toJson(nonEmptyList.toList)
+      def writes(nonEmptyList: NonEmptyList[A]): JsValue =
+        Json.toJson(nonEmptyList.toList)
     }
 
-  implicit def nonEmptyListReads[A: Reads]: Reads[NonEmptyList[A]] = Reads { jsValue =>
-    jsValue.validate[Seq[A]].flatMap {
-      _.toList match {
-        case Nil => JsError("Expected a non-empty list")
-        case head :: tail => JsSuccess(NonEmptyList(head, tail))
+  implicit def nonEmptyListReads[A: Reads]: Reads[NonEmptyList[A]] =
+    Reads { jsValue =>
+      jsValue.validate[Seq[A]].flatMap {
+        _.toList match {
+          case Nil => JsError("Expected a non-empty list")
+          case head :: tail => JsSuccess(NonEmptyList(head, tail))
+        }
       }
     }
-  }
-
 }
 
 object JsonHelpers extends JsonHelpers

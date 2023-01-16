@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,53 +58,48 @@ class UserManagementConnector @Inject()(
     implicit val lrf: OFormat[UmpLoginRequest] = UmpLoginRequest.format
     implicit val atf: OFormat[UmpAuthToken]    = UmpAuthToken.format
     implicit val hc: HeaderCarrier             = HeaderCarrier()
-
-    val login = UmpLoginRequest(username, password)
-
     for {
-      token <- httpClientV2.post(url"$loginUrl").withBody(Json.toJson(login)).execute[UmpAuthToken]
+      token <- httpClientV2.post(url"$loginUrl")
+                 .withBody(Json.toJson(UmpLoginRequest(username, password)))
+                 .execute[UmpAuthToken]
       _      = logger.info("logged into UMP")
     } yield token
   }
 
-  def retrieveToken() : Future[UmpToken] = {
+  def retrieveToken(): Future[UmpToken] =
     if (authEnabled)
       tokenCache.getOrElseUpdate[UmpToken]("token", tokenTTL)(login())
     else
       Future.successful(NoTokenRequired)
-  }
 
-  def getAllUsers(implicit hc: HeaderCarrier): Future[List[UmpUser]] = {
+  def getAllUsers(implicit hc: HeaderCarrier): Future[List[UmpUser]] =
     for {
       token <- retrieveToken()
       resp  <- httpClientV2
                 .get(url"$url/v2/organisations/users")
-                .addHeaders(token.asHeaders():_*)
+                .setHeader(token.asHeaders():_*)
                 .execute[UmpUsers]
                 .map(_.users)
     } yield resp
-  }
 
-  def getTeamsForUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] = {
+  def getTeamsForUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
     for {
       token <- retrieveToken()
       resp  <- httpClientV2
                 .get(url"$url/v2/organisations/users/$ldapUsername/teams")
-                .addHeaders(token.asHeaders():_*)
+                .setHeader(token.asHeaders():_*)
                 .execute[Option[UmpTeams]]
                 .map(_.map(_.teams).getOrElse(List.empty))
     } yield resp
-  }
 
-  def getTeamDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] = {
+  def getTeamDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
     for {
       token <- retrieveToken()
       resp  <- httpClientV2
                 .get(url"$url/v2/organisations/teams/$teamName")
-                .addHeaders(token.asHeaders():_*)
+                .setHeader(token.asHeaders():_*)
                 .execute[Option[TeamDetails]]
     } yield resp
-  }
 }
 
 object UserManagementConnector {
@@ -160,18 +155,18 @@ object UserManagementConnector {
   }
 
   object UmpAuthToken {
-    val format: OFormat[UmpAuthToken] = (
-      (__ \ "Token").format[String]
-        ~ (__ \ "uid").format[String]
+    val format: OFormat[UmpAuthToken] =
+      ( (__ \ "Token").format[String]
+      ~ (__ \ "uid"  ).format[String]
       )(UmpAuthToken.apply, unlift(UmpAuthToken.unapply))
   }
 
   case class UmpLoginRequest(username: String, password:String)
 
   object UmpLoginRequest {
-    val format: OFormat[UmpLoginRequest] = (
-      (__ \ "username").format[String]
-        ~ (__ \ "password").format[String]
+    val format: OFormat[UmpLoginRequest] =
+      ( (__ \ "username").format[String]
+      ~ (__ \ "password").format[String]
       )(UmpLoginRequest.apply, unlift(UmpLoginRequest.unapply))
   }
 }

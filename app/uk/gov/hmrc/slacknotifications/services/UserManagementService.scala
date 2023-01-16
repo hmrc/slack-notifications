@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,12 +36,12 @@ class UserManagementService @Inject()(
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
     for {
-      maybeLdapUsername <- getLdapUsername(githubUsername)
-      teams             <- maybeLdapUsername match {
-                            case Some(u) => connector.getTeamsForUser(u)
-                            case None    => Future.successful(Nil)
-                          }
-      _                 =  logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
+      optLdapUsername <- getLdapUsername(githubUsername)
+      teams           <- optLdapUsername match {
+                          case Some(u) => connector.getTeamsForUser(u)
+                          case None    => Future.successful(Nil)
+                        }
+      _               =  logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
     } yield teams
 
   def getLdapUsername(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {

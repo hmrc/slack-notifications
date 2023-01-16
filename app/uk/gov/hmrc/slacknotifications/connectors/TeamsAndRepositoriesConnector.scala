@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 HM Revenue & Customs
+ * Copyright 2023 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,13 @@
 package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
-import play.api.libs.json.{Format, Json}
+import play.api.libs.functional.syntax._
+import play.api.libs.json.{Format, __}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import scala.concurrent.{ExecutionContext, Future}
+
 
 @Singleton
 class TeamsAndRepositoriesConnector @Inject()(
@@ -44,5 +46,8 @@ final case class RepositoryDetails(
 )
 
 object RepositoryDetails {
-  implicit val format: Format[RepositoryDetails] = Json.format[RepositoryDetails]
+  implicit val format: Format[RepositoryDetails] =
+    ( (__ \ "teamNames"  ).format[List[String]]
+    ~ (__ \ "owningTeams").format[List[String]]
+    )(RepositoryDetails.apply, unlift(RepositoryDetails.unapply))
 }
