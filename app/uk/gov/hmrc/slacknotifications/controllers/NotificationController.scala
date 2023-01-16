@@ -57,7 +57,9 @@ class NotificationController @Inject()(
     }
 
     hc.authorization.flatMap(AuthService.Service.fromAuthorization).fold(unauthorized) { service =>
-      if (authService.isAuthorized(service)) fn(service) else unauthorized
+      if (authService.isAuthorized(service))
+        fn(service)
+      else unauthorized
     }
   }
 }
