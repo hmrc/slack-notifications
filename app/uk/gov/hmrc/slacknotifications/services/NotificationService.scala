@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
+import cats.implicits._
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.Logging
@@ -68,26 +69,25 @@ class NotificationService @Inject()(
         else
           userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
             withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
-              if (nonExcludedTeams.nonEmpty) {
+              if (nonExcludedTeams.nonEmpty)
                 traverseFuturesSequentially(nonExcludedTeams) { teamName =>
                   withExistingSlackChannel(teamName) { slackChannel =>
                     sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
                   }
                 }.map(flatten)
-              } else {
+              else
                 Future.successful(NotificationResult().addError(TeamsNotFoundForGithubUsername(githubUsername)))
-              }
             }
           }
     }
 
   private def flatten(results: Seq[NotificationResult]): NotificationResult =
-    results.foldLeft(NotificationResult()) { (acc, current) =>
+    results.foldLeft(NotificationResult())((acc, current) =>
       acc
         .addSuccessfullySent(current.successfullySentTo: _*)
         .addError(current.errors: _*)
         .addExclusion(current.exclusions: _*)
-    }
+    )
 
   private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage = {
     import notificationRequest.messageDetails._
@@ -96,15 +96,26 @@ class NotificationService @Inject()(
     SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor))
   }
 
-  private def withExistingRepository[A](repoName: String)(f: RepositoryDetails => Future[NotificationResult])(
-    implicit hc: HeaderCarrier): Future[NotificationResult] =
-    teamsAndRepositoriesConnector.getRepositoryDetails(repoName).flatMap {
-      case Some(repoDetails) => f(repoDetails)
-      case None              => Future.successful(NotificationResult().addError(RepositoryNotFound(repoName)))
-    }
+  private def withExistingRepository[A](
+    repoName: String
+  )(
+    f: RepositoryDetails => Future[NotificationResult]
+  )(implicit
+    hc: HeaderCarrier
+  ): Future[NotificationResult] =
+    teamsAndRepositoriesConnector
+      .getRepositoryDetails(repoName)
+      .flatMap {
+        case Some(repoDetails) => f(repoDetails)
+        case None              => Future.successful(NotificationResult().addError(RepositoryNotFound(repoName)))
+      }
 
-  private def withTeamsResponsibleForRepo[A](repoName: String, repositoryDetails: RepositoryDetails)(
-    f: List[String] => Future[NotificationResult]): Future[NotificationResult] =
+  private def withTeamsResponsibleForRepo[A](
+    repoName         : String,
+    repositoryDetails: RepositoryDetails
+  )(
+    f: List[String] => Future[NotificationResult]
+  ): Future[NotificationResult] =
     getTeamsResponsibleForRepo(repositoryDetails) match {
       case Nil   => Future.successful(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))
       case teams => withNonExcludedTeams(teams)(f)
@@ -124,18 +135,20 @@ class NotificationService @Inject()(
     ec: ExecutionContext
   ): Future[NotificationResult] = {
     val (excluded, toBeProcessed) = allTeamNames.partition(slackNotificationConfig.notRealTeams.contains)
-    f(toBeProcessed).map { res =>
-      res.addExclusion(excluded.map(NotARealTeam.apply): _*)
-    }
+    f(toBeProcessed)
+      .map(_.addExclusion(excluded.map(NotARealTeam.apply): _*))
   }
 
-  private def withExistingSlackChannel(teamName: String)(f: String => Future[NotificationResult])(
-    implicit hc: HeaderCarrier): Future[NotificationResult] =
+  private def withExistingSlackChannel(
+    teamName: String
+  )(
+    f: String => Future[NotificationResult]
+  )(implicit
+    hc: HeaderCarrier
+  ): Future[NotificationResult] =
     userManagementConnector
       .getTeamDetails(teamName)
-      .map { teamDetails =>
-        teamDetails.flatMap(extractSlackChannel)
-      }
+      .map(_.flatMap(extractSlackChannel))
       .flatMap {
         case Some(slackChannel) => f(slackChannel)
         case None               => f(predictedTeamName(teamName))
@@ -171,9 +184,14 @@ class NotificationService @Inject()(
     )
   }
 
-  private[services] def sendSlackMessage(slackMessage: SlackMessage, service: Service, teamName: Option[String] = None)(
-    implicit hc: HeaderCarrier): Future[NotificationResult] = {
-    if (slackNotificationConfig.notificationEnabled) {
+  private[services] def sendSlackMessage(
+    slackMessage: SlackMessage,
+    service     : Service,
+    teamName    : Option[String] = None
+  )(implicit
+    hc: HeaderCarrier
+  ): Future[NotificationResult] =
+    if (slackNotificationConfig.notificationEnabled)
       slackConnector
         .sendMessage(populateNameAndIconInMessage(slackMessage, service))
         .map { response =>
@@ -183,13 +201,11 @@ class NotificationService @Inject()(
           }
         }
         .recoverWith(handleSlackExceptions(slackMessage.channel, teamName))
-    } else {
+    else
       Future.successful {
         val messageStr = slackMessageToString(populateNameAndIconInMessage(slackMessage, service))
         NotificationResult().addExclusion(NotificationDisabled(messageStr))
       }
-    }
-  }
 
   private def slackMessageToString(slackMessage: SlackMessage): String =
     s"""
@@ -200,16 +216,12 @@ class NotificationService @Inject()(
        |""".stripMargin
 
   private def handleSlackExceptions(channel: String, teamName: Option[String]): PartialFunction[Throwable, Future[NotificationResult]] = {
-    case ex: BadRequestException =>
-      Future.successful(logAndReturnSlackError(400, ex.message, channel, teamName))
-    case ex: Upstream4xxResponse =>
-      Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel, teamName))
-    case ex: NotFoundException if ex.message.contains("channel_not_found") =>
+    case ex @ UpstreamErrorResponse.WithStatusCode(404) if ex.message.contains("channel_not_found") =>
       handleChannelNotFound(channel)
-    case ex: NotFoundException =>
-      Future.successful(logAndReturnSlackError(404, ex.message, channel, teamName))
-    case ex: Upstream5xxResponse =>
-      Future.successful(logAndReturnSlackError(ex.upstreamResponseCode, ex.message, channel, teamName))
+    case UpstreamErrorResponse.Upstream4xxResponse(ex) =>
+      Future.successful(logAndReturnSlackError(ex.statusCode, ex.message, channel, teamName))
+    case UpstreamErrorResponse.Upstream5xxResponse(ex) =>
+      Future.successful(logAndReturnSlackError(ex.statusCode, ex.message, channel, teamName))
     case NonFatal(ex) =>
       logger.error(s"Unable to notify Slack channel $channel", ex)
       Future.failed(ex)
@@ -227,17 +239,20 @@ class NotificationService @Inject()(
   }
 
   // helps avoiding too many concurrent requests
-  private def traverseFuturesSequentially[A, B](as: Seq[A], parallelism: Int = 5)(f: A => Future[B])(
-    implicit ec: ExecutionContext): Future[Seq[B]] =
-    as.grouped(parallelism).foldLeft(Future.successful(List.empty[B])) { (futAcc, grouped) =>
-      for {
-        acc <- futAcc
-        b   <- Future.sequence(grouped.map(f))
-      } yield {
-        acc ++ b
-      }
-    }
-
+  private def traverseFuturesSequentially[A, B](
+    as         : Seq[A],
+    parallelism: Int = 5
+  )(
+    f: A => Future[B]
+  )(implicit
+    ec: ExecutionContext
+  ): Future[Seq[B]] =
+    as
+      .grouped(parallelism)
+      .toList
+      .foldLeftM(List.empty[B])((acc, grouped) =>
+        grouped.toList.traverse(f).map(acc ++ _)
+      )
 }
 
 object NotificationService {
@@ -320,15 +335,18 @@ object NotificationService {
   }
 
   final case class NotificationResult(
-    successfullySentTo: Seq[String] = Nil,
-    errors: Seq[Error]              = Nil,
-    exclusions: Seq[Exclusion]      = Nil
+    successfullySentTo: Seq[String]    = Nil,
+    errors            : Seq[Error]     = Nil,
+    exclusions        : Seq[Exclusion] = Nil
   ) {
-    def addError(e: Error*): NotificationResult = copy(errors = errors ++ e)
+    def addError(e: Error*): NotificationResult =
+      copy(errors = errors ++ e)
 
-    def addSuccessfullySent(s: String*): NotificationResult = copy(successfullySentTo = successfullySentTo ++ s)
+    def addSuccessfullySent(s: String*): NotificationResult =
+      copy(successfullySentTo = successfullySentTo ++ s)
 
-    def addExclusion(e: Exclusion*): NotificationResult = copy(exclusions = exclusions ++ e)
+    def addExclusion(e: Exclusion*): NotificationResult =
+      copy(exclusions = exclusions ++ e)
   }
 
   object NotificationResult {

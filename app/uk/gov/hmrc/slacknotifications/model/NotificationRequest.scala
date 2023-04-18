@@ -17,8 +17,7 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.Reads._
-import play.api.libs.json.{Reads, _}
+import play.api.libs.json.{Reads, __}
 
 final case class MessageDetails(
   text                : String,
@@ -28,8 +27,8 @@ final case class MessageDetails(
 
 object MessageDetails {
   implicit val reads: Reads[MessageDetails] =
-    ( (__ \ "text").read[String]
-    ~ (__ \ "attachments").readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
+    ( (__ \ "text"                ).read[String]
+    ~ (__ \ "attachments"         ).readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
     ~ (__ \ "showAttachmentAuthor").readNullable[Boolean].map(_.getOrElse(true))
     )(MessageDetails.apply _)
 }
@@ -40,5 +39,8 @@ final case class NotificationRequest(
 )
 
 object NotificationRequest {
-  implicit val reads: Reads[NotificationRequest] = Json.reads[NotificationRequest]
+  implicit val reads: Reads[NotificationRequest] =
+    ( (__ \ "channelLookup" ).read[ChannelLookup]
+    ~ (__ \ "messageDetails").read[MessageDetails]
+    )(NotificationRequest.apply _)
 }

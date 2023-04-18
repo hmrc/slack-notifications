@@ -96,10 +96,10 @@ class NotificationServiceSpec
       val exceptionsAndErrors =
         Table(
           ("exception", "expected error"),
-          (new BadRequestException(errorMsg), SlackError(400, errorMsg, "name-of-a-channel", None)),
+          (UpstreamErrorResponse(errorMsg, 400, 400), SlackError(400, errorMsg, "name-of-a-channel", None)),
           (UpstreamErrorResponse(errorMsg, 403, 403), SlackError(403, errorMsg, "name-of-a-channel", None)),
           (UpstreamErrorResponse(errorMsg, 500, 500), SlackError(500, errorMsg, "name-of-a-channel", None)),
-          (new NotFoundException(errorMsg), SlackError(404, errorMsg, "name-of-a-channel", None))
+          (UpstreamErrorResponse(errorMsg, 404, 404), SlackError(404, errorMsg, "name-of-a-channel", None))
         )
 
       forAll(exceptionsAndErrors) { (exception, expectedError) =>

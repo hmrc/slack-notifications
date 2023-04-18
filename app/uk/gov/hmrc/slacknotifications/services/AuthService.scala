@@ -40,7 +40,8 @@ class AuthService @Inject()(slackNotificationConfig: SlackNotificationConfig) {
 object AuthService {
 
   object Base64String {
-    def unapply(s: String): Option[String] = decode(s)
+    def unapply(s: String): Option[String] =
+      decode(s)
 
     def decode(s: String): Option[String] =
       Try(new String(BaseEncoding.base64().decode(s))).toOption
