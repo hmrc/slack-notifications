@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import play.api.libs.json.{Json, OFormat}
-import uk.gov.hmrc.slacknotifications.utils.AllowlistedLink
+import uk.gov.hmrc.slacknotifications.utils.LinkUtils
 
 /**
   * More details: https://api.slack.com/docs/message-attachments
@@ -54,21 +54,21 @@ object Attachment {
 
   implicit val format: OFormat[Attachment] = Json.format[Attachment]
 
-  def sanitise(attch: Attachment): Attachment =
+  def sanitise(attch: Attachment, channel: String): Attachment =
     attch.copy(
-      fallback    = attch.fallback.map{AllowlistedLink.sanitise(_)},
-      color       = attch.color.map{AllowlistedLink.sanitise(_)},
-      pretext     = attch.pretext.map{AllowlistedLink.sanitise(_)},
-      author_name = attch.author_name.map{AllowlistedLink.sanitise(_)},
-      author_link = attch.author_link.map{AllowlistedLink.sanitise(_)},
-      author_icon = attch.author_icon.map{AllowlistedLink.sanitise(_)},
-      title       = attch.title.map{AllowlistedLink.sanitise(_)},
-      title_link  = attch.title_link.map{AllowlistedLink.sanitise(_)},
-      text        = attch.text.map{AllowlistedLink.sanitise(_)},
-      image_url   = attch.image_url.map{AllowlistedLink.sanitise(_)},
-      thumb_url   = attch.thumb_url.map{AllowlistedLink.sanitise(_)},
-      footer      = attch.footer.map{AllowlistedLink.sanitise(_)},
-      footer_icon = attch.footer_icon.map{AllowlistedLink.sanitise(_)}
+      fallback    = attch.fallback.map{LinkUtils.updateLinks(_, channel)},
+      color       = attch.color.map{LinkUtils.updateLinks(_, channel)},
+      pretext     = attch.pretext.map{LinkUtils.updateLinks(_, channel)},
+      author_name = attch.author_name.map{LinkUtils.updateLinks(_, channel)},
+      author_link = attch.author_link.map{LinkUtils.updateLinks(_, channel)},
+      author_icon = attch.author_icon.map{LinkUtils.updateLinks(_, channel)},
+      title       = attch.title.map{LinkUtils.updateLinks(_, channel)},
+      title_link  = attch.title_link.map{LinkUtils.updateLinks(_, channel)},
+      text        = attch.text.map{LinkUtils.updateLinks(_, channel)},
+      image_url   = attch.image_url.map{LinkUtils.updateLinks(_, channel)},
+      thumb_url   = attch.thumb_url.map{LinkUtils.updateLinks(_, channel)},
+      footer      = attch.footer.map{LinkUtils.updateLinks(_, channel)},
+      footer_icon = attch.footer_icon.map{LinkUtils.updateLinks(_, channel)}
     )
 }
 
@@ -86,7 +86,7 @@ object SlackMessage {
 
   def sanitise(msg: SlackMessage): SlackMessage =
     msg.copy(
-      text        = AllowlistedLink.sanitise(msg.text),
-      attachments = msg.attachments.map(Attachment.sanitise)
+      text        = LinkUtils.updateLinks(msg.text, msg.channel),
+      attachments = msg.attachments.map(Attachment.sanitise(_, msg.channel))
     )
 }

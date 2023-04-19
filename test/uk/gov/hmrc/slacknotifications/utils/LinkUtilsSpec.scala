@@ -19,22 +19,22 @@ package uk.gov.hmrc.slacknotifications.utils
 import java.net.URL
 
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
-import uk.gov.hmrc.slacknotifications.utils.AllowlistedLink._
+import uk.gov.hmrc.slacknotifications.utils.LinkUtils._
 
-class AllowlistedLinkSpec extends UnitSpec {
-  private val allowlistedLink = "https://build.tax.service.gov.uk"
+class LinkUtilsSpec extends UnitSpec {
+  private val allowListedLink = "https://build.tax.service.gov.uk"
 
   "Links" can {
     "be extracted from message" in {
-      getUris(allowlistedLink) shouldBe Set(new URL(allowlistedLink))
+      getUris(allowListedLink) shouldBe Set(new URL(allowListedLink))
       getUris("http://url.i.dont?know=about") shouldBe Set(new URL("http://url.i.dont?know=about"))
     }
   }
 
-  "Links" should {
+  "Non catalogue Links" should {
     import org.scalatest.prop.TableDrivenPropertyChecks._
 
-    "be marked as allowlisted or not" in {
+    "be marked as allow listed or not" in {
       val links = Table(
         ("url", "is_allowlisted"),
         ("https://build.tax.service.gov.uk", true),
@@ -49,11 +49,11 @@ class AllowlistedLinkSpec extends UnitSpec {
 
       forAll(links) {
         (link: String, isAllowListedLink: Boolean) =>
-          isAllowlisted(link, allowedDomains) shouldBe isAllowListedLink
+          isAllowListed(link, allowedDomains) shouldBe isAllowListedLink
       }
     }
 
-    "be replaced if they are not allowlisted" in {
+    "be replaced if they are not allow listed" in {
       val links = Table(
         ("original_url", "sanitised_url"),
         ("https://build.tax.service.gov.uk", "https://build.tax.service.gov.uk"),
@@ -61,17 +61,47 @@ class AllowlistedLinkSpec extends UnitSpec {
         ("https://github.com/hmrc", "https://github.com/hmrc"),
         ("https://kibana.tools.production.tax.service.gov.uk/app/kibana#/home?_g=()", "https://kibana.tools.production.tax.service.gov.uk/app/kibana#/home?_g=()"),
         ("https://grafana.tools.production.tax.service.gov.uk/", "https://grafana.tools.production.tax.service.gov.uk/"),
-        ("https://www.google.com", AllowlistedLink.LinkNotAllowlisted),
-        ("http://url.i.dont?know=about", AllowlistedLink.LinkNotAllowlisted),
-        ("randomprefixhttps://example.com", "randomprefix" +  AllowlistedLink.LinkNotAllowlisted),
-        ("`http://url.i.dont?know=about`", s"`${AllowlistedLink.LinkNotAllowlisted}`"),
-        (""""http://url.i.dont?know=about"""", s""""${AllowlistedLink.LinkNotAllowlisted}""""),
+        ("https://www.google.com", LinkUtils.LinkNotAllowListed),
+        ("http://url.i.dont?know=about", LinkUtils.LinkNotAllowListed),
+        ("randomprefixhttps://example.com", "randomprefix" + LinkUtils.LinkNotAllowListed),
+        ("`http://url.i.dont?know=about`", s"`${LinkUtils.LinkNotAllowListed}`"),
+        (""""http://url.i.dont?know=about"""", s""""${LinkUtils.LinkNotAllowListed}""""),
         ("https://hmrc.pagerduty.com/incidents/ABCDEF", "https://hmrc.pagerduty.com/incidents/ABCDEF")
       )
 
       forAll(links) {
         (link: String, sanitisedLink: String) =>
-          sanitise(link) shouldBe sanitisedLink
+          updateLinks(link, "channel") shouldBe sanitisedLink
+      }
+    }
+  }
+
+  "Catalogue Links" should {
+    import org.scalatest.prop.TableDrivenPropertyChecks._
+
+    "not have an extra source added if already present" in {
+      val links = Table(
+        ("original_url", "expected_url"),
+        ("https://catalogue.tax.service.gov.uk?source=slack-lds", "https://catalogue.tax.service.gov.uk?source=slack-lds"),
+        ("https://catalogue.tax.service.gov.uk/repositories?from=here&source=slack-lds", "https://catalogue.tax.service.gov.uk/repositories?from=here&source=slack-lds")
+      )
+
+      forAll(links) {
+        (link: String, sanitisedLink: String) =>
+          updateLinks(link, "channel") shouldBe sanitisedLink
+      }
+    }
+
+    "have source added if not present" in {
+      val links = Table(
+        ("original_url", "expected_url"),
+        ("https://catalogue.tax.service.gov.uk", "https://catalogue.tax.service.gov.uk?source=slack-channel"),
+        ("https://catalogue.tax.service.gov.uk/repositories?from=here", "https://catalogue.tax.service.gov.uk/repositories?from=here&source=slack-channel")
+      )
+
+      forAll(links) {
+        (link: String, sanitisedLink: String) =>
+          updateLinks(link, "channel") shouldBe sanitisedLink
       }
     }
   }

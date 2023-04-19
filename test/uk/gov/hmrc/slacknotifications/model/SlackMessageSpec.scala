@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
-import uk.gov.hmrc.slacknotifications.utils.AllowlistedLink.LinkNotAllowlisted
+import uk.gov.hmrc.slacknotifications.utils.LinkUtils.LinkNotAllowListed
 
 class SlackMessageSpec extends UnitSpec {
   "A slack message" should {
@@ -45,7 +45,7 @@ class SlackMessageSpec extends UnitSpec {
       )
       val sanitisedMessage = SlackMessage.sanitise(message)
 
-      val sanitisedText = s"Evil text with links to $LinkNotAllowlisted and $LinkNotAllowlisted"
+      val sanitisedText = s"Evil text with links to $LinkNotAllowListed and $LinkNotAllowListed"
       sanitisedMessage shouldBe message.copy(text = sanitisedText)
     }
   }
@@ -79,12 +79,12 @@ class SlackMessageSpec extends UnitSpec {
 
       val expected = emptyAttachment.copy(
         author_link = Some("https://github.com/hmrc"),
-        title_link  = Some(LinkNotAllowlisted),
-        image_url   = Some(LinkNotAllowlisted),
+        title_link  = Some(LinkNotAllowListed),
+        image_url   = Some(LinkNotAllowListed),
         thumb_url   = Some("https://github.com/hmrc")
       )
 
-      Attachment.sanitise(attachment) shouldBe expected
+      Attachment.sanitise(attachment, "channel") shouldBe expected
     }
   }
 }
