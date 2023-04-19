@@ -54,21 +54,21 @@ object Attachment {
 
   implicit val format: OFormat[Attachment] = Json.format[Attachment]
 
-  def sanitise(attch: Attachment): Attachment =
+  def sanitise(attch: Attachment, channel: String): Attachment =
     attch.copy(
-      fallback    = attch.fallback.map{LinkUtils.updateLinks(_)},
-      color       = attch.color.map{LinkUtils.updateLinks(_)},
-      pretext     = attch.pretext.map{LinkUtils.updateLinks(_)},
-      author_name = attch.author_name.map{LinkUtils.updateLinks(_)},
-      author_link = attch.author_link.map{LinkUtils.updateLinks(_)},
-      author_icon = attch.author_icon.map{LinkUtils.updateLinks(_)},
-      title       = attch.title.map{LinkUtils.updateLinks(_)},
-      title_link  = attch.title_link.map{LinkUtils.updateLinks(_)},
-      text        = attch.text.map{LinkUtils.updateLinks(_)},
-      image_url   = attch.image_url.map{LinkUtils.updateLinks(_)},
-      thumb_url   = attch.thumb_url.map{LinkUtils.updateLinks(_)},
-      footer      = attch.footer.map{LinkUtils.updateLinks(_)},
-      footer_icon = attch.footer_icon.map{LinkUtils.updateLinks(_)}
+      fallback    = attch.fallback.map{LinkUtils.updateLinks(_, channel)},
+      color       = attch.color.map{LinkUtils.updateLinks(_, channel)},
+      pretext     = attch.pretext.map{LinkUtils.updateLinks(_, channel)},
+      author_name = attch.author_name.map{LinkUtils.updateLinks(_, channel)},
+      author_link = attch.author_link.map{LinkUtils.updateLinks(_, channel)},
+      author_icon = attch.author_icon.map{LinkUtils.updateLinks(_, channel)},
+      title       = attch.title.map{LinkUtils.updateLinks(_, channel)},
+      title_link  = attch.title_link.map{LinkUtils.updateLinks(_, channel)},
+      text        = attch.text.map{LinkUtils.updateLinks(_, channel)},
+      image_url   = attch.image_url.map{LinkUtils.updateLinks(_, channel)},
+      thumb_url   = attch.thumb_url.map{LinkUtils.updateLinks(_, channel)},
+      footer      = attch.footer.map{LinkUtils.updateLinks(_, channel)},
+      footer_icon = attch.footer_icon.map{LinkUtils.updateLinks(_, channel)}
     )
 }
 
@@ -86,7 +86,7 @@ object SlackMessage {
 
   def sanitise(msg: SlackMessage): SlackMessage =
     msg.copy(
-      text        = LinkUtils.updateLinks(msg.text),
-      attachments = msg.attachments.map(Attachment.sanitise)
+      text        = LinkUtils.updateLinks(msg.text, msg.channel),
+      attachments = msg.attachments.map(Attachment.sanitise(_, msg.channel))
     )
 }

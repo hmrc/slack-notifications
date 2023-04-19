@@ -17,8 +17,6 @@
 package uk.gov.hmrc.slacknotifications.utils
 
 import java.net.{URI, URL}
-
-import scala.annotation.tailrec
 import scala.util.Try
 
 object LinkUtils {
@@ -48,25 +46,16 @@ object LinkUtils {
 
   private def hasSourceAttribute(url: String): Boolean = url.contains("source=")
 
-  private def appendSource(h: String) = s"$h${if (h.contains("?")) "&" else "?"}source=slack"
+  private def appendSource(h: String, channel: String) = s"$h${if (h.contains("?")) "&" else "?"}source=slack-$channel"
 
-  @tailrec
-  private def updateCatalogueLinks(str: String, links: List[URL]): String =
-    links match {
-      case h :: t => updateCatalogueLinks(str.replace(h.toString, appendSource(h.toString)), t)
-      case Nil => str
-    }
+  private def updateCatalogueLinks(str: String, channel: String, links: List[URL]): String =
+    links.foldLeft(str)((acc, link) => acc.replace(link.toString, appendSource(link.toString, channel)))
 
-  @tailrec
   private def overrideBadLinks(str: String, badLinkMessage: String, links: List[URL]): String =
-    links match {
-      case h :: t => overrideBadLinks(str.replace(h.toString, badLinkMessage), badLinkMessage, t)
-      case Nil    => str
-    }
+    links.foldLeft(str)((acc, link) => acc.replace(link.toString, badLinkMessage))
 
-  val updateLinks: String => String =
-    str => {
-      val allLinks = getUris(str)
+  def updateLinks (text: String, channel: String): String = {
+      val allLinks = getUris(text)
       val badLinks = allLinks
         .filterNot((x: URL) => isCatalogueLink(x.getHost))
         .filterNot((x: URL) => isAllowListed(x.getHost, allowedDomains))
@@ -76,7 +65,8 @@ object LinkUtils {
         .filterNot((x: URL) => hasSourceAttribute(x.toString))
         .toList
       updateCatalogueLinks(
-        overrideBadLinks(str, LinkNotAllowListed, badLinks),
+        overrideBadLinks(text, LinkNotAllowListed, badLinks),
+        channel,
         catalogueLinks)
     }
 }

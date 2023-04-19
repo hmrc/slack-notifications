@@ -71,7 +71,7 @@ class LinkUtilsSpec extends UnitSpec {
 
       forAll(links) {
         (link: String, sanitisedLink: String) =>
-          updateLinks(link) shouldBe sanitisedLink
+          updateLinks(link, "channel") shouldBe sanitisedLink
       }
     }
   }
@@ -88,20 +88,20 @@ class LinkUtilsSpec extends UnitSpec {
 
       forAll(links) {
         (link: String, sanitisedLink: String) =>
-          updateLinks(link) shouldBe sanitisedLink
+          updateLinks(link, "channel") shouldBe sanitisedLink
       }
     }
 
     "have source added if not present" in {
       val links = Table(
         ("original_url", "expected_url"),
-        ("https://catalogue.tax.service.gov.uk", "https://catalogue.tax.service.gov.uk?source=slack"),
-        ("https://catalogue.tax.service.gov.uk/repositories?from=here", "https://catalogue.tax.service.gov.uk/repositories?from=here&source=slack")
+        ("https://catalogue.tax.service.gov.uk", "https://catalogue.tax.service.gov.uk?source=slack-channel"),
+        ("https://catalogue.tax.service.gov.uk/repositories?from=here", "https://catalogue.tax.service.gov.uk/repositories?from=here&source=slack-channel")
       )
 
       forAll(links) {
         (link: String, sanitisedLink: String) =>
-          updateLinks(link) shouldBe sanitisedLink
+          updateLinks(link, "channel") shouldBe sanitisedLink
       }
     }
   }

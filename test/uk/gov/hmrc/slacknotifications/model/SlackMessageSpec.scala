@@ -84,7 +84,7 @@ class SlackMessageSpec extends UnitSpec {
         thumb_url   = Some("https://github.com/hmrc")
       )
 
-      Attachment.sanitise(attachment) shouldBe expected
+      Attachment.sanitise(attachment, "channel") shouldBe expected
     }
   }
 }
