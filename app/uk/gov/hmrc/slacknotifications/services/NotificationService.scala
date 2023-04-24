@@ -17,6 +17,7 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import cats.implicits._
+
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.Logging
@@ -24,7 +25,7 @@ import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{Attachment, ChannelLookup, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -63,6 +64,7 @@ class NotificationService @Inject()(
           sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
         }.map(flatten)
 
+
       case ChannelLookup.TeamsOfGithubUser(_, githubUsername) =>
         if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
           Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
@@ -70,16 +72,45 @@ class NotificationService @Inject()(
           userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
             withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
               if (nonExcludedTeams.nonEmpty)
-                traverseFuturesSequentially(nonExcludedTeams) { teamName =>
-                  withExistingSlackChannel(teamName) { slackChannel =>
-                    sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
-                  }
-                }.map(flatten)
+                sendSlackMessageToTeams(nonExcludedTeams, notificationRequest, service)
               else
                 Future.successful(NotificationResult().addError(TeamsNotFoundForGithubUsername(githubUsername)))
             }
           }
+
+      case ChannelLookup.TeamsOfLdapUser(_, ldapUsername) =>
+        userManagementService.getTeamsForLdapUser(ldapUsername).flatMap { allTeams =>
+          withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
+            if (nonExcludedTeams.nonEmpty)
+              sendSlackMessageToTeams(nonExcludedTeams, notificationRequest, service)
+            else {
+              sendSlackMessage(SlackMessage(
+                channel     = "team-platops-alerts",
+                text        = s"No teams found for ldap username: '$ldapUsername'",
+                username    = "slack-notifications",
+                icon_emoji  = None,
+                attachments = Seq(Attachment(title = Some(notificationRequest.messageDetails.text))), showAttachmentAuthor = true),
+                service     = service
+              )
+              Future.successful(NotificationResult().addError(TeamsNotFoundForLdapUsername(ldapUsername)))
+            }
+          }
+        }
     }
+
+  private def sendSlackMessageToTeams(
+    nonExcludedTeams   : Seq[String],
+    notificationRequest: NotificationRequest,
+    service            : Service
+  )(
+    implicit
+    hc: HeaderCarrier
+  ): Future[NotificationResult] =
+    traverseFuturesSequentially(nonExcludedTeams) { teamName =>
+      withExistingSlackChannel(teamName) { slackChannel =>
+        sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
+      }
+    }.map(flatten)
 
   private def flatten(results: Seq[NotificationResult]): NotificationResult =
     results.foldLeft(NotificationResult())((acc, current) =>
@@ -295,6 +326,11 @@ object NotificationService {
   final case class TeamsNotFoundForGithubUsername(githubUsername: String) extends Error {
     val code    = "teams_not_found_for_github_username"
     val message = s"Teams not found for Github username: '$githubUsername'"
+  }
+
+  final case class TeamsNotFoundForLdapUsername(ldapUsername: String) extends Error {
+    val code    = "teams_not_found_for_ldap_username"
+    val message = s"Teams not found for Ldap username: '$ldapUsername'"
   }
 
   final case class SlackChannelNotFound(channelName: String) extends Error {

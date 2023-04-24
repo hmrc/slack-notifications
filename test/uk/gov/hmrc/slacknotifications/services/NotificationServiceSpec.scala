@@ -25,7 +25,7 @@ import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFo
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
 import uk.gov.hmrc.slacknotifications.model._
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
@@ -233,7 +233,7 @@ class NotificationServiceSpec
       }
     }
 
-    "report if no teams are found for a user" in new Fixtures {
+    "report if no teams are found for a github user" in new Fixtures {
       val githubUsername = "a-github-username"
       val notificationRequest =
         NotificationRequest(
@@ -249,6 +249,29 @@ class NotificationServiceSpec
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
         errors             = List(TeamsNotFoundForGithubUsername(githubUsername)),
+        exclusions         = Nil
+      )
+    }
+
+    "report if no teams are found for a ldap user" in new Fixtures {
+      val ldapUsername = "a-ldap-username"
+      val notificationRequest =
+        NotificationRequest(
+          channelLookup  = TeamsOfLdapUser("", ldapUsername),
+          messageDetails = exampleMessageDetails
+        )
+
+      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List.empty))
+
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
+
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+
+      result shouldBe NotificationResult(
+        successfullySentTo = Nil,
+        errors             = List(TeamsNotFoundForLdapUsername(ldapUsername)),
         exclusions         = Nil
       )
     }

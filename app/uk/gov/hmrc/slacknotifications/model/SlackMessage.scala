@@ -23,21 +23,21 @@ import uk.gov.hmrc.slacknotifications.utils.LinkUtils
   * More details: https://api.slack.com/docs/message-attachments
   */
 case class Attachment(
-  fallback   : Option[String],
-  color      : Option[String],
-  pretext    : Option[String],
-  author_name: Option[String],
-  author_link: Option[String],
-  author_icon: Option[String],
-  title      : Option[String],
-  title_link : Option[String],
-  text       : Option[String],
-  fields     : Option[Seq[Attachment.Field]],
-  image_url  : Option[String],
-  thumb_url  : Option[String],
-  footer     : Option[String],
-  footer_icon: Option[String],
-  ts         : Option[Int]
+  fallback   : Option[String] = None,
+  color      : Option[String] = None,
+  pretext    : Option[String] = None,
+  author_name: Option[String] = None,
+  author_link: Option[String] = None,
+  author_icon: Option[String] = None,
+  title      : Option[String] = None,
+  title_link : Option[String] = None,
+  text       : Option[String] = None,
+  fields     : Option[Seq[Attachment.Field]] = None,
+  image_url  : Option[String] = None,
+  thumb_url  : Option[String] = None,
+  footer     : Option[String] = None,
+  footer_icon: Option[String] = None,
+  ts         : Option[Int]    = None
 )
 
 object Attachment {

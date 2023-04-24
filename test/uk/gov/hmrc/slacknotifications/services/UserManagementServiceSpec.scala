@@ -81,6 +81,17 @@ class UserManagementServiceSpec extends UnitSpec with ScalaFutures {
 
       service.getTeamsForGithubUser(githubUsername).futureValue shouldBe teams
     }
+
+    "lookup MDTP teams for a ldap user" in new Fixtures {
+      val ldapUsername      = "ldap-username"
+      val service           = new UserManagementService(mockedUMPConnector, cacheApi)
+      val teams             = List(TeamDetails(slack = None, slackNotification = None, team = "n/a"))
+
+      when(mockedUMPConnector.getTeamsForUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(teams))
+
+      service.getTeamsForLdapUser(ldapUsername).futureValue shouldBe teams
+    }
   }
 
   private trait Fixtures {
