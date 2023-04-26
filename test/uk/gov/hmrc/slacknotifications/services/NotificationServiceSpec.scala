@@ -21,8 +21,9 @@ import org.scalacheck.Gen
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
-import uk.gov.hmrc.http.{BadRequestException, HeaderCarrier, HttpResponse, NotFoundException, _}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, _}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
+import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
@@ -160,10 +161,20 @@ class NotificationServiceSpec
       val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = "n/a")
 
       val channelLookups = List(
-        GithubRepository("", "repo"),
-        SlackChannel("", NonEmptyList.of(teamChannel)),
-        TeamsOfGithubUser("", "a-github-handle")
+        GithubRepository("repo"),
+        SlackChannel(NonEmptyList.of(teamChannel)),
+        TeamsOfGithubUser("a-github-handle"),
+        TeamsOfLdapUser("a-ldap-user")
       )
+
+      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(teamDetails)))
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
@@ -175,13 +186,6 @@ class NotificationServiceSpec
             )
           )
 
-        when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(List(teamDetails)))
-        when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(Some(teamDetails)))
-        when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(HttpResponse(200, "")))
-
         val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
@@ -189,6 +193,12 @@ class NotificationServiceSpec
           errors             = Nil,
           exclusions         = Nil
         )
+
+        channelLookup match {
+          case req: TeamsOfGithubUser => verify(userManagementService, times(1) ).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
+          case req: TeamsOfLdapUser   => verify(userManagementService, times(1) ).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
+          case _                    =>
+        }
       }
     }
 
@@ -201,10 +211,20 @@ class NotificationServiceSpec
       val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel/"), None, team = "n/a")
 
       val channelLookups = List(
-        GithubRepository("", "repo"),
-        SlackChannel("", NonEmptyList.of(teamChannel)),
-        TeamsOfGithubUser("", "a-github-handle")
+        GithubRepository("repo"),
+        SlackChannel(NonEmptyList.of(teamChannel)),
+        TeamsOfGithubUser("a-github-handle"),
+        TeamsOfLdapUser("a-ldap-user")
       )
+
+      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(teamDetails)))
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
@@ -215,13 +235,6 @@ class NotificationServiceSpec
               attachments = Nil
             )
           )
-
-        when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(List(teamDetails)))
-        when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(Some(teamDetails)))
-        when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(HttpResponse(200, "")))
 
         val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
@@ -237,18 +250,21 @@ class NotificationServiceSpec
       val githubUsername = "a-github-username"
       val notificationRequest =
         NotificationRequest(
-          channelLookup  = TeamsOfGithubUser("", githubUsername),
+          channelLookup  = TeamsOfGithubUser(githubUsername),
           messageDetails = exampleMessageDetails
         )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(List.empty))
 
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
+
       val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(TeamsNotFoundForGithubUsername(githubUsername)),
+        errors             = List(TeamsNotFoundForUsername("github", githubUsername)),
         exclusions         = Nil
       )
     }
@@ -257,7 +273,7 @@ class NotificationServiceSpec
       val ldapUsername = "a-ldap-username"
       val notificationRequest =
         NotificationRequest(
-          channelLookup  = TeamsOfLdapUser("", ldapUsername),
+          channelLookup  = TeamsOfLdapUser(ldapUsername),
           messageDetails = exampleMessageDetails
         )
 
@@ -271,7 +287,7 @@ class NotificationServiceSpec
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(TeamsNotFoundForLdapUsername(ldapUsername)),
+        errors             = List(TeamsNotFoundForUsername("ldap", ldapUsername)),
         exclusions         = Nil
       )
     }
@@ -288,10 +304,18 @@ class NotificationServiceSpec
       val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = "n/a")
 
       val channelLookups = List(
-        GithubRepository("", "repo"),
-        SlackChannel("", NonEmptyList.of(teamChannel)),
-        TeamsOfGithubUser("", "a-github-handle")
+        GithubRepository("repo"),
+        SlackChannel(NonEmptyList.of(teamChannel)),
+        TeamsOfGithubUser("a-github-handle"),
+        TeamsOfLdapUser("a-ldap-user")
       )
+
+      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(teamDetails)))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
@@ -302,11 +326,6 @@ class NotificationServiceSpec
               attachments = Nil
             )
           )
-
-        when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(List(teamDetails)))
-        when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(Some(teamDetails)))
 
         val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
         val space = " " //to stop ide from removing end spaces
@@ -333,24 +352,32 @@ class NotificationServiceSpec
       val teamName2              = "team-to-be-excluded-2"
       override val configuration = Configuration(
         "exclusions.notRealTeams"            -> s"$teamName1, $teamName2",
-        "slack.notification.enabled"         -> true
+        "slack.notification.enabled"         -> true,
+        "alerts.slack.noTeamFound.channel"   -> "test-channel",
+        "alerts.slack.noTeamFound.username"  -> "slack-notifications",
+        "alerts.slack.noTeamFound.iconEmoji" -> "",
+        "alerts.slack.noTeamFound.text"      -> "test {user}"
+
       )
       val githubUsername         = "a-github-username"
 
       val notificationRequest =
         NotificationRequest(
-          channelLookup  = TeamsOfGithubUser("", githubUsername),
+          channelLookup  = TeamsOfGithubUser(githubUsername),
           messageDetails = exampleMessageDetails
         )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(List(TeamDetails(None, None, teamName1), TeamDetails(None, None, teamName2))))
 
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
+
       val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(TeamsNotFoundForGithubUsername(githubUsername)),
+        errors             = List(TeamsNotFoundForUsername("github", githubUsername)),
         exclusions         = List(NotARealTeam(teamName1), NotARealTeam(teamName2))
       )
     }
@@ -364,7 +391,7 @@ class NotificationServiceSpec
 
       val notificationRequest =
         NotificationRequest(
-          channelLookup  = TeamsOfGithubUser("", ignored1),
+          channelLookup  = TeamsOfGithubUser(ignored1),
           messageDetails = exampleMessageDetails
         )
 
@@ -392,7 +419,7 @@ class NotificationServiceSpec
 
       val notificationRequest =
         NotificationRequest(
-          channelLookup  = GithubRepository("", "repo"),
+          channelLookup  = GithubRepository("repo"),
           messageDetails = exampleMessageDetails
         )
 
@@ -412,7 +439,7 @@ class NotificationServiceSpec
       private val nonexistentRepoName = "nonexistent-repo"
       private val notificationRequest =
         NotificationRequest(
-          channelLookup  = GithubRepository("", nonexistentRepoName),
+          channelLookup  = GithubRepository(nonexistentRepoName),
           messageDetails = exampleMessageDetails
         )
 
@@ -436,7 +463,7 @@ class NotificationServiceSpec
 
       private val notificationRequest =
         NotificationRequest(
-          channelLookup  = GithubRepository("", ""),
+          channelLookup  = GithubRepository(""),
           messageDetails = exampleMessageDetails
         )
 
@@ -454,7 +481,7 @@ class NotificationServiceSpec
       val repoName = "repo-name"
       private val notificationRequest =
         NotificationRequest(
-          channelLookup  = GithubRepository("", repoName),
+          channelLookup  = GithubRepository(repoName),
           messageDetails = exampleMessageDetails
         )
 
@@ -632,10 +659,10 @@ class NotificationServiceSpec
   }
 
   trait Fixtures {
-    val slackConnector                = mock[SlackConnector]
-    val teamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
-    val userManagementConnector       = mock[UserManagementConnector]
-    val userManagementService         = mock[UserManagementService]
+    val slackConnector                = mock[SlackConnector]//(withSettings.lenient)
+    val teamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]//(withSettings.lenient)
+    val userManagementConnector       = mock[UserManagementConnector]//(withSettings.lenient)
+    val userManagementService         = mock[UserManagementService]//(withSettings.lenient)
 
     val configuration =
       Configuration(
@@ -644,7 +671,12 @@ class NotificationServiceSpec
         "auth.authorizedServices.0.displayName" -> "leak-detector",
         "auth.authorizedServices.1.name"        -> "another-service",
         "auth.authorizedServices.1.password"    -> "foo",
-        "slack.notification.enabled"            -> true
+        "slack.notification.enabled"            -> true,
+        "alerts.slack.noTeamFound.channel"      -> "test-channel",
+        "alerts.slack.noTeamFound.username"     -> "slack-notifications",
+        "alerts.slack.noTeamFound.iconEmoji"    -> "",
+        "alerts.slack.noTeamFound.text"         -> "test {user}"
+
       )
 
     val exampleMessageDetails =
@@ -657,6 +689,7 @@ class NotificationServiceSpec
       new NotificationService(
         new SlackNotificationConfig(configuration),
         slackConnector,
+        new SlackConfig(configuration),
         teamsAndRepositoriesConnector,
         userManagementConnector,
         userManagementService

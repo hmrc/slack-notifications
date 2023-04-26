@@ -34,7 +34,7 @@ class ChannelLookupSpec extends UnitSpec {
           }
         """
 
-      Json.parse(json).as[ChannelLookup] shouldBe GithubRepository(by, repoName)
+      Json.parse(json).as[ChannelLookup] shouldBe GithubRepository(repoName)
     }
 
     "be possible directly by slack channel name" in {
@@ -51,7 +51,7 @@ class ChannelLookupSpec extends UnitSpec {
         """
 
       val parsingResult = Json.parse(json).as[ChannelLookup]
-      parsingResult shouldBe SlackChannel(by, NonEmptyList.of(slackChannel))
+      parsingResult shouldBe SlackChannel(NonEmptyList.of(slackChannel))
     }
 
     "fail if user specified empty list of slack channels" in {
@@ -84,7 +84,7 @@ class ChannelLookupSpec extends UnitSpec {
         """
 
       val parsingResult = Json.parse(json).as[ChannelLookup]
-      parsingResult shouldBe TeamsOfGithubUser(by, githubUsername)
+      parsingResult shouldBe TeamsOfGithubUser(githubUsername)
     }
 
     "fail if lookup method not specified" in {

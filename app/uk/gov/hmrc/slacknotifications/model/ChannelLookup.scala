@@ -21,19 +21,17 @@ import play.api.libs.json.Reads._
 import play.api.libs.json.{Json, Reads, _}
 import uk.gov.hmrc.slacknotifications.JsonHelpers
 
-sealed trait ChannelLookup {
-  def by: String
-}
+sealed trait ChannelLookup
 
 object ChannelLookup extends JsonHelpers {
 
-  final case class GithubRepository(by: String, repositoryName: String) extends ChannelLookup
+  final case class GithubRepository(repositoryName: String) extends ChannelLookup
 
-  final case class SlackChannel(by: String, slackChannels: NonEmptyList[String]) extends ChannelLookup
+  final case class SlackChannel(slackChannels: NonEmptyList[String]) extends ChannelLookup
 
-  final case class TeamsOfGithubUser(by: String, githubUsername: String) extends ChannelLookup
+  final case class TeamsOfGithubUser(githubUsername: String) extends ChannelLookup
 
-  final case class TeamsOfLdapUser(by: String, ldapUsername: String) extends ChannelLookup
+  final case class TeamsOfLdapUser(ldapUsername: String) extends ChannelLookup
 
   private val githubRepositoryReads  = Json.reads[GithubRepository].map(upcastAsChannelLookup)
   private val slackChannelReads      = Json.reads[SlackChannel].map(upcastAsChannelLookup)
