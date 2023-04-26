@@ -96,12 +96,17 @@ class NotificationService @Inject()(
             }
           }.map(flatten)
         } else {
-          sendSlackMessage(SlackMessage(
-            channel     = slackConfig.noTeamFoundAlert.channel,
-            text        = slackConfig.noTeamFoundAlert.text.replace("{user}", userType),
-            username    = slackConfig.noTeamFoundAlert.username,
-            icon_emoji  = Some(slackConfig.noTeamFoundAlert.iconEmoji),
-            attachments = Seq(Attachment(title = Some(notificationRequest.messageDetails.text))), showAttachmentAuthor = true),
+          logger.info(s"Failed to find teams for usertype: ${userType}, username: ${username}. " +
+            s"Sending slack notification to Platops admin channel instead")
+          sendSlackMessage(
+            SlackMessage(
+              channel     = slackConfig.noTeamFoundAlert.channel,
+              text        = slackConfig.noTeamFoundAlert.text.replace("{service}", service.name),
+              username    = slackConfig.noTeamFoundAlert.username,
+              icon_emoji  = Some(slackConfig.noTeamFoundAlert.iconEmoji),
+              attachments = notificationRequest.messageDetails.attachments,
+              showAttachmentAuthor = true
+            ),
             service     = service
           )
           Future.successful(NotificationResult().addError(TeamsNotFoundForUsername(userType, username)))
