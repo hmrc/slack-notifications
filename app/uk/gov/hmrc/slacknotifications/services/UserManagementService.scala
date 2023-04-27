@@ -34,14 +34,16 @@ class UserManagementService @Inject()(
   ec: ExecutionContext
 ) extends Logging {
 
+  def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
+    for {
+      teams     <- connector.getTeamsForUser(ldapUsername)
+      _         =  logger.info(s"Teams found for ldap username: '$ldapUsername' are ${teams.mkString("[", ",", "]")}")
+    } yield teams
+
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
     for {
       optLdapUsername <- getLdapUsername(githubUsername)
-      teams           <- optLdapUsername match {
-                          case Some(u) => connector.getTeamsForUser(u)
-                          case None    => Future.successful(Nil)
-                        }
-      _               =  logger.info(s"Teams found for github username: '$githubUsername' are ${teams.mkString("[", ",", "]")}")
+      teams           <- optLdapUsername.fold(Future.successful(List.empty[TeamDetails]))(getTeamsForLdapUser)
     } yield teams
 
   def getLdapUsername(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {

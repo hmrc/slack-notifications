@@ -17,14 +17,16 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import cats.implicits._
+
 import javax.inject.{Inject, Singleton}
 import play.api.libs.json._
 import play.api.Logging
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
+import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationRequest, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{Attachment, ChannelLookup, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -34,6 +36,7 @@ import scala.util.control.NonFatal
 class NotificationService @Inject()(
   slackNotificationConfig      : SlackNotificationConfig,
   slackConnector               : SlackConnector,
+  slackConfig                  : SlackConfig,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
   userManagementConnector      : UserManagementConnector,
   userManagementService        : UserManagementService
@@ -47,7 +50,7 @@ class NotificationService @Inject()(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
     notificationRequest.channelLookup match {
 
-      case ChannelLookup.GithubRepository(_, name) =>
+      case ChannelLookup.GithubRepository(name) =>
         withExistingRepository(name) { repositoryDetails =>
           withTeamsResponsibleForRepo(name, repositoryDetails) { teamNames =>
             traverseFuturesSequentially(teamNames) { teamName =>
@@ -58,28 +61,59 @@ class NotificationService @Inject()(
           }
         }
 
-      case ChannelLookup.SlackChannel(_, slackChannels) =>
+      case ChannelLookup.SlackChannel(slackChannels) =>
         traverseFuturesSequentially(slackChannels.toList) { slackChannel =>
           sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
         }.map(flatten)
 
-      case ChannelLookup.TeamsOfGithubUser(_, githubUsername) =>
+      case ChannelLookup.TeamsOfGithubUser(githubUsername) =>
         if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
           Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
         else
-          userManagementService.getTeamsForGithubUser(githubUsername).flatMap { allTeams =>
-            withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
-              if (nonExcludedTeams.nonEmpty)
-                traverseFuturesSequentially(nonExcludedTeams) { teamName =>
-                  withExistingSlackChannel(teamName) { slackChannel =>
-                    sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
-                  }
-                }.map(flatten)
-              else
-                Future.successful(NotificationResult().addError(TeamsNotFoundForGithubUsername(githubUsername)))
-            }
-          }
+          sendNotificationForUser("github", githubUsername, userManagementService.getTeamsForGithubUser)(notificationRequest, service)
+
+      case ChannelLookup.TeamsOfLdapUser(ldapUsername) =>
+          sendNotificationForUser("ldap", ldapUsername, userManagementService.getTeamsForLdapUser)(notificationRequest, service)
     }
+
+  private def sendNotificationForUser(
+    userType   : String,
+    username   : String,
+    teamsGetter: String => Future[List[TeamDetails]]
+  )(
+    notificationRequest: NotificationRequest,
+    service            : Service
+  )(
+    implicit
+    hc: HeaderCarrier
+  ): Future[NotificationResult] = {
+    teamsGetter(username).flatMap { allTeams =>
+      withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
+        if (nonExcludedTeams.nonEmpty) {
+          traverseFuturesSequentially(nonExcludedTeams) { teamName =>
+            withExistingSlackChannel(teamName) { slackChannel =>
+              sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
+            }
+          }.map(flatten)
+        } else {
+          logger.info(s"Failed to find teams for usertype: ${userType}, username: ${username}. " +
+            s"Sending slack notification to Platops admin channel instead")
+          sendSlackMessage(
+            SlackMessage(
+              channel     = slackConfig.noTeamFoundAlert.channel,
+              text        = slackConfig.noTeamFoundAlert.text.replace("{service}", service.name),
+              username    = slackConfig.noTeamFoundAlert.username,
+              icon_emoji  = Some(slackConfig.noTeamFoundAlert.iconEmoji),
+              attachments = notificationRequest.messageDetails.attachments,
+              showAttachmentAuthor = true
+            ),
+            service     = service
+          )
+          Future.successful(NotificationResult().addError(TeamsNotFoundForUsername(userType, username)))
+        }
+      }
+    }
+  }
 
   private def flatten(results: Seq[NotificationResult]): NotificationResult =
     results.foldLeft(NotificationResult())((acc, current) =>
@@ -292,9 +326,9 @@ object NotificationService {
     val message = s"Teams not found for repository: '$repoName'"
   }
 
-  final case class TeamsNotFoundForGithubUsername(githubUsername: String) extends Error {
-    val code    = "teams_not_found_for_github_username"
-    val message = s"Teams not found for Github username: '$githubUsername'"
+  final case class TeamsNotFoundForUsername(userType: String, username: String) extends Error {
+    val code    = s"teams_not_found_for_${userType.toLowerCase}_username"
+    val message = s"Teams not found for ${userType.capitalize} username: '$username'"
   }
 
   final case class SlackChannelNotFound(channelName: String) extends Error {
