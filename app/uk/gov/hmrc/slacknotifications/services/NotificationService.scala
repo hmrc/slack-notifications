@@ -98,6 +98,11 @@ class NotificationService @Inject()(
         } else {
           logger.info(s"Failed to find teams for usertype: ${userType}, username: ${username}. " +
             s"Sending slack notification to Platops admin channel instead")
+          logger.info(s"Channel: ${slackConfig.noTeamFoundAlert.channel}")
+          logger.info(s"Text: ${slackConfig.noTeamFoundAlert.text.replace("{service}", service.name)}")
+          logger.info(s"Username: ${slackConfig.noTeamFoundAlert.username}")
+          logger.info(s"Attachments: ${notificationRequest.messageDetails.attachments}")
+          logger.info(s"Service: $service")
           sendSlackMessage(
             SlackMessage(
               channel     = slackConfig.noTeamFoundAlert.channel,
