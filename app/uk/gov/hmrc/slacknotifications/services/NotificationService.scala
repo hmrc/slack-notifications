@@ -113,7 +113,14 @@ class NotificationService @Inject()(
                                           text = slackConfig.noTeamFoundAlert.text.replace("{service}", service.name),
                                           username = slackConfig.noTeamFoundAlert.username,
                                           icon_emoji = Some(slackConfig.noTeamFoundAlert.iconEmoji),
-                                          attachments = Seq(Attachment(Some(TeamsNotFoundForUsername(userType, username).message)), Attachment(Some(notificationRequest.messageDetails.text))) ++ notificationRequest.messageDetails.attachments,
+                                          attachments = Seq(
+                                            Attachment(
+                                              fields = Some(List(
+                                                Attachment.Field(title = "error", value = TeamsNotFoundForUsername(userType, username).message, short = true),
+                                                Attachment.Field(title = "message details", value = notificationRequest.messageDetails.text, short = false),
+                                              ))
+                                            )
+                                          ),
                                           showAttachmentAuthor = true
                                         )
                                       ),
