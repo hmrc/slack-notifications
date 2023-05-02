@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
+import cats.data.EitherT
 import cats.implicits._
 
 import javax.inject.{Inject, Singleton}
@@ -51,20 +52,25 @@ class NotificationService @Inject()(
     notificationRequest.channelLookup match {
 
       case ChannelLookup.GithubRepository(name) =>
-        withExistingRepository(name) { repositoryDetails =>
-          withTeamsResponsibleForRepo(name, repositoryDetails) { teamNames =>
-            traverseFuturesSequentially(teamNames) { teamName =>
-              withExistingSlackChannel(teamName) { slackChannel =>
-                sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(teamName))
-              }
-            }.map(flatten)
-          }
-        }
+        {
+          for {
+            repositoryDetails         <- EitherT(getExistingRepository(name))
+            allTeams                  <- EitherT(getTeamsResponsibleForRepo(name, repositoryDetails))
+            (excluded, toBeProcessed)  = allTeams.partition(slackNotificationConfig.notRealTeams.contains)
+            notificationResult        <- EitherT.liftF[Future,NotificationResult, NotificationResult](toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){(acc, teamName) =>
+                for {
+                  slackChannel    <- getExistingSlackChannel(teamName)
+                  notificationRes <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(teamName))
+                } yield acc :+ notificationRes
+              }.map(concatResults))
+            resWithExclusions          = notificationResult.addExclusion(excluded.map(NotARealTeam.apply): _*)
+          } yield resWithExclusions
+        }.merge
 
       case ChannelLookup.SlackChannel(slackChannels) =>
-        traverseFuturesSequentially(slackChannels.toList) { slackChannel =>
-          sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
-        }.map(flatten)
+        slackChannels.toList.foldLeftM(Seq.empty[NotificationResult]){(acc, slackChannel) =>
+          sendSlackMessage(fromNotification(notificationRequest, slackChannel), service).map(acc :+ _)
+        }.map(concatResults)
 
       case ChannelLookup.TeamsOfGithubUser(githubUsername) =>
         if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
@@ -86,36 +92,37 @@ class NotificationService @Inject()(
   )(
     implicit
     hc: HeaderCarrier
-  ): Future[NotificationResult] = {
-    teamsGetter(username).flatMap { allTeams =>
-      withNonExcludedTeams(allTeams.map(_.team)) { nonExcludedTeams =>
-        if (nonExcludedTeams.nonEmpty) {
-          traverseFuturesSequentially(nonExcludedTeams) { teamName =>
-            withExistingSlackChannel(teamName) { slackChannel =>
-              sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
-            }
-          }.map(flatten)
-        } else {
-          logger.info(s"Failed to find teams for usertype: ${userType}, username: ${username}. " +
-            s"Sending slack notification to Platops admin channel instead")
-          sendSlackMessage(
-            SlackMessage(
-              channel     = slackConfig.noTeamFoundAlert.channel,
-              text        = slackConfig.noTeamFoundAlert.text.replace("{service}", service.name),
-              username    = slackConfig.noTeamFoundAlert.username,
-              icon_emoji  = Some(slackConfig.noTeamFoundAlert.iconEmoji),
-              attachments = notificationRequest.messageDetails.attachments,
-              showAttachmentAuthor = true
-            ),
-            service     = service
-          )
-          Future.successful(NotificationResult().addError(TeamsNotFoundForUsername(userType, username)))
-        }
-      }
-    }
-  }
+  ): Future[NotificationResult] =
+  for {
+    allTeams                  <- teamsGetter(username)
+    (excluded, toBeProcessed)  = allTeams.map(_.team).partition(slackNotificationConfig.notRealTeams.contains)
+    notificationResult        <- if (toBeProcessed.nonEmpty) {
+                                  toBeProcessed.foldLeftM(Seq.empty[NotificationResult]) { (acc, teamName) =>
+                                    for {
+                                      slackChannel <- getExistingSlackChannel(teamName)
+                                      notificationRes <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
+                                    } yield acc :+ notificationRes
+                                  }}.map(concatResults)
+                                else {
+                                    logger.info(s"Failed to find teams for usertype: ${userType}, username: ${username}. " +
+                                      s"Sending slack notification to Platops admin channel instead")
+                                    sendSlackMessage(
+                                      SlackMessage(
+                                        channel = slackConfig.noTeamFoundAlert.channel,
+                                        text = slackConfig.noTeamFoundAlert.text.replace("{service}", service.name),
+                                        username = slackConfig.noTeamFoundAlert.username,
+                                        icon_emoji = Some(slackConfig.noTeamFoundAlert.iconEmoji),
+                                        attachments = notificationRequest.messageDetails.attachments,
+                                        showAttachmentAuthor = true
+                                      ),
+                                      service = service
+                                    )
+                                    Future.successful(NotificationResult().addError(TeamsNotFoundForUsername(userType, username)))
+                                }
+    resWithExclusions          = notificationResult.addExclusion(excluded.map(NotARealTeam.apply): _*)
+  } yield resWithExclusions
 
-  private def flatten(results: Seq[NotificationResult]): NotificationResult =
+  private def concatResults(results: Seq[NotificationResult]): NotificationResult =
     results.foldLeft(NotificationResult())((acc, current) =>
       acc
         .addSuccessfullySent(current.successfullySentTo: _*)
@@ -130,29 +137,25 @@ class NotificationService @Inject()(
     SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor))
   }
 
-  private def withExistingRepository[A](
+  private def getExistingRepository[A](
     repoName: String
-  )(
-    f: RepositoryDetails => Future[NotificationResult]
   )(implicit
     hc: HeaderCarrier
-  ): Future[NotificationResult] =
+  ): Future[Either[NotificationResult, RepositoryDetails]] =
     teamsAndRepositoriesConnector
       .getRepositoryDetails(repoName)
       .flatMap {
-        case Some(repoDetails) => f(repoDetails)
-        case None              => Future.successful(NotificationResult().addError(RepositoryNotFound(repoName)))
+        case Some(repoDetails) => Future.successful(Right(repoDetails))
+        case None              => Future.successful(Left(NotificationResult().addError(RepositoryNotFound(repoName))))
       }
 
-  private def withTeamsResponsibleForRepo[A](
+  private def getTeamsResponsibleForRepo[A](
     repoName         : String,
     repositoryDetails: RepositoryDetails
-  )(
-    f: List[String] => Future[NotificationResult]
-  ): Future[NotificationResult] =
+  ): Future[Either[NotificationResult, List[String]]] =
     getTeamsResponsibleForRepo(repositoryDetails) match {
-      case Nil   => Future.successful(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))
-      case teams => withNonExcludedTeams(teams)(f)
+      case Nil   => Future.successful(Left(NotificationResult().addError(TeamsNotFoundForRepository(repoName))))
+      case teams => Future.successful(Right(teams))
     }
 
   private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
@@ -161,31 +164,17 @@ class NotificationService @Inject()(
     else
       repositoryDetails.teamNames
 
-  def withNonExcludedTeams(
-    allTeamNames: List[String]
-  )(
-    f: List[String] => Future[NotificationResult]
-  )(implicit
-    ec: ExecutionContext
-  ): Future[NotificationResult] = {
-    val (excluded, toBeProcessed) = allTeamNames.partition(slackNotificationConfig.notRealTeams.contains)
-    f(toBeProcessed)
-      .map(_.addExclusion(excluded.map(NotARealTeam.apply): _*))
-  }
-
-  private def withExistingSlackChannel(
+  private def getExistingSlackChannel(
     teamName: String
-  )(
-    f: String => Future[NotificationResult]
   )(implicit
     hc: HeaderCarrier
-  ): Future[NotificationResult] =
+  ): Future[String] =
     userManagementConnector
       .getTeamDetails(teamName)
       .map(_.flatMap(extractSlackChannel))
       .flatMap {
-        case Some(slackChannel) => f(slackChannel)
-        case None               => f(predictedTeamName(teamName))
+        case Some(slackChannel) => Future.successful(slackChannel)
+        case None               => Future.successful(predictedTeamName(teamName))
       }
 
   private def predictedTeamName(teamName: String): String = "team-" + teamName.replace(" ", "-").toLowerCase
@@ -272,21 +261,6 @@ class NotificationService @Inject()(
     NotificationResult().addError(slackError)
   }
 
-  // helps avoiding too many concurrent requests
-  private def traverseFuturesSequentially[A, B](
-    as         : Seq[A],
-    parallelism: Int = 5
-  )(
-    f: A => Future[B]
-  )(implicit
-    ec: ExecutionContext
-  ): Future[Seq[B]] =
-    as
-      .grouped(parallelism)
-      .toList
-      .foldLeftM(List.empty[B])((acc, grouped) =>
-        grouped.toList.traverse(f).map(acc ++ _)
-      )
 }
 
 object NotificationService {
