@@ -57,7 +57,7 @@ class NotificationService @Inject()(
             repositoryDetails         <- EitherT(getExistingRepository(name))
             allTeams                  <- EitherT(getTeamsResponsibleForRepo(name, repositoryDetails))
             (excluded, toBeProcessed)  = allTeams.partition(slackNotificationConfig.notRealTeams.contains)
-            notificationResult        <- EitherT.liftF[Future,NotificationResult, NotificationResult](toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){(acc, teamName) =>
+            notificationResult        <- EitherT.liftF[Future, NotificationResult, NotificationResult](toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){(acc, teamName) =>
                 for {
                   slackChannel    <- getExistingSlackChannel(teamName)
                   notificationRes <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(teamName))
@@ -107,13 +107,15 @@ class NotificationService @Inject()(
                                     logger.info(s"Failed to find teams for usertype: ${userType}, username: ${username}. " +
                                       s"Sending slack notification to Platops admin channel instead")
                                     sendSlackMessage(
-                                      SlackMessage(
-                                        channel = slackConfig.noTeamFoundAlert.channel,
-                                        text = slackConfig.noTeamFoundAlert.text.replace("{service}", service.name),
-                                        username = slackConfig.noTeamFoundAlert.username,
-                                        icon_emoji = Some(slackConfig.noTeamFoundAlert.iconEmoji),
-                                        attachments = notificationRequest.messageDetails.attachments,
-                                        showAttachmentAuthor = true
+                                      SlackMessage.sanitise(
+                                        SlackMessage(
+                                          channel = slackConfig.noTeamFoundAlert.channel,
+                                          text = slackConfig.noTeamFoundAlert.text.replace("{service}", service.name),
+                                          username = slackConfig.noTeamFoundAlert.username,
+                                          icon_emoji = Some(slackConfig.noTeamFoundAlert.iconEmoji),
+                                          attachments = Seq(Attachment(Some(TeamsNotFoundForUsername(userType, username).message)), Attachment(Some(notificationRequest.messageDetails.text))) ++ notificationRequest.messageDetails.attachments,
+                                          showAttachmentAuthor = true
+                                        )
                                       ),
                                       service = service
                                     )
