@@ -54,25 +54,23 @@ class NotificationService @Inject()(
       case ChannelLookup.GithubRepository(name) =>
         {
           for {
-            repositoryDetails         <- EitherT(withExistingRepository(name))
-            allTeams                  <- EitherT(withTeamsResponsibleForRepo(name, repositoryDetails))
+            repositoryDetails         <- EitherT(getExistingRepository(name))
+            allTeams                  <- EitherT(getTeamsResponsibleForRepo(name, repositoryDetails))
             (excluded, toBeProcessed)  = allTeams.partition(slackNotificationConfig.notRealTeams.contains)
             notificationResult        <- EitherT.liftF[Future,NotificationResult, NotificationResult](toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){(acc, teamName) =>
                 for {
-                  slackChannel    <- withExistingSlackChannel(teamName)
+                  slackChannel    <- getExistingSlackChannel(teamName)
                   notificationRes <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(teamName))
                 } yield acc :+ notificationRes
-              }.map(flatten))
+              }.map(concatResults))
             resWithExclusions          = notificationResult.addExclusion(excluded.map(NotARealTeam.apply): _*)
           } yield resWithExclusions
         }.merge
 
       case ChannelLookup.SlackChannel(slackChannels) =>
         slackChannels.toList.foldLeftM(Seq.empty[NotificationResult]){(acc, slackChannel) =>
-          for {
-            notificationResult <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
-          } yield acc :+ notificationResult
-        }.map(flatten)
+          sendSlackMessage(fromNotification(notificationRequest, slackChannel), service).map(acc :+ _)
+        }.map(concatResults)
 
       case ChannelLookup.TeamsOfGithubUser(githubUsername) =>
         if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
@@ -101,10 +99,10 @@ class NotificationService @Inject()(
     notificationResult        <- if (toBeProcessed.nonEmpty) {
                                   toBeProcessed.foldLeftM(Seq.empty[NotificationResult]) { (acc, teamName) =>
                                     for {
-                                      slackChannel <- withExistingSlackChannel(teamName)
+                                      slackChannel <- getExistingSlackChannel(teamName)
                                       notificationRes <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
                                     } yield acc :+ notificationRes
-                                  }}.map(flatten)
+                                  }}.map(concatResults)
                                 else {
                                     logger.info(s"Failed to find teams for usertype: ${userType}, username: ${username}. " +
                                       s"Sending slack notification to Platops admin channel instead")
@@ -124,7 +122,7 @@ class NotificationService @Inject()(
     resWithExclusions          = notificationResult.addExclusion(excluded.map(NotARealTeam.apply): _*)
   } yield resWithExclusions
 
-  private def flatten(results: Seq[NotificationResult]): NotificationResult =
+  private def concatResults(results: Seq[NotificationResult]): NotificationResult =
     results.foldLeft(NotificationResult())((acc, current) =>
       acc
         .addSuccessfullySent(current.successfullySentTo: _*)
@@ -139,7 +137,7 @@ class NotificationService @Inject()(
     SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor))
   }
 
-  private def withExistingRepository[A](
+  private def getExistingRepository[A](
     repoName: String
   )(implicit
     hc: HeaderCarrier
@@ -151,7 +149,7 @@ class NotificationService @Inject()(
         case None              => Future.successful(Left(NotificationResult().addError(RepositoryNotFound(repoName))))
       }
 
-  private def withTeamsResponsibleForRepo[A](
+  private def getTeamsResponsibleForRepo[A](
     repoName         : String,
     repositoryDetails: RepositoryDetails
   ): Future[Either[NotificationResult, List[String]]] =
@@ -166,7 +164,7 @@ class NotificationService @Inject()(
     else
       repositoryDetails.teamNames
 
-  private def withExistingSlackChannel(
+  private def getExistingSlackChannel(
     teamName: String
   )(implicit
     hc: HeaderCarrier
