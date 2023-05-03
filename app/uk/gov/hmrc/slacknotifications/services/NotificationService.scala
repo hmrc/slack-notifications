@@ -103,7 +103,7 @@ class NotificationService @Inject()(
                                       notificationRes <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
                                     } yield acc :+ notificationRes
                                   }}.map(concatResults)
-                                else {
+                                  else {
                                     logger.info(s"Failed to find teams for usertype: ${userType}, username: ${username}. " +
                                       s"Sending slack notification to Platops admin channel instead")
                                     sendSlackMessage(
@@ -113,8 +113,15 @@ class NotificationService @Inject()(
                                           text = slackConfig.noTeamFoundAlert.text.replace("{service}", service.name),
                                           username = slackConfig.noTeamFoundAlert.username,
                                           icon_emoji = Some(slackConfig.noTeamFoundAlert.iconEmoji),
-                                          attachments = Seq(Attachment(Some(TeamsNotFoundForUsername(userType, username).message)), Attachment(Some(notificationRequest.messageDetails.text))) ++ notificationRequest.messageDetails.attachments,
-                                          showAttachmentAuthor = true
+                                          attachments = Seq(
+                                            Attachment(
+                                              fields = Some(List(
+                                                Attachment.Field(title = "Error", value = TeamsNotFoundForUsername(userType, username).stylisedMessage, short = false),
+                                                Attachment.Field(title = "Message Details", value = notificationRequest.messageDetails.text, short = false),
+                                              ))
+                                            )
+                                          ) ++ notificationRequest.messageDetails.attachments,
+                                          showAttachmentAuthor = false
                                         )
                                       ),
                                       service = service
@@ -303,8 +310,9 @@ object NotificationService {
   }
 
   final case class TeamsNotFoundForUsername(userType: String, username: String) extends Error {
-    val code    = s"teams_not_found_for_${userType.toLowerCase}_username"
-    val message = s"Teams not found for ${userType.capitalize} username: '$username'"
+    val code            = s"teams_not_found_for_${userType.toLowerCase}_username"
+    val message         = s"Teams not found for ${userType.capitalize} username: '$username'"
+    val stylisedMessage = s"Teams not found for ${userType.capitalize} username: *$username*"
   }
 
   final case class SlackChannelNotFound(channelName: String) extends Error {
