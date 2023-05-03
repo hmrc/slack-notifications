@@ -117,10 +117,10 @@ class NotificationService @Inject()(
                                             Attachment(
                                               fields = Some(List(
                                                 Attachment.Field(title = "Error", value = TeamsNotFoundForUsername(userType, username).stylisedMessage, short = true),
-                                                Attachment.Field(title = "Message Details", value = notificationRequest.messageDetails.text, short = true),
+                                                Attachment.Field(title = "Message Details", value = notificationRequest.messageDetails.text, short = false),
                                               ))
                                             )
-                                          ),
+                                          ) ++ notificationRequest.messageDetails.attachments,
                                           showAttachmentAuthor = false
                                         )
                                       ),
