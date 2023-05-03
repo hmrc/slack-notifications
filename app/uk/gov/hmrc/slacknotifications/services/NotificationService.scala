@@ -116,12 +116,12 @@ class NotificationService @Inject()(
                                           attachments = Seq(
                                             Attachment(
                                               fields = Some(List(
-                                                Attachment.Field(title = "Error", value = TeamsNotFoundForUsername(userType, username).message, short = true),
+                                                Attachment.Field(title = "Error", value = TeamsNotFoundForUsername(userType, username).stylisedMessage, short = true),
                                                 Attachment.Field(title = "Message Details", value = notificationRequest.messageDetails.text, short = true),
                                               ))
                                             )
                                           ),
-                                          showAttachmentAuthor = true
+                                          showAttachmentAuthor = false
                                         )
                                       ),
                                       service = service
@@ -310,8 +310,9 @@ object NotificationService {
   }
 
   final case class TeamsNotFoundForUsername(userType: String, username: String) extends Error {
-    val code    = s"teams_not_found_for_${userType.toLowerCase}_username"
-    val message = s"Teams not found for ${userType.capitalize} username: '$username'"
+    val code            = s"teams_not_found_for_${userType.toLowerCase}_username"
+    val message         = s"Teams not found for ${userType.capitalize} username: '$username'"
+    val stylisedMessage = s"Teams not found for ${userType.capitalize} username: *$username*"
   }
 
   final case class SlackChannelNotFound(channelName: String) extends Error {
