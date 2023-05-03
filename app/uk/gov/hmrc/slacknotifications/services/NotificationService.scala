@@ -116,8 +116,8 @@ class NotificationService @Inject()(
                                           attachments = Seq(
                                             Attachment(
                                               fields = Some(List(
-                                                Attachment.Field(title = "error", value = TeamsNotFoundForUsername(userType, username).message, short = true),
-                                                Attachment.Field(title = "message details", value = notificationRequest.messageDetails.text, short = false),
+                                                Attachment.Field(title = "Error", value = TeamsNotFoundForUsername(userType, username).message, short = true),
+                                                Attachment.Field(title = "Message Details", value = notificationRequest.messageDetails.text, short = true),
                                               ))
                                             )
                                           ),
