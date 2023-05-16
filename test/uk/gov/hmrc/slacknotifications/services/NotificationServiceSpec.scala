@@ -26,7 +26,7 @@ import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
 import uk.gov.hmrc.slacknotifications.model._
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 import uk.gov.hmrc.slacknotifications.services.NotificationService._
@@ -164,7 +164,8 @@ class NotificationServiceSpec
         GithubRepository("repo"),
         SlackChannel(NonEmptyList.of(teamChannel)),
         TeamsOfGithubUser("a-github-handle"),
-        TeamsOfLdapUser("a-ldap-user")
+        TeamsOfLdapUser("a-ldap-user"),
+        GithubTeam("a-github-team")
       )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
@@ -195,9 +196,10 @@ class NotificationServiceSpec
         )
 
         channelLookup match {
-          case req: TeamsOfGithubUser => verify(userManagementService, times(1) ).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
-          case req: TeamsOfLdapUser   => verify(userManagementService, times(1) ).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
-          case _                    =>
+          case req: TeamsOfGithubUser => verify(userManagementService,   times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
+          case req: TeamsOfLdapUser   => verify(userManagementService,   times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
+          case req: GithubTeam        => verify(userManagementConnector, times(1)).getTeamDetails(eqTo(req.teamName))(any)
+          case _                      =>
         }
       }
     }
@@ -214,7 +216,8 @@ class NotificationServiceSpec
         GithubRepository("repo"),
         SlackChannel(NonEmptyList.of(teamChannel)),
         TeamsOfGithubUser("a-github-handle"),
-        TeamsOfLdapUser("a-ldap-user")
+        TeamsOfLdapUser("a-ldap-user"),
+        GithubTeam("a-github-team")
       )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
@@ -307,7 +310,8 @@ class NotificationServiceSpec
         GithubRepository("repo"),
         SlackChannel(NonEmptyList.of(teamChannel)),
         TeamsOfGithubUser("a-github-handle"),
-        TeamsOfLdapUser("a-ldap-user")
+        TeamsOfLdapUser("a-ldap-user"),
+        GithubTeam("a-github-team")
       )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))

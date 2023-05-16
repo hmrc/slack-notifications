@@ -18,7 +18,7 @@ package uk.gov.hmrc.slacknotifications.model
 
 import cats.data.NonEmptyList
 import play.api.libs.json.{JsError, Json}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, SlackChannel, TeamsOfGithubUser}
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, SlackChannel, TeamsOfGithubUser}
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 class ChannelLookupSpec extends UnitSpec {
@@ -85,6 +85,21 @@ class ChannelLookupSpec extends UnitSpec {
 
       val parsingResult = Json.parse(json).as[ChannelLookup]
       parsingResult shouldBe TeamsOfGithubUser(githubUsername)
+    }
+
+    "be possible by github team" in {
+      val by             = "github-team"
+      val githubTeamName = "a-github-team"
+      val json =
+        s"""
+          {
+            "by" : "$by",
+            "teamName" : "$githubTeamName"
+          }
+        """
+      val parsingResult = Json.parse(json).as[ChannelLookup]
+      parsingResult shouldBe GithubTeam(githubTeamName)
+
     }
 
     "fail if lookup method not specified" in {

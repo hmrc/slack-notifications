@@ -67,6 +67,11 @@ class NotificationService @Inject()(
           } yield resWithExclusions
         }.merge
 
+      case ChannelLookup.GithubTeam(team) =>
+          getExistingSlackChannel(team).flatMap{slackChannel =>
+            sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(team))
+          }
+
       case ChannelLookup.SlackChannel(slackChannels) =>
         slackChannels.toList.foldLeftM(Seq.empty[NotificationResult]){(acc, slackChannel) =>
           sendSlackMessage(fromNotification(notificationRequest, slackChannel), service).map(acc :+ _)
