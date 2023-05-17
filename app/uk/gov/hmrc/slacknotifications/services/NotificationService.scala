@@ -188,10 +188,8 @@ class NotificationService @Inject()(
       .map(_.flatMap(extractSlackChannel))
       .flatMap {
         case Some(slackChannel) => Future.successful(slackChannel)
-        case None               => Future.successful(predictedTeamName(teamName))
+        case None               => Future.successful(slackConfig.noTeamFoundAlert.channel)
       }
-
-  private def predictedTeamName(teamName: String): String = "team-" + teamName.replace(" ", "-").toLowerCase
 
   private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
     teamDetails.slackNotification.orElse(teamDetails.slack).flatMap { slackChannelUrl =>

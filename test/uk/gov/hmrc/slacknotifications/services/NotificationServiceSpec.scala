@@ -456,7 +456,7 @@ class NotificationServiceSpec
       )
     }
 
-    "predict the slack channel if not returned by the user management service" in new Fixtures {
+    "default to admin channel if no team details returned by the user management service" in new Fixtures {
       private val teamName = "No Slack Config"
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
@@ -474,7 +474,29 @@ class NotificationServiceSpec
       val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
-        successfullySentTo = List("team-no-slack-config"),
+        successfullySentTo = List("test-channel"),
+      )
+    }
+
+    "default to admin channel if no slack channel found in team details returned by user management service" in new Fixtures {
+      private val teamName = "No Slack Config"
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(TeamDetails(None, None, "No Slack Config"))))
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
+
+      private val notificationRequest =
+        NotificationRequest(
+          channelLookup  = GithubRepository(""),
+          messageDetails = exampleMessageDetails
+        )
+
+      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+
+      result shouldBe NotificationResult(
+        successfullySentTo = List("test-channel"),
       )
     }
 
