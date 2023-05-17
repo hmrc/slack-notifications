@@ -67,6 +67,11 @@ class NotificationService @Inject()(
           } yield resWithExclusions
         }.merge
 
+      case ChannelLookup.GithubTeam(team) =>
+          getExistingSlackChannel(team).flatMap{slackChannel =>
+            sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(team))
+          }
+
       case ChannelLookup.SlackChannel(slackChannels) =>
         slackChannels.toList.foldLeftM(Seq.empty[NotificationResult]){(acc, slackChannel) =>
           sendSlackMessage(fromNotification(notificationRequest, slackChannel), service).map(acc :+ _)
@@ -183,10 +188,8 @@ class NotificationService @Inject()(
       .map(_.flatMap(extractSlackChannel))
       .flatMap {
         case Some(slackChannel) => Future.successful(slackChannel)
-        case None               => Future.successful(predictedTeamName(teamName))
+        case None               => Future.successful(slackConfig.noTeamFoundAlert.channel)
       }
-
-  private def predictedTeamName(teamName: String): String = "team-" + teamName.replace(" ", "-").toLowerCase
 
   private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
     teamDetails.slackNotification.orElse(teamDetails.slack).flatMap { slackChannelUrl =>

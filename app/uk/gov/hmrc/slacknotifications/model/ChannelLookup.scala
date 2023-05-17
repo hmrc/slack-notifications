@@ -27,6 +27,8 @@ object ChannelLookup extends JsonHelpers {
 
   final case class GithubRepository(repositoryName: String) extends ChannelLookup
 
+  final case class GithubTeam(teamName: String) extends ChannelLookup
+
   final case class SlackChannel(slackChannels: NonEmptyList[String]) extends ChannelLookup
 
   final case class TeamsOfGithubUser(githubUsername: String) extends ChannelLookup
@@ -34,6 +36,7 @@ object ChannelLookup extends JsonHelpers {
   final case class TeamsOfLdapUser(ldapUsername: String) extends ChannelLookup
 
   private val githubRepositoryReads  = Json.reads[GithubRepository].map(upcastAsChannelLookup)
+  private val githubTeamReads        = Json.reads[GithubTeam].map(upcastAsChannelLookup)
   private val slackChannelReads      = Json.reads[SlackChannel].map(upcastAsChannelLookup)
   private val teamsOfGithubUserReads = Json.reads[TeamsOfGithubUser].map(upcastAsChannelLookup)
   private val teamsOfLdapUserReads   = Json.reads[TeamsOfLdapUser].map(upcastAsChannelLookup)
@@ -42,6 +45,7 @@ object ChannelLookup extends JsonHelpers {
     Reads[ChannelLookup] { json =>
       (json \ "by").validate[String].flatMap {
         case "github-repository"    => json.validate(githubRepositoryReads)
+        case "github-team"          => json.validate(githubTeamReads)
         case "slack-channel"        => json.validate(slackChannelReads)
         case "teams-of-github-user" => json.validate(teamsOfGithubUserReads)
         case "teams-of-ldap-user"   => json.validate(teamsOfLdapUserReads)
