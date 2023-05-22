@@ -249,6 +249,110 @@ class NotificationServiceSpec
       }
     }
 
+    "Send the message to an admin channel if no slack channel is configured in UMP" in new Fixtures {
+      override val configuration = Configuration(
+        "slack.notification.enabled"         -> true,
+        "alerts.slack.noTeamFound.channel"   -> "slack-channel-missing",
+        "alerts.slack.noTeamFound.username"  -> "slack-notifications",
+        "alerts.slack.noTeamFound.iconEmoji" -> "",
+        "alerts.slack.noTeamFound.text"      -> "test {user}"
+      )
+
+      private val teamName = "team-name"
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+
+      val teamChannel = "team-channel"
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = teamName)
+
+      val channelLookups = List(
+        GithubRepository("repo"),
+        TeamsOfGithubUser("a-github-handle"),
+        TeamsOfLdapUser("a-ldap-user"),
+        GithubTeam(teamName)
+      )
+
+      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(TeamDetails(slack = None, slackNotification = None, team = teamName))))
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
+
+      channelLookups.foreach { channelLookup =>
+        val notificationRequest =
+          NotificationRequest(
+            channelLookup = channelLookup,
+            messageDetails = MessageDetails(
+              text        = "some-text-to-post-to-slack",
+              attachments = Nil
+            )
+          )
+
+        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+
+        result shouldBe NotificationResult(
+          successfullySentTo = List("slack-channel-missing"),
+          errors             = Seq(UnableToFindTeamSlackChannelInUMP(teamName)),
+          exclusions         = Nil
+        )
+      }
+    }
+
+    "Send the message to an admin channel if the team does not exist in UMP" in new Fixtures {
+      override val configuration = Configuration(
+        "slack.notification.enabled"         -> true,
+        "alerts.slack.noTeamFound.channel"   -> "slack-channel-missing",
+        "alerts.slack.noTeamFound.username"  -> "slack-notifications",
+        "alerts.slack.noTeamFound.iconEmoji" -> "",
+        "alerts.slack.noTeamFound.text"      -> "test {user}"
+      )
+
+      private val teamName = "team-name"
+      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+
+      val teamChannel = "team-channel"
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = teamName)
+
+      val channelLookups = List(
+        GithubRepository("repo"),
+        TeamsOfGithubUser("a-github-handle"),
+        TeamsOfLdapUser("a-ldap-user"),
+        GithubTeam(teamName)
+      )
+
+      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(List(teamDetails)))
+      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(None))
+      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
+
+      channelLookups.foreach { channelLookup =>
+        val notificationRequest =
+          NotificationRequest(
+            channelLookup = channelLookup,
+            messageDetails = MessageDetails(
+              text        = "some-text-to-post-to-slack",
+              attachments = Nil
+            )
+          )
+
+        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+
+        result shouldBe NotificationResult(
+          successfullySentTo = List("slack-channel-missing"),
+          errors             = Seq(UnableToFindTeamSlackChannelInUMP(teamName)),
+          exclusions         = Nil
+        )
+      }
+    }
+
     "report if no teams are found for a github user" in new Fixtures {
       val githubUsername = "a-github-username"
       val notificationRequest =
@@ -453,50 +557,6 @@ class NotificationServiceSpec
         successfullySentTo = Nil,
         errors             = List(RepositoryNotFound(nonexistentRepoName)),
         exclusions         = Nil
-      )
-    }
-
-    "default to admin channel if no team details returned by the user management service" in new Fixtures {
-      private val teamName = "No Slack Config"
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
-      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(None))
-      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(HttpResponse(200, "")))
-
-      private val notificationRequest =
-        NotificationRequest(
-          channelLookup  = GithubRepository(""),
-          messageDetails = exampleMessageDetails
-        )
-
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
-
-      result shouldBe NotificationResult(
-        successfullySentTo = List("test-channel"),
-      )
-    }
-
-    "default to admin channel if no slack channel found in team details returned by user management service" in new Fixtures {
-      private val teamName = "No Slack Config"
-      when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
-      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Some(TeamDetails(None, None, "No Slack Config"))))
-      when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(HttpResponse(200, "")))
-
-      private val notificationRequest =
-        NotificationRequest(
-          channelLookup  = GithubRepository(""),
-          messageDetails = exampleMessageDetails
-        )
-
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
-
-      result shouldBe NotificationResult(
-        successfullySentTo = List("test-channel"),
       )
     }
 
