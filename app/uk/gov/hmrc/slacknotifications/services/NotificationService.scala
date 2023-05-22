@@ -60,7 +60,10 @@ class NotificationService @Inject()(
             notificationResult        <- EitherT.liftF[Future, NotificationResult, NotificationResult](toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){(acc, teamName) =>
                 for {
                   slackChannel    <- getExistingSlackChannel(teamName)
-                  notificationRes <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(teamName))
+                  notificationRes <- slackChannel match {
+                    case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), service, Some(teamName))
+                    case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(teamName).message)), service, Some(teamName)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(teamName))))
+                  }
                 } yield acc :+ notificationRes
               }.map(concatResults))
             resWithExclusions          = notificationResult.addExclusion(excluded.map(NotARealTeam.apply): _*)
@@ -69,7 +72,10 @@ class NotificationService @Inject()(
 
       case ChannelLookup.GithubTeam(team) =>
           getExistingSlackChannel(team).flatMap{slackChannel =>
-            sendSlackMessage(fromNotification(notificationRequest, slackChannel), service, Some(team))
+            slackChannel match {
+              case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), service, Some(team))
+              case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(team).message)), service, Some(team)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(team))))
+            }
           }
 
       case ChannelLookup.SlackChannel(slackChannels) =>
@@ -105,7 +111,10 @@ class NotificationService @Inject()(
                                   toBeProcessed.foldLeftM(Seq.empty[NotificationResult]) { (acc, teamName) =>
                                     for {
                                       slackChannel <- getExistingSlackChannel(teamName)
-                                      notificationRes <- sendSlackMessage(fromNotification(notificationRequest, slackChannel), service)
+                                      notificationRes <- slackChannel match {
+                                        case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), service, Some(teamName))
+                                        case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(teamName).message)), service, Some(teamName)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(teamName))))
+                                      }
                                     } yield acc :+ notificationRes
                                   }}.map(concatResults)
                                   else {
@@ -144,11 +153,14 @@ class NotificationService @Inject()(
         .addExclusion(current.exclusions: _*)
     )
 
-  private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String): SlackMessage = {
+  private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String, errorMessage: Option[String] = None): SlackMessage = {
     import notificationRequest.messageDetails._
     // username and user emoji are initially hard-coded to 'slack-notifications' and none,
     // then overridden from the authorised services config later
-    SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor))
+    errorMessage match {
+      case Some(error) => SlackMessage.sanitise(SlackMessage(slackChannel, error, "slack-notifications", None, Attachment(text = Some(text)) +: attachments, showAttachmentAuthor))
+      case None        => SlackMessage.sanitise(SlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor))
+    }
   }
 
   private def getExistingRepository[A](
@@ -178,17 +190,17 @@ class NotificationService @Inject()(
     else
       repositoryDetails.teamNames
 
-  private def getExistingSlackChannel(
+  private[services] def getExistingSlackChannel(
     teamName: String
   )(implicit
     hc: HeaderCarrier
-  ): Future[String] =
+  ): Future[Either[String, String]] =
     userManagementConnector
       .getTeamDetails(teamName)
-      .map(_.flatMap(extractSlackChannel))
+      .map(td => td.flatMap(extractSlackChannel))
       .flatMap {
-        case Some(slackChannel) => Future.successful(slackChannel)
-        case None               => Future.successful(slackConfig.noTeamFoundAlert.channel)
+        case Some(slackChannel) => Future.successful(Right(slackChannel))
+        case None               => Future.successful(Left(slackConfig.noTeamFoundAlert.channel))
       }
 
   private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
@@ -321,6 +333,11 @@ object NotificationService {
   final case class SlackChannelNotFound(channelName: String) extends Error {
     val code    = "slack_channel_not_found"
     val message = s"Slack channel: '$channelName' not found"
+  }
+
+  final case class UnableToFindTeamSlackChannelInUMP(teamName: String) extends Error {
+    val code    = "unable_to_find_team_slack_channel_in_ump"
+    val message = s"Unable to deliver slack message to *$teamName*. Either the team does not exist in UMP, or it does not have a slack channel configured."
   }
 
   sealed trait Exclusion extends Product with Serializable {
