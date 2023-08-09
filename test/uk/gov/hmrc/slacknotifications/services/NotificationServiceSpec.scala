@@ -24,7 +24,7 @@ import play.api.Configuration
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, _}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, TeamName}
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
 import uk.gov.hmrc.slacknotifications.model._
@@ -158,7 +158,8 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
-      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = "n/a")
+      val usersTeams = List(TeamName("team-one"))
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), teamName = "team-one", slackNotification = None)
 
       val channelLookups = List(
         GithubRepository("repo"),
@@ -169,10 +170,10 @@ class NotificationServiceSpec
       )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
+        .thenReturn(Future.successful(usersTeams))
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
-      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(usersTeams))
+      when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(teamDetails)))
       when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
@@ -198,7 +199,7 @@ class NotificationServiceSpec
         channelLookup match {
           case req: TeamsOfGithubUser => verify(userManagementService,   times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
           case req: TeamsOfLdapUser   => verify(userManagementService,   times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
-          case req: GithubTeam        => verify(userManagementConnector, times(1)).getTeamDetails(eqTo(req.teamName))(any)
+          case req: GithubTeam        => verify(userManagementConnector, times(1)).getTeamSlackDetails(eqTo(req.teamName))(any)
           case _                      =>
         }
       }
@@ -210,7 +211,8 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
-      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel/"), None, team = "n/a")
+      val usersTeams = List(TeamName("team-one"))
+      val teamDetails = TeamDetails(teamName = "team-one", slack = Some(s"https://foo.slack.com/$teamChannel/"), slackNotification = None)
 
       val channelLookups = List(
         GithubRepository("repo"),
@@ -221,10 +223,10 @@ class NotificationServiceSpec
       )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
+        .thenReturn(Future.successful(usersTeams))
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
-      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(usersTeams))
+      when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(teamDetails)))
       when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
@@ -263,7 +265,8 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
-      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = teamName)
+      val usersTeams = List(TeamName("team-name"))
+      val teamDetails = TeamDetails(teamName = teamName, slack = Some(s"https://foo.slack.com/$teamChannel/"), slackNotification = None)
 
       val channelLookups = List(
         GithubRepository("repo"),
@@ -273,11 +276,11 @@ class NotificationServiceSpec
       )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
+        .thenReturn(Future.successful(usersTeams))
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
-      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Some(TeamDetails(slack = None, slackNotification = None, team = teamName))))
+        .thenReturn(Future.successful(usersTeams))
+      when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(TeamDetails(slack = None, slackNotification = None, teamName = teamName))))
       when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
@@ -314,8 +317,8 @@ class NotificationServiceSpec
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
+      val usersTeams = List(TeamName("team-name"))
       val teamChannel = "team-channel"
-      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = teamName)
 
       val channelLookups = List(
         GithubRepository("repo"),
@@ -325,10 +328,10 @@ class NotificationServiceSpec
       )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
+        .thenReturn(Future.successful(usersTeams))
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
-      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(usersTeams))
+      when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(None))
       when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
@@ -408,7 +411,8 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val teamChannel = "team-channel"
-      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), None, team = "n/a")
+      val usersTeams = List(TeamName("team-name"))
+      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), slackNotification = None, teamName = "n/a")
 
       val channelLookups = List(
         GithubRepository("repo"),
@@ -419,10 +423,10 @@ class NotificationServiceSpec
       )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
+        .thenReturn(Future.successful(usersTeams))
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(teamDetails)))
-      when(userManagementConnector.getTeamDetails(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(usersTeams))
+      when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(teamDetails)))
 
       channelLookups.foreach { channelLookup =>
@@ -453,7 +457,6 @@ class NotificationServiceSpec
     }
   }
 
-
   "Sending a request for teams of a github user" should {
     "not include excluded teams based on configuration" in new Fixtures {
       val teamName1              = "team-to-be-excluded-1"
@@ -467,7 +470,8 @@ class NotificationServiceSpec
         "alerts.slack.noTeamFound.text"      -> "test {user}"
 
       )
-      val githubUsername         = "a-github-username"
+      val githubUsername = "a-github-username"
+      val usersTeams     = List(TeamName(teamName1), TeamName(teamName2))
 
       val notificationRequest =
         NotificationRequest(
@@ -476,7 +480,7 @@ class NotificationServiceSpec
         )
 
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(List(TeamDetails(None, None, teamName1), TeamDetails(None, None, teamName2))))
+        .thenReturn(Future.successful(usersTeams))
 
       when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
@@ -606,7 +610,7 @@ class NotificationServiceSpec
     "work if slack field exists and contains team name at the end" in new Fixtures {
       val teamChannelName = "teamChannel"
       val slackLink       = "foo/" + teamChannelName
-      val teamDetails     = TeamDetails(slack = Some(slackLink), slackNotification = None, team = "n/a")
+      val teamDetails     = TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe Some(teamChannelName)
     }
@@ -617,25 +621,25 @@ class NotificationServiceSpec
       val teamDetails = TeamDetails(
         slack             = Some(slackLink),
         slackNotification = Some(s"foo/$teamChannelName-notification"),
-        team              = "n/a")
+        teamName              = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe Some(s"$teamChannelName-notification")
     }
 
     "return None if slack field exists but there is no slack channel in it" in new Fixtures {
       val slackLink   = "link-without-team/"
-      val teamDetails = TeamDetails(slack = Some(slackLink), None, team = "n/a")
+      val teamDetails = TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field doesn't exist" in new Fixtures {
-      val teamDetails = TeamDetails(slack = None, None, team = "n/a")
+      val teamDetails = TeamDetails(slack = None, slackNotification = None, teamName = "n/a")
       service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field does not contain a forward slash" in new Fixtures {
-      val teamDetails = TeamDetails(slack = Some("not a url"), None, team = "n/a")
+      val teamDetails = TeamDetails(slack = Some("not a url"), slackNotification = None, teamName = "n/a")
       service.extractSlackChannel(teamDetails) shouldBe None
     }
   }

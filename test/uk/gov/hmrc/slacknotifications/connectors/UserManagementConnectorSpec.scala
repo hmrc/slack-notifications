@@ -16,22 +16,16 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
-import akka.Done
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import play.api.Configuration
-import play.api.cache.AsyncCacheApi
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.slacknotifications.config.UserManagementAuthConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector._
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.reflect.ClassTag
 
 class UserManagementConnectorSpec
   extends UnitSpec
@@ -40,111 +34,156 @@ class UserManagementConnectorSpec
      with WireMockSupport
      with HttpClientV2Support {
 
-  "The connector" should {
-    implicit val hc = HeaderCarrier()
+  implicit val hc: HeaderCarrier = HeaderCarrier()
 
-    val userManagementConnector = {
-      val servicesConfig =
-        new ServicesConfig(
-          Configuration("microservice.services.user-management.url" -> wireMockUrl)
-        )
+  private val connector: UserManagementConnector =
+    new UserManagementConnector(
+      httpClientV2,
+      new ServicesConfig(Configuration(
+        "microservice.services.user-management.port" -> wireMockPort,
+        "microservice.services.user-management.host" -> wireMockHost
+      ))
+    )
 
-      val umpAuthConfig = new UserManagementAuthConfig(Configuration("ump.auth.enabled" -> false))
-
-      val cache = new AsyncCacheApi {
-        override def set(key: String, value: Any, expiration: Duration): Future[Done] = ???
-
-        override def remove(key: String): Future[Done] = ???
-
-        override def getOrElseUpdate[A](key: String, expiration: Duration)(orElse: =>Future[A])(implicit evidence$1: ClassTag[A]): Future[A] = ???
-
-        override def get[T](key: String)(implicit evidence$2: ClassTag[T]): Future[Option[T]] = ???
-
-        override def removeAll(): Future[Done] = ???
-      }
-
-      new UserManagementConnector(httpClientV2, servicesConfig, umpAuthConfig, cache)
-    }
-
-    "getAllUsers of the organisation" in {
+  "getGithubUser" should {
+    "return a user by github username" in {
       stubFor(
-        get(urlEqualTo("/v2/organisations/users"))
+        get(urlEqualTo("/users?github=c-d"))
           .willReturn(
             aResponse()
               .withStatus(200)
-              .withBody("""{
-                "users": [
-                  {
-                    "github": "https://github.com/abc",
-                    "username": "abc"
-                  }
-                ]}"""
+              .withBody(
+                """{
+                  |  "displayName": "C D",
+                  |  "familyName": "D",
+                  |  "givenName": "C",
+                  |  "organisation": "MDTP",
+                  |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |  "username": "c.d",
+                  |  "githubUsername": "c-d",
+                  |  "teamsAndRoles": [
+                  |    {
+                  |      "teamName": "Team A",
+                  |      "role": "user"
+                  |    },
+                  |    {
+                  |      "teamName": "Team B",
+                  |      "role": "user"
+                  |    }
+                  |  ]
+                  |}
+                  |""".stripMargin
               )
           )
       )
 
-      userManagementConnector.getAllUsers.futureValue shouldBe List(UmpUser(Some("https://github.com/abc"), Some("abc")))
+      connector.getGithubUser("c-d").futureValue shouldBe Some(User(ldapUsername = Some("c.d"), githubUsername = Some("c-d"), teams = Seq(TeamName("Team A"), TeamName("Team B"))))
     }
 
-    "get all the teams for a specified user" in {
+    "return None when github user not found" in {
       stubFor(
-        get(urlEqualTo("/v2/organisations/users/ldapUsername/teams"))
-          .willReturn(
-            aResponse()
-              .withStatus(200)
-              .withBody("""
-                {
-                  "teams": [
-                    {
-                      "slack": "foo/team-A",
-                      "slackNotification": "foo/team-A-notifications",
-                      "team": "team-A"
-                    }
-                  ]
-                }"""
-              )
-          )
-      )
-
-      userManagementConnector.getTeamsForUser("ldapUsername").futureValue shouldBe List(
-        TeamDetails(Some("foo/team-A"), Some("foo/team-A-notifications"), "team-A"))
-    }
-
-    "return an empty list of teams if the user has no teams" in {
-      stubFor(
-        get(urlEqualTo("/v2/organisations/users/ldapUsername/teams"))
+        get(urlEqualTo("/users?github=c-d"))
           .willReturn(
             aResponse()
               .withStatus(404)
-              .withBody("""
-                {
-                  reason: "Not Found"
-                }"""
-              )
           )
       )
-
-      userManagementConnector.getTeamsForUser("ldapUsername").futureValue shouldBe List.empty
+      connector.getGithubUser("c-d").futureValue shouldBe None
     }
+  }
 
-    "get team details" in {
+  "getLdapUser" should {
+    "return a user by ldap username" in {
       stubFor(
-        get(urlEqualTo("/v2/organisations/teams/team-A"))
+        get(urlEqualTo("/users/c.d"))
           .willReturn(
             aResponse()
               .withStatus(200)
-              .withBody("""
-                {
-                  "slack": "foo/team-A",
-                  "slackNotification": "foo/team-A-notifications",
-                  "team": "team-A"
-                }"""
+              .withBody(
+                """{
+                  |  "displayName": "C D",
+                  |  "familyName": "D",
+                  |  "givenName": "C",
+                  |  "organisation": "MDTP",
+                  |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |  "username": "c.d",
+                  |  "githubUsername": "c-d",
+                  |  "teamsAndRoles": [
+                  |    {
+                  |      "teamName": "Team A",
+                  |      "role": "user"
+                  |    },
+                  |    {
+                  |      "teamName": "Team B",
+                  |      "role": "user"
+                  |    }
+                  |  ]
+                  |}
+                  |""".stripMargin
               )
           )
       )
 
-      userManagementConnector.getTeamDetails("team-A").futureValue shouldBe
-        Some(TeamDetails(Some("foo/team-A"), Some("foo/team-A-notifications"), "team-A"))
+      connector.getLdapUser("c.d").futureValue shouldBe Some(User(ldapUsername = Some("c.d"), githubUsername = Some("c-d"), teams = Seq(TeamName("Team A"), TeamName("Team B"))))
     }
+
+    "return None when ldap user not found" in {
+      stubFor(
+        get(urlEqualTo("/users/c.d"))
+          .willReturn(
+            aResponse()
+              .withStatus(404)
+          )
+      )
+      connector.getLdapUser("c.d").futureValue shouldBe None
+    }
+  }
+
+  "getTeamSlackDetails" should {
+    "return slack details for a team" in {
+      stubFor(
+        get(urlEqualTo("/teams/TeamA"))
+          .willReturn(
+            aResponse()
+              .withStatus(200)
+              .withBody(
+                """{
+                  |  "members": [
+                  |    {
+                  |      "username": "joe.bloggs",
+                  |      "displayName": "Joe Bloggs",
+                  |      "role": "user"
+                  |    },
+                  |    {
+                  |      "username": "jane.doe",
+                  |      "displayName": "Jane Doe",
+                  |      "role": "user"
+                  |    }
+                  |  ],
+                  |  "teamName": "TeamA",
+                  |  "description": "Team A",
+                  |  "documentation": "https://confluence.tools.tax.service.gov.uk/display/TeamA",
+                  |  "slack": "https://slack.com/messages/team-a",
+                  |  "slackNotification": "https://slack.com/messages/team-a-alerts"
+                  |}
+                  |""".stripMargin
+              )
+          )
+      )
+        connector.getTeamSlackDetails("TeamA").futureValue shouldBe Some(TeamDetails("TeamA", Some("https://slack.com/messages/team-a"), Some("https://slack.com/messages/team-a-alerts")))
+    }
+
+    "return None when team not found" in {
+      stubFor(
+        get(urlEqualTo("/teams/TeamA"))
+          .willReturn(
+            aResponse()
+              .withStatus(404)
+          )
+      )
+      connector.getTeamSlackDetails("TeamA").futureValue shouldBe None
+    }
+
+
   }
 }

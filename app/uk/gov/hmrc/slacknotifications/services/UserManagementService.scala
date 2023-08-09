@@ -16,49 +16,36 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import play.api.cache._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, UmpUser}
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamName, User}
 
-import scala.concurrent.duration._
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class UserManagementService @Inject()(
   connector: UserManagementConnector,
-  cache    : AsyncCacheApi
 )(implicit
   ec: ExecutionContext
 ) extends Logging {
 
-  def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
-    for {
-      teams     <- connector.getTeamsForUser(ldapUsername)
-      _         =  logger.info(s"Teams found for ldap username: '$ldapUsername' are ${teams.mkString("[", ",", "]")}")
-    } yield teams
-
-  def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
-    for {
-      optLdapUsername <- getLdapUsername(githubUsername)
-      teams           <- optLdapUsername.fold(Future.successful(List.empty[TeamDetails]))(getTeamsForLdapUser)
-    } yield teams
-
-  def getLdapUsername(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[String]] = {
-    val githubBaseUrl = "https://github.com"
-    withCachedUmpUsers { users =>
-      users
-        .find { u =>
-          u.github.exists(_.equalsIgnoreCase(s"$githubBaseUrl/$githubUsername"))
-        }
-        .flatMap(_.username)
+  private def getTeamsForUser(
+    username: String,
+    getUser : String => Future[Option[User]],
+    userType: String
+  ): Future[List[TeamName]] =
+    getUser(username).map {
+      case Some(user) => user.teams.toList
+      case None       => logger.info(s"No user found for $userType username: $username")
+                         List.empty[TeamName]
     }
-  }
 
-  private def withCachedUmpUsers[A](f: List[UmpUser] => A)(implicit hc: HeaderCarrier): Future[A] =
-    cache
-      .getOrElseUpdate(key = "all-ump-users", expiration = 15.minutes)(orElse = connector.getAllUsers)
-      .map(f)
+  def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
+    getTeamsForUser(ldapUsername, connector.getLdapUser, "ldap")
+
+  def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
+    getTeamsForUser(githubUsername, connector.getGithubUser, "github")
 }
+
