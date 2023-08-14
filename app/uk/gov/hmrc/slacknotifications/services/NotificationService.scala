@@ -38,8 +38,7 @@ class NotificationService @Inject()(
   slackConnector               : SlackConnector,
   slackConfig                  : SlackConfig,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
-  userManagementConnector      : UserManagementConnector,
-  userManagementService        : UserManagementService
+  userManagementConnector      : UserManagementConnector
 )(implicit
   ec: ExecutionContext
 ) extends Logging {
@@ -86,10 +85,10 @@ class NotificationService @Inject()(
         if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
           Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
         else
-          sendNotificationForUser("github", githubUsername, userManagementService.getTeamsForGithubUser)(notificationRequest, service)
+          sendNotificationForUser("github", githubUsername, userManagementConnector.getTeamsForGithubUser)(notificationRequest, service)
 
       case ChannelLookup.TeamsOfLdapUser(ldapUsername) =>
-          sendNotificationForUser("ldap", ldapUsername, userManagementService.getTeamsForLdapUser)(notificationRequest, service)
+          sendNotificationForUser("ldap", ldapUsername, userManagementConnector.getTeamsForLdapUser)(notificationRequest, service)
     }
 
   private def sendNotificationForUser(

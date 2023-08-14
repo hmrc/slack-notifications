@@ -169,9 +169,9 @@ class NotificationServiceSpec
         GithubTeam("a-github-team")
       )
 
-      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
-      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(teamDetails)))
@@ -197,8 +197,8 @@ class NotificationServiceSpec
         )
 
         channelLookup match {
-          case req: TeamsOfGithubUser => verify(userManagementService,   times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
-          case req: TeamsOfLdapUser   => verify(userManagementService,   times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
+          case req: TeamsOfGithubUser => verify(userManagementConnector,   times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
+          case req: TeamsOfLdapUser   => verify(userManagementConnector,   times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
           case req: GithubTeam        => verify(userManagementConnector, times(1)).getTeamSlackDetails(eqTo(req.teamName))(any)
           case _                      =>
         }
@@ -222,9 +222,9 @@ class NotificationServiceSpec
         GithubTeam("a-github-team")
       )
 
-      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
-      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(teamDetails)))
@@ -264,9 +264,7 @@ class NotificationServiceSpec
       when(teamsAndRepositoriesConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
-      val teamChannel = "team-channel"
       val usersTeams = List(TeamName("team-name"))
-      val teamDetails = TeamDetails(teamName = teamName, slack = Some(s"https://foo.slack.com/$teamChannel/"), slackNotification = None)
 
       val channelLookups = List(
         GithubRepository("repo"),
@@ -275,9 +273,9 @@ class NotificationServiceSpec
         GithubTeam(teamName)
       )
 
-      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
-      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(TeamDetails(slack = None, slackNotification = None, teamName = teamName))))
@@ -318,7 +316,6 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
 
       val usersTeams = List(TeamName("team-name"))
-      val teamChannel = "team-channel"
 
       val channelLookups = List(
         GithubRepository("repo"),
@@ -327,9 +324,9 @@ class NotificationServiceSpec
         GithubTeam(teamName)
       )
 
-      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
-      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(None))
@@ -364,7 +361,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(List.empty))
 
       when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
@@ -387,7 +384,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(List.empty))
 
       when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
@@ -422,9 +419,9 @@ class NotificationServiceSpec
         GithubTeam("a-github-team")
       )
 
-      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
-      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(userManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(teamDetails)))
@@ -479,7 +476,7 @@ class NotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManagementConnector.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
 
       when(slackConnector.sendMessage(any[SlackMessage])(any[HeaderCarrier]))
@@ -752,7 +749,6 @@ class NotificationServiceSpec
     val slackConnector                = mock[SlackConnector]//(withSettings.lenient)
     val teamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]//(withSettings.lenient)
     val userManagementConnector       = mock[UserManagementConnector]//(withSettings.lenient)
-    val userManagementService         = mock[UserManagementService]//(withSettings.lenient)
 
     val configuration =
       Configuration(
@@ -781,8 +777,7 @@ class NotificationServiceSpec
         slackConnector,
         new SlackConfig(configuration),
         teamsAndRepositoriesConnector,
-        userManagementConnector,
-        userManagementService
+        userManagementConnector
       )
   }
 }

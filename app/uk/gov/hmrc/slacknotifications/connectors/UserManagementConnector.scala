@@ -39,7 +39,7 @@ class UserManagementConnector @Inject()(
 
   private val baseUrl = servicesConfig.baseUrl("user-management")
 
-  def getUser(endpoint: String)(implicit hc: HeaderCarrier): Future[Option[List[TeamName]]] = {
+  private def getUser(endpoint: String, userType: String, username: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] = {
     implicit val teamsAndRolesReads = {
       implicit val tnr = teamNameReads
       Reads.at[List[TeamName]](__ \ "teamsAndRoles")
@@ -47,13 +47,18 @@ class UserManagementConnector @Inject()(
     httpClientV2
       .get(new URL(s"$baseUrl/$endpoint"))
       .execute[Option[List[TeamName]]]
+      .map {
+        case Some(teams) => teams
+        case _           => logger.info(s"No user details found for $userType username: $username")
+                            List.empty[TeamName]
+      }
   }
 
-  def getLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[Option[List[TeamName]]] =
-    getUser(s"users/$ldapUsername")
+  def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
+    getUser(s"users/$ldapUsername", "ldap", ldapUsername)
 
-  def getGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[List[TeamName]]] =
-    getUser(s"users?github=$githubUsername")
+  def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
+    getUser(s"users?github=$githubUsername", "github", githubUsername)
 
   def getTeamSlackDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
     httpClientV2
