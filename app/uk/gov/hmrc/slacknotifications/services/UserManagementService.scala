@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.services
 import play.api.Logging
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamName, User}
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -33,13 +33,13 @@ class UserManagementService @Inject()(
 
   private def getTeamsForUser(
     username: String,
-    getUser : String => Future[Option[User]],
+    getUser : String => Future[Option[List[TeamName]]],
     userType: String
   ): Future[List[TeamName]] =
     getUser(username).map {
-      case Some(user) => user.teams.toList
-      case None       => logger.info(s"No user found for $userType username: $username")
-                         List.empty[TeamName]
+      case Some(teams) => teams
+      case None        => logger.info(s"No user found for $userType username: $username")
+                          List.empty[TeamName]
     }
 
   def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =

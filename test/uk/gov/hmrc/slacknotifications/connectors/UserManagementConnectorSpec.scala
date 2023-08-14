@@ -77,7 +77,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getGithubUser("c-d").futureValue shouldBe Some(User(ldapUsername = Some("c.d"), githubUsername = Some("c-d"), teams = Seq(TeamName("Team A"), TeamName("Team B"))))
+      connector.getGithubUser("c-d").futureValue shouldBe Some(Seq(TeamName("Team A"), TeamName("Team B")))
     }
 
     "return None when github user not found" in {
@@ -124,7 +124,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getLdapUser("c.d").futureValue shouldBe Some(User(ldapUsername = Some("c.d"), githubUsername = Some("c-d"), teams = Seq(TeamName("Team A"), TeamName("Team B"))))
+      connector.getLdapUser("c.d").futureValue shouldBe Some(Seq(TeamName("Team A"), TeamName("Team B")))
     }
 
     "return None when ldap user not found" in {
