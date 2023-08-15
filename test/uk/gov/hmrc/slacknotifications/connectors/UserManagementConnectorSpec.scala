@@ -48,7 +48,7 @@ class UserManagementConnectorSpec
   "getTeamsForGithubUser" should {
     "return a users teams by github username" in {
       stubFor(
-        get(urlEqualTo("/users?github=c-d"))
+        get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
             aResponse()
               .withStatus(200)
@@ -82,7 +82,7 @@ class UserManagementConnectorSpec
 
     "return an empty list when a github user has no teams" in {
       stubFor(
-        get(urlEqualTo("/users/c.d"))
+        get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
             aResponse()
               .withStatus(200)
@@ -107,7 +107,7 @@ class UserManagementConnectorSpec
 
     "return None when github user not found" in {
       stubFor(
-        get(urlEqualTo("/users?github=c-d"))
+        get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
             aResponse()
               .withStatus(404)
@@ -120,7 +120,7 @@ class UserManagementConnectorSpec
   "getTeamsForLdapUser" should {
     "return a users teams by ldap username" in {
       stubFor(
-        get(urlEqualTo("/users/c.d"))
+        get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
             aResponse()
               .withStatus(200)
@@ -154,7 +154,7 @@ class UserManagementConnectorSpec
 
     "return an empty list when a ldap user has no teams" in {
       stubFor(
-        get(urlEqualTo("/users/c.d"))
+        get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
             aResponse()
               .withStatus(200)
@@ -179,7 +179,7 @@ class UserManagementConnectorSpec
 
     "return None when ldap user not found" in {
       stubFor(
-        get(urlEqualTo("/users/c.d"))
+        get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
             aResponse()
               .withStatus(404)
@@ -192,7 +192,7 @@ class UserManagementConnectorSpec
   "getTeamSlackDetails" should {
     "return slack details for a team" in {
       stubFor(
-        get(urlEqualTo("/teams/TeamA"))
+        get(urlEqualTo("/user-management/teams/TeamA"))
           .willReturn(
             aResponse()
               .withStatus(200)
@@ -225,7 +225,7 @@ class UserManagementConnectorSpec
 
     "return None when team not found" in {
       stubFor(
-        get(urlEqualTo("/teams/TeamA"))
+        get(urlEqualTo("/user-management/teams/TeamA"))
           .willReturn(
             aResponse()
               .withStatus(404)
