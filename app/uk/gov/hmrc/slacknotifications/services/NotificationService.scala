@@ -18,18 +18,17 @@ package uk.gov.hmrc.slacknotifications.services
 
 import cats.data.EitherT
 import cats.implicits._
-
-import javax.inject.{Inject, Singleton}
-import play.api.libs.json._
 import play.api.Logging
+import play.api.libs.json._
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, TeamName}
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model.{Attachment, ChannelLookup, NotificationRequest, SlackMessage}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
@@ -39,8 +38,7 @@ class NotificationService @Inject()(
   slackConnector               : SlackConnector,
   slackConfig                  : SlackConfig,
   teamsAndRepositoriesConnector: TeamsAndRepositoriesConnector,
-  userManagementConnector      : UserManagementConnector,
-  userManagementService        : UserManagementService
+  userManagementConnector      : UserManagementConnector
 )(implicit
   ec: ExecutionContext
 ) extends Logging {
@@ -87,16 +85,16 @@ class NotificationService @Inject()(
         if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
           Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
         else
-          sendNotificationForUser("github", githubUsername, userManagementService.getTeamsForGithubUser)(notificationRequest, service)
+          sendNotificationForUser("github", githubUsername, userManagementConnector.getTeamsForGithubUser)(notificationRequest, service)
 
       case ChannelLookup.TeamsOfLdapUser(ldapUsername) =>
-          sendNotificationForUser("ldap", ldapUsername, userManagementService.getTeamsForLdapUser)(notificationRequest, service)
+          sendNotificationForUser("ldap", ldapUsername, userManagementConnector.getTeamsForLdapUser)(notificationRequest, service)
     }
 
   private def sendNotificationForUser(
     userType   : String,
     username   : String,
-    teamsGetter: String => Future[List[TeamDetails]]
+    teamsGetter: String => Future[List[TeamName]]
   )(
     notificationRequest: NotificationRequest,
     service            : Service
@@ -106,7 +104,7 @@ class NotificationService @Inject()(
   ): Future[NotificationResult] =
   for {
     allTeams                  <- teamsGetter(username)
-    (excluded, toBeProcessed)  = allTeams.map(_.team).partition(slackNotificationConfig.notRealTeams.contains)
+    (excluded, toBeProcessed)  = allTeams.map(_.asString).partition(slackNotificationConfig.notRealTeams.contains)
     notificationResult        <- if (toBeProcessed.nonEmpty) {
                                   toBeProcessed.foldLeftM(Seq.empty[NotificationResult]) { (acc, teamName) =>
                                     for {
@@ -196,15 +194,15 @@ class NotificationService @Inject()(
     hc: HeaderCarrier
   ): Future[Either[String, String]] =
     userManagementConnector
-      .getTeamDetails(teamName)
+      .getTeamSlackDetails(teamName)
       .map(td => td.flatMap(extractSlackChannel))
       .flatMap {
         case Some(slackChannel) => Future.successful(Right(slackChannel))
         case None               => Future.successful(Left(slackConfig.noTeamFoundAlert.channel))
       }
 
-  private[services] def extractSlackChannel(teamDetails: TeamDetails): Option[String] =
-    teamDetails.slackNotification.orElse(teamDetails.slack).flatMap { slackChannelUrl =>
+  private[services] def extractSlackChannel(slackDetails: TeamDetails): Option[String] =
+    slackDetails.slackNotification.orElse(slackDetails.slack).flatMap { slackChannelUrl =>
       val urlWithoutTrailingSpace =
         if (slackChannelUrl.endsWith("/"))
           slackChannelUrl.init

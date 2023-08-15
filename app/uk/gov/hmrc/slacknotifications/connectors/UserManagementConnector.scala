@@ -16,157 +16,74 @@
 
 package uk.gov.hmrc.slacknotifications.connectors
 
-import play.api.cache.AsyncCacheApi
-import play.api.libs.functional.syntax.unlift
-
-import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import play.api.libs.json.{Format, Json}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
-import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.slacknotifications.config.UserManagementAuthConfig
-
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
+import uk.gov.hmrc.http.client.HttpClientV2
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName.teamNameReads
 
+import java.net.URL
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class UserManagementConnector @Inject()(
   httpClientV2  : HttpClientV2,
-  servicesConfig: ServicesConfig,
-  authConfig    : UserManagementAuthConfig,
-  tokenCache    : AsyncCacheApi
+  servicesConfig: ServicesConfig
 )(implicit ec: ExecutionContext) extends Logging {
 
-  import UserManagementConnector._
-  import authConfig._
   import HttpReads.Implicits._
+  import UserManagementConnector._
 
-  private val url: String = {
-    val keyInServices = "user-management.url"
-    servicesConfig.getConfString(keyInServices, throw new RuntimeException(s"Could not find config $keyInServices"))
+  private val baseUrl = servicesConfig.baseUrl("user-management")
+
+  private def getUser(url: URL, userType: String, username: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] = {
+    httpClientV2
+      .get(url)
+      .execute[Option[List[TeamName]]]
+      .map {
+        case Some(teams) => teams
+        case _           => logger.info(s"No user details found for $userType username: $username")
+                            List.empty[TeamName]
+      }
   }
 
-  private lazy val loginUrl = {
-    val keyInServices = "user-management.loginUrl"
-    servicesConfig.getConfString(keyInServices, throw new RuntimeException(s"Could not find config $keyInServices"))
-  }
+  def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
+    getUser(url"$baseUrl/users/$ldapUsername", "ldap", ldapUsername)
 
-  def login(): Future[UmpToken] = {
-    implicit val lrf: OFormat[UmpLoginRequest] = UmpLoginRequest.format
-    implicit val atf: OFormat[UmpAuthToken]    = UmpAuthToken.format
-    implicit val hc: HeaderCarrier             = HeaderCarrier()
-    for {
-      token <- httpClientV2.post(url"$loginUrl")
-                 .withBody(Json.toJson(UmpLoginRequest(username, password)))
-                 .execute[UmpAuthToken]
-      _      = logger.info("logged into UMP")
-    } yield token
-  }
+  def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
+    getUser(url"$baseUrl/users?github=$githubUsername", "github", githubUsername)
 
-  def retrieveToken(): Future[UmpToken] =
-    if (authEnabled)
-      tokenCache.getOrElseUpdate[UmpToken]("token", tokenTTL)(login())
-    else
-      Future.successful(NoTokenRequired)
-
-  def getAllUsers(implicit hc: HeaderCarrier): Future[List[UmpUser]] =
-    for {
-      token <- retrieveToken()
-      resp  <- httpClientV2
-                .get(url"$url/v2/organisations/users")
-                .setHeader(token.asHeaders():_*)
-                .execute[UmpUsers]
-                .map(_.users)
-    } yield resp
-
-  def getTeamsForUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamDetails]] =
-    for {
-      token <- retrieveToken()
-      resp  <- httpClientV2
-                .get(url"$url/v2/organisations/users/$ldapUsername/teams")
-                .setHeader(token.asHeaders():_*)
-                .execute[Option[UmpTeams]]
-                .map(_.map(_.teams).getOrElse(List.empty))
-    } yield resp
-
-  def getTeamDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
-    for {
-      token <- retrieveToken()
-      resp  <- httpClientV2
-                .get(url"$url/v2/organisations/teams/$teamName")
-                .setHeader(token.asHeaders():_*)
-                .execute[Option[TeamDetails]]
-    } yield resp
+  def getTeamSlackDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
+    httpClientV2
+      .get(url"$baseUrl/teams/$teamName")
+      .execute[Option[TeamDetails]]
 }
 
 object UserManagementConnector {
 
-  final case class UmpUsers(
-    users: List[UmpUser]
-  )
+  final case class TeamName(
+    asString: String
+  ) extends AnyVal
 
-  object UmpUsers {
-    implicit val format: Format[UmpUsers] = Json.format[UmpUsers]
-  }
-
-  final case class UmpUser(
-    github  : Option[String],
-    username: Option[String]
-  )
-
-  object UmpUser {
-    implicit val format: Format[UmpUser] = Json.format[UmpUser]
-  }
-
-  final case class UmpTeams(
-    teams: List[TeamDetails]
-  )
-
-  object UmpTeams {
-    implicit val format: Format[UmpTeams] = Json.format[UmpTeams]
+  object TeamName {
+    implicit val teamNameReads: Reads[List[TeamName]] =
+      (__ \ "teamsAndRoles").read(Reads.seq((__ \ "teamName").read[String])).map(_.toList.map(TeamName.apply))
   }
 
   final case class TeamDetails(
+    teamName         : String,
     slack            : Option[String],
-    slackNotification: Option[String],
-    team             : String
+    slackNotification: Option[String]
   )
 
   object TeamDetails {
-    implicit val format: Format[TeamDetails] = Json.format[TeamDetails]
-  }
-
-
-  sealed trait UmpToken {
-    def asHeaders(): Seq[(String, String)]
-  }
-
-  case class UmpAuthToken(token: String, uid: String) extends UmpToken {
-    def asHeaders(): Seq[(String, String)] = {
-      Seq( "Token" -> token, "requester" -> uid)
-    }
-  }
-
-  case object NoTokenRequired extends UmpToken {
-    override def asHeaders(): Seq[(String, String)] = Seq.empty
-  }
-
-  object UmpAuthToken {
-    val format: OFormat[UmpAuthToken] =
-      ( (__ \ "Token").format[String]
-      ~ (__ \ "uid"  ).format[String]
-      )(UmpAuthToken.apply, unlift(UmpAuthToken.unapply))
-  }
-
-  case class UmpLoginRequest(username: String, password:String)
-
-  object UmpLoginRequest {
-    val format: OFormat[UmpLoginRequest] =
-      ( (__ \ "username").format[String]
-      ~ (__ \ "password").format[String]
-      )(UmpLoginRequest.apply, unlift(UmpLoginRequest.unapply))
+    implicit val reads: Reads[TeamDetails] =
+      ( (__ \ "teamName"         ).read[String]
+      ~ (__ \ "slack"            ).readNullable[String]
+      ~ (__ \ "slackNotification").readNullable[String]
+      )(TeamDetails.apply _)
   }
 }
