@@ -199,7 +199,7 @@ class NotificationServiceSpec
         channelLookup match {
           case req: TeamsOfGithubUser => verify(userManagementConnector,   times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
           case req: TeamsOfLdapUser   => verify(userManagementConnector,   times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
-          case req: GithubTeam        => verify(userManagementConnector, times(1)).getTeamSlackDetails(eqTo(req.teamName))(any)
+          case req: GithubTeam        => verify(userManagementConnector,   times(1)).getTeamSlackDetails(eqTo(req.teamName))(any)
           case _                      =>
         }
       }

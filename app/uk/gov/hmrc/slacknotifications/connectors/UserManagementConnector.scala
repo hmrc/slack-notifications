@@ -39,13 +39,9 @@ class UserManagementConnector @Inject()(
 
   private val baseUrl = servicesConfig.baseUrl("user-management")
 
-  private def getUser(endpoint: String, userType: String, username: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] = {
-    implicit val teamsAndRolesReads = {
-      implicit val tnr = teamNameReads
-      Reads.at[List[TeamName]](__ \ "teamsAndRoles")
-    }
+  private def getUser(url: URL, userType: String, username: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] = {
     httpClientV2
-      .get(new URL(s"$baseUrl/$endpoint"))
+      .get(url)
       .execute[Option[List[TeamName]]]
       .map {
         case Some(teams) => teams
@@ -55,10 +51,10 @@ class UserManagementConnector @Inject()(
   }
 
   def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
-    getUser(s"users/$ldapUsername", "ldap", ldapUsername)
+    getUser(url"$baseUrl/users/$ldapUsername", "ldap", ldapUsername)
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
-    getUser(s"users?github=$githubUsername", "github", githubUsername)
+    getUser(url"$baseUrl/users?github=$githubUsername", "github", githubUsername)
 
   def getTeamSlackDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
     httpClientV2
@@ -73,8 +69,8 @@ object UserManagementConnector {
   ) extends AnyVal
 
   object TeamName {
-    val teamNameReads: Reads[TeamName] =
-      (__ \ "teamName").read[String].map(TeamName.apply)
+    implicit val teamNameReads: Reads[List[TeamName]] =
+      (__ \ "teamsAndRoles").read(Reads.seq((__ \ "teamName").read[String])).map(_.toList.map(TeamName.apply))
   }
 
   final case class TeamDetails(
