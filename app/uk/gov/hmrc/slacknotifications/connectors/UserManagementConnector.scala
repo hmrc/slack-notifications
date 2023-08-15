@@ -70,7 +70,8 @@ object UserManagementConnector {
 
   object TeamName {
     implicit val teamNameReads: Reads[List[TeamName]] =
-      (__ \ "teamsAndRoles").read(Reads.seq((__ \ "teamName").read[String])).map(_.toList.map(TeamName.apply))
+      (__ \ 0 \ "teamsAndRoles").read(Reads.seq((__ \ "teamName").read[String]))
+        .map(_.toList.map(TeamName.apply))
   }
 
   final case class TeamDetails(

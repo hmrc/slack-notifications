@@ -53,25 +53,27 @@ class UserManagementConnectorSpec
             aResponse()
               .withStatus(200)
               .withBody(
-                """{
-                  |  "displayName": "C D",
-                  |  "familyName": "D",
-                  |  "givenName": "C",
-                  |  "organisation": "MDTP",
-                  |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
-                  |  "username": "c.d",
-                  |  "githubUsername": "c-d",
-                  |  "teamsAndRoles": [
-                  |    {
-                  |      "teamName": "Team A",
-                  |      "role": "user"
-                  |    },
-                  |    {
-                  |      "teamName": "Team B",
-                  |      "role": "user"
-                  |    }
-                  |  ]
-                  |}
+                """[
+                  |   {
+                  |     "displayName": "C D",
+                  |     "familyName": "D",
+                  |     "givenName": "C",
+                  |     "organisation": "MDTP",
+                  |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |     "username": "c.d",
+                  |     "githubUsername": "c-d",
+                  |     "teamsAndRoles": [
+                  |       {
+                  |         "teamName": "Team A",
+                  |         "role": "user"
+                  |       },
+                  |       {
+                  |         "teamName": "Team B",
+                  |         "role": "user"
+                  |       }
+                  |     ]
+                  |   }
+                  |]
                   |""".stripMargin
               )
           )
@@ -87,16 +89,18 @@ class UserManagementConnectorSpec
             aResponse()
               .withStatus(200)
               .withBody(
-                """{
-                  |  "displayName": "C D",
-                  |  "familyName": "D",
-                  |  "givenName": "C",
-                  |  "organisation": "MDTP",
-                  |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
-                  |  "username": "c.d",
-                  |  "githubUsername": "c-d",
-                  |  "teamsAndRoles": []
-                  |}
+                """[
+                  |   {
+                  |     "displayName": "C D",
+                  |     "familyName": "D",
+                  |     "givenName": "C",
+                  |     "organisation": "MDTP",
+                  |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |     "username": "c.d",
+                  |     "githubUsername": "c-d",
+                  |     "teamsAndRoles": []
+                  |   }
+                  |]
                   |""".stripMargin
               )
           )
@@ -125,25 +129,27 @@ class UserManagementConnectorSpec
             aResponse()
               .withStatus(200)
               .withBody(
-                """{
-                  |  "displayName": "C D",
-                  |  "familyName": "D",
-                  |  "givenName": "C",
-                  |  "organisation": "MDTP",
-                  |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
-                  |  "username": "c.d",
-                  |  "githubUsername": "c-d",
-                  |  "teamsAndRoles": [
-                  |    {
-                  |      "teamName": "Team A",
-                  |      "role": "user"
-                  |    },
-                  |    {
-                  |      "teamName": "Team B",
-                  |      "role": "user"
-                  |    }
-                  |  ]
-                  |}
+                """[
+                  |   {
+                  |     "displayName": "C D",
+                  |     "familyName": "D",
+                  |     "givenName": "C",
+                  |     "organisation": "MDTP",
+                  |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |     "username": "c.d",
+                  |     "githubUsername": "c-d",
+                  |     "teamsAndRoles": [
+                  |       {
+                  |         "teamName": "Team A",
+                  |         "role": "user"
+                  |       },
+                  |       {
+                  |         "teamName": "Team B",
+                  |         "role": "user"
+                  |       }
+                  |     ]
+                  |   }
+                  |]
                   |""".stripMargin
               )
           )
@@ -159,16 +165,18 @@ class UserManagementConnectorSpec
             aResponse()
               .withStatus(200)
               .withBody(
-                """{
-                  |  "displayName": "C D",
-                  |  "familyName": "D",
-                  |  "givenName": "C",
-                  |  "organisation": "MDTP",
-                  |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
-                  |  "username": "c.d",
-                  |  "githubUsername": "c-d",
-                  |  "teamsAndRoles": []
-                  |}
+                """[
+                  |   {
+                  |     "displayName": "C D",
+                  |     "familyName": "D",
+                  |     "givenName": "C",
+                  |     "organisation": "MDTP",
+                  |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |     "username": "c.d",
+                  |     "githubUsername": "c-d",
+                  |     "teamsAndRoles": []
+                  |   }
+                  |]
                   |""".stripMargin
               )
           )
