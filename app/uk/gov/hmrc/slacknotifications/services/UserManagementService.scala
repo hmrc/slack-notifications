@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.services
 import play.api.Logging
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamName, User}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,18 +31,20 @@ class UserManagementService @Inject()(
   ec: ExecutionContext
 ) extends Logging {
 
+  private def getTeamsForUser(
+    username: String,
+    getUser : String => Future[Option[User]],
+    userType: String
+  ): Future[List[TeamName]] =
+       getUser(username).map {
+         case Some(user) => user.teamsAndRoles.getOrElse(List.empty[TeamName])
+         case _          => logger.info(s"No user details found for $userType username: $username")
+                            List.empty[TeamName]
+       }
+
   def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
-    userManagementConnector.getLdapUser(ldapUsername).map {
-      case Some(user) => user.teamsAndRoles.getOrElse(List.empty[TeamName])
-      case _          => logger.info(s"No user details found for ldap username: $ldapUsername")
-                         List.empty[TeamName]
-    }
+    getTeamsForUser(ldapUsername, userManagementConnector.getLdapUser, "ldap")
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
-    userManagementConnector.getGithubUser(githubUsername).map {
-      case Some(user) => user.head.teamsAndRoles.getOrElse(List.empty[TeamName])
-      case _          => logger.info(s"No user details found for github username: $githubUsername")
-                         List.empty[TeamName]
-    }
-
+    getTeamsForUser(githubUsername, userManagementConnector.getGithubUser(_).map(_.headOption), "github")
 }
