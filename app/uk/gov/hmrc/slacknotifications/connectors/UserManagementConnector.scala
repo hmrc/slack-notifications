@@ -22,9 +22,7 @@ import play.api.libs.json._
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName.teamNameReads
 
-import java.net.URL
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -39,22 +37,15 @@ class UserManagementConnector @Inject()(
 
   private val baseUrl = servicesConfig.baseUrl("user-management")
 
-  private def getUser(url: URL, userType: String, username: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] = {
+  def getLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[Option[User]] =
     httpClientV2
-      .get(url)
-      .execute[Option[List[TeamName]]]
-      .map {
-        case Some(teams) => teams
-        case _           => logger.info(s"No user details found for $userType username: $username")
-                            List.empty[TeamName]
-      }
-  }
+      .get(url"$baseUrl/user-management/users/$ldapUsername")
+      .execute[Option[User]]
 
-  def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
-    getUser(url"$baseUrl/user-management/users/$ldapUsername", "ldap", ldapUsername)
-
-  def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
-    getUser(url"$baseUrl/user-management/users?github=$githubUsername", "github", githubUsername)
+  def getGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[List[User]]] =
+    httpClientV2
+      .get(url"$baseUrl/user-management/users?github=$githubUsername")
+      .execute[Option[List[User]]]
 
   def getTeamSlackDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
     httpClientV2
@@ -64,14 +55,29 @@ class UserManagementConnector @Inject()(
 
 object UserManagementConnector {
 
+  case class User(
+    ldapUsername  : String,
+    githubUsername: Option[String],
+    teamsAndRoles : Option[List[TeamName]]
+  )
+
+  object User {
+    implicit val reads: Reads[User] = {
+      implicit val tnr = TeamName.reads
+      ( ( __ \ "username"      ).read[String]
+      ~ ( __ \ "githubUsername").readNullable[String]
+      ~ ( __ \ "teamsAndRoles" ).readNullable[List[TeamName]]
+      )(User.apply _)
+    }
+  }
+
   final case class TeamName(
     asString: String
   ) extends AnyVal
 
   object TeamName {
-    implicit val teamNameReads: Reads[List[TeamName]] =
-      (__ \ 0 \ "teamsAndRoles").read(Reads.seq((__ \ "teamName").read[String]))
-        .map(_.toList.map(TeamName.apply))
+    val reads: Reads[TeamName] =
+      Reads.at[String]( __ \ "teamName").map(TeamName.apply)
   }
 
   final case class TeamDetails(
