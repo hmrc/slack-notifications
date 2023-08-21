@@ -45,8 +45,8 @@ class UserManagementConnectorSpec
       ))
     )
 
-  "getTeamsForGithubUser" should {
-    "return a users teams by github username" in {
+  "getGithubUser" should {
+    "return a users details by github username" in {
       stubFor(
         get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
@@ -79,12 +79,12 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getTeamsForGithubUser("c-d").futureValue shouldBe List(TeamName("Team A"), TeamName("Team B"))
+      connector.getGithubUser("c-d").futureValue shouldBe Some(List(User("c.d", Some("c-d"), Some(List(TeamName("Team A"), TeamName("Team B"))))))
     }
 
-    "return an empty list when a github user has no teams" in {
+    "return github user with no teams and roles" in {
       stubFor(
-        get(urlEqualTo("/user-management/users/c.d"))
+        get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
             aResponse()
               .withStatus(200)
@@ -97,8 +97,7 @@ class UserManagementConnectorSpec
                   |     "organisation": "MDTP",
                   |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
                   |     "username": "c.d",
-                  |     "githubUsername": "c-d",
-                  |     "teamsAndRoles": []
+                  |     "githubUsername": "c-d"
                   |   }
                   |]
                   |""".stripMargin
@@ -106,7 +105,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getTeamsForGithubUser("c.d").futureValue shouldBe List.empty[TeamName]
+      connector.getGithubUser("c-d").futureValue shouldBe Some(List(User("c.d", Some("c-d"), None)))
     }
 
     "return None when github user not found" in {
@@ -117,72 +116,69 @@ class UserManagementConnectorSpec
               .withStatus(404)
           )
       )
-      connector.getTeamsForGithubUser("c-d").futureValue shouldBe List.empty[TeamName]
+      connector.getGithubUser("c-d").futureValue shouldBe None
     }
   }
 
-  "getTeamsForLdapUser" should {
-    "return a users teams by ldap username" in {
+  "getLdapUser" should {
+    "return a users details by ldap username" in {
       stubFor(
         get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
             aResponse()
               .withStatus(200)
               .withBody(
-                """[
-                  |   {
-                  |     "displayName": "C D",
-                  |     "familyName": "D",
-                  |     "givenName": "C",
-                  |     "organisation": "MDTP",
-                  |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
-                  |     "username": "c.d",
-                  |     "githubUsername": "c-d",
-                  |     "teamsAndRoles": [
-                  |       {
-                  |         "teamName": "Team A",
-                  |         "role": "user"
-                  |       },
-                  |       {
-                  |         "teamName": "Team B",
-                  |         "role": "user"
-                  |       }
-                  |     ]
-                  |   }
-                  |]
+                """
+                  |{
+                  |  "displayName": "C D",
+                  |  "familyName": "D",
+                  |  "givenName": "C",
+                  |  "organisation": "MDTP",
+                  |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |  "username": "c.d",
+                  |  "githubUsername": "c-d",
+                  |  "teamsAndRoles": [
+                  |    {
+                  |      "teamName": "Team A",
+                  |      "role": "user"
+                  |    },
+                  |    {
+                  |      "teamName": "Team B",
+                  |      "role": "user"
+                  |    }
+                  |  ]
+                  |}
                   |""".stripMargin
               )
           )
       )
 
-      connector.getTeamsForLdapUser("c.d").futureValue shouldBe List(TeamName("Team A"), TeamName("Team B"))
+      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), Some(List(TeamName("Team A"), TeamName("Team B")))))
     }
 
-    "return an empty list when a ldap user has no teams" in {
+    "return ldap user with no teams and roles" in {
       stubFor(
         get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
             aResponse()
               .withStatus(200)
               .withBody(
-                """[
-                  |   {
-                  |     "displayName": "C D",
-                  |     "familyName": "D",
-                  |     "givenName": "C",
-                  |     "organisation": "MDTP",
-                  |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
-                  |     "username": "c.d",
-                  |     "githubUsername": "c-d",
-                  |     "teamsAndRoles": []
-                  |   }
-                  |]
+                """
+                  |{
+                  |  "displayName": "C D",
+                  |  "familyName": "D",
+                  |  "givenName": "C",
+                  |  "organisation": "MDTP",
+                  |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |  "username": "c.d",
+                  |  "githubUsername": "c-d"
+                  |}
                   |""".stripMargin
               )
           )
       )
 
-      connector.getTeamsForLdapUser("c.d").futureValue shouldBe List.empty[TeamName]
+      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), None))
     }
 
     "return None when ldap user not found" in {
@@ -193,7 +189,7 @@ class UserManagementConnectorSpec
               .withStatus(404)
           )
       )
-      connector.getTeamsForLdapUser("c.d").futureValue shouldBe List.empty[TeamName]
+      connector.getLdapUser("c.d").futureValue shouldBe None
     }
   }
 
