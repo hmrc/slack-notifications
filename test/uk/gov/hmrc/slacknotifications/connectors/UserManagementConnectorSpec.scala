@@ -79,7 +79,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), Some(List(TeamName("Team A"), TeamName("Team B")))))
+      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), List(TeamName("Team A"), TeamName("Team B"))))
     }
 
     "return github user with no teams and roles" in {
@@ -97,7 +97,8 @@ class UserManagementConnectorSpec
                   |     "organisation": "MDTP",
                   |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
                   |     "username": "c.d",
-                  |     "githubUsername": "c-d"
+                  |     "githubUsername": "c-d",
+                  |     "teamsAndRoles": []
                   |   }
                   |]
                   |""".stripMargin
@@ -105,7 +106,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), None))
+      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), List.empty[TeamName]))
     }
 
     "return empty list when github user not found" in {
@@ -156,7 +157,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), Some(List(TeamName("Team A"), TeamName("Team B")))))
+      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), List(TeamName("Team A"), TeamName("Team B"))))
     }
 
     "return ldap user with no teams and roles" in {
@@ -174,14 +175,15 @@ class UserManagementConnectorSpec
                   |  "organisation": "MDTP",
                   |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
                   |  "username": "c.d",
-                  |  "githubUsername": "c-d"
+                  |  "githubUsername": "c-d",
+                  |  "teamsAndRoles": []
                   |}
                   |""".stripMargin
               )
           )
       )
 
-      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), None))
+      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), List.empty[TeamName]))
     }
 
     "return None when ldap user not found" in {
