@@ -68,14 +68,14 @@ class UserManagementServiceSpec
         User("ldapUsername", Some("githubUsername"), Some(List(TeamName("Team A"), TeamName("Team B"))))
 
       when(userManageConnector.getGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Some(List(githubUserWithTeams))))
+        .thenReturn(Future.successful(List(githubUserWithTeams)))
 
       service.getTeamsForGithubUser("githubUsername").futureValue shouldBe List(TeamName("Team A"), TeamName("Team B"))
     }
 
     "return empty list when no user details found" in new Fixtures {
       when(userManageConnector.getGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(None))
+        .thenReturn(Future.successful(List.empty))
 
       service.getTeamsForGithubUser("githubUsername").futureValue shouldBe List.empty[TeamName]
     }
@@ -85,7 +85,7 @@ class UserManagementServiceSpec
         User("ldapUsername", Some("githubUsername"), None)
 
       when(userManageConnector.getGithubUser(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Some(List(githubUserNoTeams))))
+        .thenReturn(Future.successful(List(githubUserNoTeams)))
 
       service.getTeamsForGithubUser("githubUsername").futureValue shouldBe List.empty[TeamName]
     }

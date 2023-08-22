@@ -42,10 +42,10 @@ class UserManagementConnector @Inject()(
       .get(url"$baseUrl/user-management/users/$ldapUsername")
       .execute[Option[User]]
 
-  def getGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[Option[List[User]]] =
+  def getGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[User]] =
     httpClientV2
       .get(url"$baseUrl/user-management/users?github=$githubUsername")
-      .execute[Option[List[User]]]
+      .execute[List[User]]
 
   def getTeamSlackDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
     httpClientV2

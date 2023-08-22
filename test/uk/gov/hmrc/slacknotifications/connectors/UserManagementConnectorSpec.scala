@@ -79,7 +79,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getGithubUser("c-d").futureValue shouldBe Some(List(User("c.d", Some("c-d"), Some(List(TeamName("Team A"), TeamName("Team B"))))))
+      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), Some(List(TeamName("Team A"), TeamName("Team B")))))
     }
 
     "return github user with no teams and roles" in {
@@ -105,18 +105,21 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getGithubUser("c-d").futureValue shouldBe Some(List(User("c.d", Some("c-d"), None)))
+      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), None))
     }
 
-    "return None when github user not found" in {
+    "return empty list when github user not found" in {
       stubFor(
         get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
             aResponse()
-              .withStatus(404)
+              .withStatus(200)
+              .withBody(
+                """[]"""
+              )
           )
       )
-      connector.getGithubUser("c-d").futureValue shouldBe None
+      connector.getGithubUser("c-d").futureValue shouldBe List.empty[User]
     }
   }
 
