@@ -21,6 +21,7 @@ import scala.util.Try
 
 object LinkUtils {
   val LinkNotAllowListed = "LINK NOT ALLOW LISTED"
+
   val allowedDomains: Set[String] = Set(
     "tax.service.gov.uk",
     "github.com",
@@ -31,42 +32,47 @@ object LinkUtils {
 
   private val urlPattern = """(http[s]?.+?)(?="|`|\s|$)""".r
 
-  val getUris: String => Set[URL] =
-    str =>
-      urlPattern.findAllMatchIn(str)
-        .map( m => Try {new URI(m.group(1)).toURL})
-        .flatMap(_.toOption)
-        .toSet
+  private[utils] def getUris(str: String): Set[URL] =
+    urlPattern.findAllMatchIn(str)
+      .map(m => Try(new URI(m.group(1)).toURL))
+      .flatMap(_.toOption)
+      .toSet
 
-  val isAllowListed: (String, Set[String]) => Boolean =
-    (url, allowlist) =>
-      allowlist.exists(url.contains(_))
+  private[utils] def isAllowListed(url: URL): Boolean =
+    allowedDomains.exists(url.getHost.contains)
 
-  private def isCatalogueLink(host: String) = host.contains("catalogue.tax.service.gov.uk")
+  private def isCatalogueLink(url: URL) =
+    url.getHost.contains("catalogue.tax.service.gov.uk")
 
-  private def hasSourceAttribute(url: String): Boolean = url.contains("source=")
+  private def appendSource(link: URL, source: String): URL = {
+    val uri = link.toURI
+    new URI(
+      uri.getScheme,
+      uri.getAuthority,
+      uri.getPath,
+      Option(uri.getQuery).fold(source)(_ ++ s"&$source"),
+      uri.getFragment
+    ).toURL
+  }
 
-  private def appendSource(h: String, channel: String) = s"$h${if (h.contains("?")) "&" else "?"}source=slack-$channel"
+  private def updateCatalogueLinks(channel: String, links: Set[URL])(str: String): String =
+    links.foldLeft(str)((acc, link) =>
+      if (Option(link.getQuery).exists(_.contains("source=")))
+        acc
+      else
+        acc.replace(link.toString, appendSource(link, s"source=slack-$channel").toString)
+    )
 
-  private def updateCatalogueLinks(str: String, channel: String, links: List[URL]): String =
-    links.foldLeft(str)((acc, link) => acc.replace(link.toString, appendSource(link.toString, channel)))
-
-  private def overrideBadLinks(str: String, badLinkMessage: String, links: List[URL]): String =
+  private def overrideBadLinks(badLinkMessage: String, links: Set[URL])(str: String): String =
     links.foldLeft(str)((acc, link) => acc.replace(link.toString, badLinkMessage))
 
-  def updateLinks (text: String, channel: String): String = {
-      val allLinks = getUris(text)
-      val badLinks = allLinks
-        .filterNot((x: URL) => isCatalogueLink(x.getHost))
-        .filterNot((x: URL) => isAllowListed(x.getHost, allowedDomains))
-        .toList
-      val catalogueLinks: List[URL] = allLinks
-        .filter((x: URL) => isCatalogueLink(x.getHost))
-        .filterNot((x: URL) => hasSourceAttribute(x.toString))
-        .toList
-      updateCatalogueLinks(
-        overrideBadLinks(text, LinkNotAllowListed, badLinks),
-        channel,
-        catalogueLinks)
-    }
+  def updateLinks(text: String, channel: String): String = {
+    val (catalogueLinks, otherLinks) = getUris(text).partition(isCatalogueLink)
+    val badLinks = otherLinks.filterNot(isAllowListed)
+    updateCatalogueLinks(channel, catalogueLinks)(
+      overrideBadLinks(LinkNotAllowListed, badLinks)(
+        text
+      )
+    )
+  }
 }
