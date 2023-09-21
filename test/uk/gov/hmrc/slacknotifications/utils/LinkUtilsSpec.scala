@@ -96,7 +96,9 @@ class LinkUtilsSpec extends UnitSpec {
       val links = Table(
         ("original_url", "expected_url"),
         ("https://catalogue.tax.service.gov.uk", "https://catalogue.tax.service.gov.uk?source=slack-channel"),
-        ("https://catalogue.tax.service.gov.uk/repositories?from=here", "https://catalogue.tax.service.gov.uk/repositories?from=here&source=slack-channel")
+        ("https://catalogue.tax.service.gov.uk/repositories?from=here", "https://catalogue.tax.service.gov.uk/repositories?from=here&source=slack-channel"),
+        ("https://catalogue.tax.service.gov.uk/repositories#fragment", "https://catalogue.tax.service.gov.uk/repositories?source=slack-channel#fragment"),
+        ("https://catalogue.tax.service.gov.uk/repositories?from=here#fragment", "https://catalogue.tax.service.gov.uk/repositories?from=here&source=slack-channel#fragment")
       )
 
       forAll(links) {

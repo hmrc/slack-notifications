@@ -42,11 +42,23 @@ object LinkUtils {
     (url, allowlist) =>
       allowlist.exists(url.contains(_))
 
-  private def isCatalogueLink(host: String) = host.contains("catalogue.tax.service.gov.uk")
+  private def isCatalogueLink(host: String) =
+    host.contains("catalogue.tax.service.gov.uk")
 
-  private def hasSourceAttribute(url: String): Boolean = url.contains("source=")
+  private def hasSourceAttribute(url: String): Boolean =
+    url.contains("source=")
 
-  private def appendSource(h: String, channel: String) = s"$h${if (h.contains("?")) "&" else "?"}source=slack-$channel"
+  private def appendSource(link: String, channel: String): String = {
+    val url    = new URI(link)
+    val source = s"source=slack-$channel"
+    new URI(
+      url.getScheme,
+      url.getAuthority,
+      url.getPath,
+      Option(url.getQuery).fold(source)(_ ++ s"&$source"),
+      url.getFragment
+    ).toString
+  }
 
   private def updateCatalogueLinks(str: String, channel: String, links: List[URL]): String =
     links.foldLeft(str)((acc, link) => acc.replace(link.toString, appendSource(link.toString, channel)))
