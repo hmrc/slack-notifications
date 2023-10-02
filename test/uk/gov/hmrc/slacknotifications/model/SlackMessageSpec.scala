@@ -20,9 +20,9 @@ import uk.gov.hmrc.slacknotifications.test.UnitSpec
 import uk.gov.hmrc.slacknotifications.utils.LinkUtils.LinkNotAllowListed
 
 class SlackMessageSpec extends UnitSpec {
-  "A slack message" should {
+  "A legacy slack message" should {
     "contain a text message with allowlisted links" in {
-      val message = SlackMessage(
+      val message = LegacySlackMessage(
         channel  = "slack_channel",
         text     = "Random text and link to https://github.com/hmrc",
         username = "someone",
@@ -30,12 +30,12 @@ class SlackMessageSpec extends UnitSpec {
         Seq.empty,
         showAttachmentAuthor = true
       )
-      val sanitisedMessage = SlackMessage.sanitise(message)
+      val sanitisedMessage = LegacySlackMessage.sanitise(message)
       sanitisedMessage shouldBe message
     }
 
     "contain a text with non-allowlisted links replaced" in {
-      val message = SlackMessage(
+      val message = LegacySlackMessage(
         channel  = "slack_channel",
         text     = "Evil text with links to http://very.bad.url/with-plenty-malware and http://url.i.dont?know=about",
         username = "someone",
@@ -43,7 +43,7 @@ class SlackMessageSpec extends UnitSpec {
         Seq.empty,
         showAttachmentAuthor = true
       )
-      val sanitisedMessage = SlackMessage.sanitise(message)
+      val sanitisedMessage = LegacySlackMessage.sanitise(message)
 
       val sanitisedText = s"Evil text with links to $LinkNotAllowListed and $LinkNotAllowListed"
       sanitisedMessage shouldBe message.copy(text = sanitisedText)

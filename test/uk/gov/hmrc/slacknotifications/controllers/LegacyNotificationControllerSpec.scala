@@ -22,16 +22,15 @@ import play.api.mvc.{Headers, Result}
 import play.api.test.{FakeRequest, StubControllerComponentsFactory}
 import play.test.Helpers
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, Password}
+import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, NotificationResult, Password}
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
-import uk.gov.hmrc.slacknotifications.services.NotificationService.NotificationResult
-import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
+import uk.gov.hmrc.slacknotifications.services.{AuthService, LegacyNotificationService}
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class NotificationControllerSpec extends UnitSpec with ScalaFutures {
+class LegacyNotificationControllerSpec extends UnitSpec with ScalaFutures {
 
   "The controller" should {
     "allow requests with valid credentials in the Authorization header" in new TestSetup {
@@ -65,8 +64,8 @@ class NotificationControllerSpec extends UnitSpec with ScalaFutures {
   private trait TestSetup extends StubControllerComponentsFactory {
 
     val authService         = mock[AuthService]
-    val notificationService = mock[NotificationService]
-    val controller = new NotificationController(authService, notificationService, stubControllerComponents())
+    val notificationService = mock[LegacyNotificationService]
+    val controller = new LegacyNotificationController(authService, notificationService, stubControllerComponents())
 
     val body =
       """{

@@ -24,14 +24,14 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.play.bootstrap.backend.http.ErrorResponse
 import uk.gov.hmrc.slacknotifications.model.NotificationRequest
-import uk.gov.hmrc.slacknotifications.services.{AuthService, NotificationService}
+import uk.gov.hmrc.slacknotifications.services.{AuthService, LegacyNotificationService}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton()
-class NotificationController @Inject()(
+class LegacyNotificationController @Inject()(
   authService         : AuthService,
-  notificationService : NotificationService,
+  notificationService : LegacyNotificationService,
   controllerComponents: ControllerComponents
 )(implicit
   ec: ExecutionContext

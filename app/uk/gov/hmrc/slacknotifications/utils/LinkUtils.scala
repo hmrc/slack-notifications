@@ -30,7 +30,7 @@ object LinkUtils {
     "haveibeenpwned.com"
   )
 
-  private val urlPattern = """(http[s]?.+?)(?="|`|\s|$)""".r
+  private val urlPattern = """(http[s]?.+?)(?="|`|\s|$|\|)""".r
 
   private[utils] def getUris(str: String): Set[URL] =
     urlPattern.findAllMatchIn(str)

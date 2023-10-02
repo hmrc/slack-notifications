@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.slacknotifications.utils
 
-import java.net.URL
+import play.api.libs.json.{JsArray, JsObject, JsString}
 
+import java.net.URL
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 import uk.gov.hmrc.slacknotifications.utils.LinkUtils._
 
@@ -27,6 +28,30 @@ class LinkUtilsSpec extends UnitSpec {
       val allowListedLink = "https://build.tax.service.gov.uk"
       getUris(allowListedLink) shouldBe Set(new URL(allowListedLink))
       getUris("http://url.i.dont?know=about") shouldBe Set(new URL("http://url.i.dont?know=about"))
+    }
+
+    "be extracted from a json string" in {
+      val json = JsObject(
+        Map(
+          "blocks" -> JsArray(
+            Seq(
+              JsObject(
+                Map(
+                  "type" -> JsString("section"),
+                  "text" -> JsObject(
+                    Map(
+                      "type" -> JsString("mrkdwn"),
+                      "text" -> JsString("Go to https://catalogue.tax.service.gov.uk and then Click <https://github.com/hmrc|here>")
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+
+      getUris(json.toString) shouldBe Set(new URL("https://catalogue.tax.service.gov.uk"), new URL("https://github.com/hmrc"))
     }
   }
 
