@@ -16,7 +16,8 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import play.api.libs.json.{Json, OFormat}
+import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
+import play.api.libs.json._
 import uk.gov.hmrc.slacknotifications.utils.LinkUtils
 
 /**
@@ -72,7 +73,7 @@ object Attachment {
     )
 }
 
-case class SlackMessage(
+case class LegacySlackMessage(
   channel             : String,
   text                : String,
   username            : String,
@@ -81,12 +82,75 @@ case class SlackMessage(
   showAttachmentAuthor: Boolean
 )
 
-object SlackMessage {
-  implicit val format: OFormat[SlackMessage] = Json.format[SlackMessage]
+object LegacySlackMessage {
+  implicit val format: OFormat[LegacySlackMessage] = Json.format[LegacySlackMessage]
 
-  def sanitise(msg: SlackMessage): SlackMessage =
+  def sanitise(msg: LegacySlackMessage): LegacySlackMessage =
     msg.copy(
       text        = LinkUtils.updateLinks(msg.text, msg.channel),
       attachments = msg.attachments.map(Attachment.sanitise(_, msg.channel))
+    )
+}
+
+// model for https://api.slack.com/methods/chat.postMessage
+// omitting attachments and irrelevant optional fields
+final case class SlackMessage(
+  channel    : String
+, text       : String
+, blocks     : Seq[JsObject]
+, username   : String
+, emoji      : String
+)
+
+object SlackMessage {
+  val format: Format[SlackMessage] =
+    ( (__ \ "channel"    ).format[String]
+    ~ (__ \ "text"       ).format[String]
+    ~ (__ \ "blocks"     ).format[Seq[JsObject]]
+    ~ (__ \ "username"   ).format[String]
+    ~ (__ \ "icon_emoji" ).format[String]
+    )(apply, unlift(unapply))
+
+  def sanitise(msg: SlackMessage): SlackMessage = {
+    val updatedText = LinkUtils.updateLinks(msg.text, msg.channel)
+
+    // update links whilst preserving json structure
+    def updateLinks(json: JsValue): JsValue =
+      json match {
+        case JsNull             => JsNull
+        case boolean: JsBoolean => boolean
+        case number : JsNumber  => number
+        case string : JsString  => JsString(LinkUtils.updateLinks(string.value, msg.channel))
+        case array  : JsArray   => JsArray(array.value.map(updateLinks))
+        case obj    : JsObject  => JsObject(underlying = obj.value.map { case (k, v) => (k, updateLinks(v)) })
+      }
+
+    val updatedBlocks = msg.blocks.map(block => updateLinks(block).as[JsObject])
+
+    msg.copy(
+      text        = updatedText,
+      blocks      = updatedBlocks
+    )
+  }
+
+  def errorBlock(error: String): JsObject =
+    JsObject(
+      Map(
+        "type" -> JsString("section"),
+        "block_id" -> JsString("error_block"),
+        "text" -> JsObject(
+          Map(
+            "type" -> JsString("mrkdwn"),
+            "text" -> JsString(s"*Error:* $error")
+          )
+        )
+      )
+    )
+
+  val divider: JsObject =
+    JsObject(
+      Map(
+        "type" -> JsString("divider")
+      )
     )
 }

@@ -18,10 +18,11 @@ package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
-import play.api.libs.json.Json
+import play.api.libs.json.{Format, Json}
+import sttp.model.HeaderNames
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.slacknotifications.model.SlackMessage
+import uk.gov.hmrc.slacknotifications.model.{LegacySlackMessage, SlackMessage}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -32,13 +33,32 @@ class SlackConnector @Inject()(
 )(implicit ec: ExecutionContext) {
   import HttpReads.Implicits._
 
-  private val slackWebHookUri: String =
+  private lazy val slackWebHookUri: String =
     configuration.get[String]("slack.webhookUrl")
 
-  def sendMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] =
+  private lazy val slackApiUrl: String =
+    configuration.get[String]("slack.apiUrl")
+
+  private lazy val botToken: String =
+    configuration.get[String]("slack.botToken")
+
+  def sendMessage(message: LegacySlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] =
     httpClientV2
       .post(url"$slackWebHookUri")
       .withBody(Json.toJson(message))
       .withProxy
       .execute[HttpResponse]
+
+  def postChatMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
+    implicit val smF: Format[SlackMessage] = SlackMessage.format
+
+    httpClientV2
+      .post(url"$slackApiUrl/chat.postMessage")
+      .setHeader(HeaderNames.ContentType -> "application/json")
+      .setHeader(HeaderNames.Authorization -> s"Bearer $botToken")
+      .withBody(Json.toJson(message))
+      .withProxy
+      .execute[HttpResponse]
+  }
+
 }

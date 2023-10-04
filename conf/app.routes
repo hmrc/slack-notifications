@@ -1,3 +1,5 @@
 # microservice specific routes
 
-POST        /notification             uk.gov.hmrc.slacknotifications.controllers.NotificationController.sendNotification()
+POST        /notification             uk.gov.hmrc.slacknotifications.controllers.LegacyNotificationController.sendNotification()
+
+POST        /v2/notification          uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.sendNotification()

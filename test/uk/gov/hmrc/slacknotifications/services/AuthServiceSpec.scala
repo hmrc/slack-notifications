@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import uk.gov.hmrc.slacknotifications.model.{ServiceConfig, Password}
-import uk.gov.hmrc.slacknotifications.services.AuthService.Service
+import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 
@@ -26,7 +26,7 @@ class AuthServiceSpec extends UnitSpec {
   "Checking if user is authorised" should {
 
     "return true if the service is present in the configuration" in {
-      val service = Service("foo", Password("bar"))
+      val service = ClientService("foo", Password("bar"))
 
       val configuration = mock[SlackNotificationConfig]
       when(configuration.serviceConfigs)
@@ -43,7 +43,7 @@ class AuthServiceSpec extends UnitSpec {
     }
 
     "ignore trailing \n for password in config" in {
-      val service = Service("foo", Password("bar"))
+      val service = ClientService("foo", Password("bar"))
 
       val configuration = mock[SlackNotificationConfig]
       when(configuration.serviceConfigs)
@@ -60,7 +60,7 @@ class AuthServiceSpec extends UnitSpec {
     }
 
     "return false if no matching service is found in config" in {
-      val service = Service("foo", Password("bar"))
+      val service = ClientService("foo", Password("bar"))
 
       val configuration = mock[SlackNotificationConfig]
       when(configuration.serviceConfigs)
@@ -73,7 +73,7 @@ class AuthServiceSpec extends UnitSpec {
 
       val authService = new AuthService(configuration)
 
-      val anotherServiceNotInConfig = Service("x", Password("y"))
+      val anotherServiceNotInConfig = ClientService("x", Password("y"))
 
       authService.isAuthorized(anotherServiceNotInConfig) shouldBe false
     }

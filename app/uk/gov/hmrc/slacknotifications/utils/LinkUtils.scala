@@ -30,7 +30,13 @@ object LinkUtils {
     "haveibeenpwned.com"
   )
 
-  private val urlPattern = """(http[s]?.+?)(?="|`|\s|$)""".r
+  // Captures urls terminated by:
+  // - double quotes e.g. "https://example.com"
+  // - a backtick e.g. `https://example.com`
+  // - any whitespace e.g. https://example.com has lots of examples
+  // - the end of the string e.g. visit https://example.com
+  // - a literal pipe character e.g. Click <https://example.com|here>
+  private val urlPattern = """(http[s]?.+?)(?="|`|\s|$|\|)""".r
 
   private[utils] def getUris(str: String): Set[URL] =
     urlPattern.findAllMatchIn(str)

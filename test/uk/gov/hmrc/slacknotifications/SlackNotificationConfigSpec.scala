@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.services
 import com.google.common.io.BaseEncoding
 import play.api.Configuration
 import uk.gov.hmrc.slacknotifications.model.{ServiceConfig, Password}
-import uk.gov.hmrc.slacknotifications.services.AuthService.Service
+import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 
@@ -41,7 +41,7 @@ class SlackNotificationConfigSpec extends UnitSpec {
     }
 
     "default displayName end userEmoji if not set" in {
-      val service = Service("foo", Password("bar"))
+      val service = ClientService("foo", Password("bar"))
       val configuration =
         Configuration(
           "auth.authorizedServices.0.name"     -> service.name,
@@ -55,7 +55,7 @@ class SlackNotificationConfigSpec extends UnitSpec {
     }
 
     "use the specified displayName end userEmoji if set" in {
-      val service = Service("foo", Password("bar"))
+      val service = ClientService("foo", Password("bar"))
       val configuration =
         Configuration(
           "auth.authorizedServices.0.name"        -> service.name,

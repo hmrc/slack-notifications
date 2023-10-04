@@ -1,15 +1,74 @@
 # slack-notifications
 
-[![Download](https://api.bintray.com/packages/hmrc/releases/slack-notifications/images/download.svg) ](https://bintray.com/hmrc/releases/slack-notifications/_latestVersion)
+This service enables sending messages into the HMRC Digital workspace on Slack.
 
-This service enables sending slack notifications on the MDTP.
+The service exposes 2 endpoints:
 
-Notifications can be sent to a correct slack channel based on specified criteria.
+```
+POST    /notification    # uses legacy incoming webhooks
+POST    /v2/notification # uses PlatOps Bot (recommended)
+```
 
-## Auth
-This service uses Basic Auth for access control. If you want to use it please contact team PlatOps.
+Both endpoints require a `channelLookup` in order to identify the correct channel for the message to be posted to.
 
-## Adding new users able to send Slack Notifications
+## ChannelLookup
+
+Can be one of:
+
+`github-repository` - will attempt to find the channel for the team that owns the repository.
+
+```json
+{
+    "by" : "github-repository",
+    "repositoryName" : "name-of-a-repo"
+}
+```
+
+`github-team` - will attempt to find the channel for the GitHub team.
+
+```json
+{
+    "by" : "github-team",
+    "teamName" : "name-of-a-github-team"
+}
+```
+
+`slack-channel` - will attempt to send the message to all channels in the array.
+
+```json
+{
+    "by" : "slack-channel",
+    "slackChannels" : [
+        "channel1",
+        "channel2"
+    ]
+}
+```
+
+`teams-of-github-user` - will attempt to send the message to the channel of the team the user belongs to.
+
+```json
+{
+    "by" : "teams-of-github-user",
+    "githubUsername" : "a-github-username"
+}
+```
+
+`teams-of-ldap-user` - will attempt to send the message to the channel of the team the user belongs to.
+
+```json
+{
+    "by" : "teams-of-ldap-user",
+    "ldapUsername" : "an-ldap-username"
+}
+```
+
+## Setup and example usage of `POST    /notification`
+
+### Auth
+This endpoint uses Basic Auth for access control. If you want to use it please contact team PlatOps.
+
+### Adding new users able to send Slack Notifications
 
 The list of users that are able to use the service is predefined by an array in the config:
 
@@ -51,11 +110,14 @@ Once we receive the PR we will review, before redeploying the app.
 
 **N.B.** This only applies to users within the HMRC organisation on github
 
-## Send to teams that own a repository
+### Example request
 
-Sends slack messages to all teams contributing to a repo as shown in The Catalogue.
+Sends Slack messages to all teams contributing to a repo as shown in The Catalogue.
 If a repository defines owners explicitly in the 'repository.yaml' file, Slack message will be sent only to those teams (relevant mostly for shared repos like app-config-*).
 
+Here `attachments` should be structured as defined in the [Slack documentation](https://api.slack.com/reference/messaging/attachments)
+
+Note: `channelLookup` can be replaced with any of the ones mentioned above, depending on the use case.
 ```
 POST /slack-notifications/notification
 
@@ -75,8 +137,9 @@ body:
 }
 ```
 
-example curl request:
-(assuming basic auth credentials for user: foo, pass: bar, i.e.: user:bar (Base64 encoded) = Zm9vOmJhcg==)
+### Example curl request
+
+Assuming basic auth credentials for user: foo, pass: bar, i.e.: user:bar (Base64 encoded) = Zm9vOmJhcg==
 
 ```
 curl -X POST -H 'Content-type: application/json' -H 'Authorization: Basic Zm9vOmJhcg==' \
@@ -84,52 +147,46 @@ curl -X POST -H 'Content-type: application/json' -H 'Authorization: Basic Zm9vOm
     localhost:8866/slack-notifications/notification
 ```
 
-## Send to multiple channels by specifying their names directly
+## Setup and example usage of `POST    /v2/notification`
+
+### Auth
+
+This endpoint uses `internal-auth` for access control. If you want to use it then you will need to fork [internal-auth-config](https://github.com/hmrc/internal-auth-config) and raise a PR adding your service to the list of grantees for the `slack-notifications` resource type.
+
+### Example request
+
+Sends a Slack message to the channel specified
+
+Here `text` is the text that will be displayed in the desktop notification, think of this like alt text for an image. It will not be displayed in the main body of the message.
+
+`blocks` can be designed using the [Slack Block Kit Builder](https://app.slack.com/block-kit-builder)
 
 ```
-POST /slack-notifications/notification
+POST    /slack-notifications/v2/notification
+
+headers: Authorization: <internal-auth-token>
 
 body:
 
 {
-    "channelLookup" : {
-        "by" : "slack-channel",
-        "slackChannels" : [
-            "channel1",
-            "channel2"
+    "channelLookup": {
+        "by": "slack-channel",
+        "slackChannels": [
+            "channel1"
         ]
     },
-    "messageDetails" : {
-        "text" : "message to be posted",
-        "attachments" : [ // optional
-            { "text" : "some-attachment" }
-        ]
-    }
-}
-```
-
-## Send to a team based on a Github username of one of its members
-
-```
-POST /slack-notifications/notification
-
-body:
-
-{
-    "channelLookup" : {
-        "by" : "teams-of-github-user",
-        "githubUsername" : "a-github-username"
-    },
-    "messageDetails" : {
-        "text" : "message to be posted",
-        "attachments" : [ // optional
-            "text" : "some-attachment"
-        ]
-    }
+    "displayName": "Example", # username associated with the message
+    "emoji": ":robot_face:",  # acts as the profile picture
+    "text": "Example message",
+    "blocks": [
+        ...
+    ]
 }
 ```
 
 ## Response
+
+Both endpoints share the same response structure, including error codes.
 
 Response will typically have 200 status code and the following details:
 
@@ -179,9 +236,9 @@ Response will typically have 200 status code and the following details:
 |not_a_real_team                         | Team is not a real MDTP team with human members                        |
 |not_a_real_github_user                  | Github user is not a real person, e.g. CI user                         |
 
-### Allowlisted domains
+### Allow listed domains
 
-Any URL can be checked against the allowlisted domains stored in AllowlistedLink.scala.
+Any URL can be checked against the allow listed domains stored in LinkUtils.scala.
 
 ### License
 
