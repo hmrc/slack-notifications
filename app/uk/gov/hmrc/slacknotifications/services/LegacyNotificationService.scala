@@ -23,7 +23,7 @@ import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
-import uk.gov.hmrc.slacknotifications.connectors.{SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
+import uk.gov.hmrc.slacknotifications.connectors.SlackConnector
 import uk.gov.hmrc.slacknotifications.model._
 import uk.gov.hmrc.slacknotifications.services.AuthService.Service
 
@@ -33,16 +33,14 @@ import scala.util.control.NonFatal
 
 @Singleton
 class LegacyNotificationService @Inject()(
-  slackNotificationConfig    : SlackNotificationConfig,
-  slackConnector             : SlackConnector,
-  val slackConfig            : SlackConfig,
-  val teamsAndReposConnector : TeamsAndRepositoriesConnector,
-  val userManagementConnector: UserManagementConnector,
-  userManagementService      : UserManagementService
+  slackNotificationConfig: SlackNotificationConfig,
+  slackConnector         : SlackConnector,
+  slackConfig            : SlackConfig,
+  userManagementService  : UserManagementService,
+  channelLookupService   : ChannelLookupService
 )(implicit
-  val ec: ExecutionContext
-) extends Logging
-     with ChannelLookupFunctions {
+  ec: ExecutionContext
+) extends Logging {
 
   def sendNotification(notificationRequest: NotificationRequest, service: Service)(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
@@ -51,12 +49,12 @@ class LegacyNotificationService @Inject()(
       case ChannelLookup.GithubRepository(name) =>
         {
           for {
-            repositoryDetails         <- EitherT(getExistingRepository(name))
-            allTeams                  <- EitherT(getTeamsResponsibleForRepo(name, repositoryDetails))
+            repositoryDetails         <- EitherT(channelLookupService.getExistingRepository(name))
+            allTeams                  <- EitherT(channelLookupService.getTeamsResponsibleForRepo(name, repositoryDetails))
             (excluded, toBeProcessed)  = allTeams.partition(slackNotificationConfig.notRealTeams.contains)
             notificationResult        <- EitherT.liftF[Future, NotificationResult, NotificationResult](toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){(acc, teamName) =>
                 for {
-                  slackChannel    <- getExistingSlackChannel(teamName)
+                  slackChannel    <- channelLookupService.getExistingSlackChannel(teamName)
                   notificationRes <- slackChannel match {
                     case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), service, Some(teamName))
                     case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(teamName).message)), service, Some(teamName)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(teamName))))
@@ -68,7 +66,7 @@ class LegacyNotificationService @Inject()(
         }.merge
 
       case ChannelLookup.GithubTeam(team) =>
-          getExistingSlackChannel(team).flatMap{slackChannel =>
+          channelLookupService.getExistingSlackChannel(team).flatMap{slackChannel =>
             slackChannel match {
               case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), service, Some(team))
               case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(team).message)), service, Some(team)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(team))))
@@ -107,7 +105,7 @@ class LegacyNotificationService @Inject()(
     notificationResult        <- if (toBeProcessed.nonEmpty) {
                                   toBeProcessed.foldLeftM(Seq.empty[NotificationResult]) { (acc, teamName) =>
                                     for {
-                                      slackChannel <- getExistingSlackChannel(teamName)
+                                      slackChannel    <- channelLookupService.getExistingSlackChannel(teamName)
                                       notificationRes <- slackChannel match {
                                         case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), service, Some(teamName))
                                         case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(teamName).message)), service, Some(teamName)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(teamName))))

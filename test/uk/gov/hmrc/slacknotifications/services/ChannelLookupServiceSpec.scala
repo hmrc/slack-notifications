@@ -21,11 +21,10 @@ import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDet
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 
-class ChannelLookupFunctionsSpec
-  extends UnitSpec
-{
+class ChannelLookupServiceSpec
+  extends UnitSpec {
 
   "Getting teams responsible for repo" should {
     "prioritize owningTeams" in new Fixtures {
@@ -35,7 +34,7 @@ class ChannelLookupFunctionsSpec
           teamNames = List("team1", "team2")
         )
 
-      clf.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1")
+      service.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1")
     }
     "return contributing teams if no explicit owning teams are specified" in new Fixtures {
       val repoDetails: RepositoryDetails =
@@ -44,7 +43,7 @@ class ChannelLookupFunctionsSpec
           teamNames = List("team1", "team2")
         )
 
-      clf.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1", "team2")
+      service.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1", "team2")
     }
   }
 
@@ -54,7 +53,7 @@ class ChannelLookupFunctionsSpec
       val slackLink = "foo/" + teamChannelName
       val teamDetails = TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
 
-      clf.extractSlackChannel(teamDetails) shouldBe Some(teamChannelName)
+      service.extractSlackChannel(teamDetails) shouldBe Some(teamChannelName)
     }
 
     "return the slackNotification channel when present" in new Fixtures {
@@ -65,24 +64,24 @@ class ChannelLookupFunctionsSpec
         slackNotification = Some(s"foo/$teamChannelName-notification"),
         teamName = "n/a")
 
-      clf.extractSlackChannel(teamDetails) shouldBe Some(s"$teamChannelName-notification")
+      service.extractSlackChannel(teamDetails) shouldBe Some(s"$teamChannelName-notification")
     }
 
     "return None if slack field exists but there is no slack channel in it" in new Fixtures {
       val slackLink = "link-without-team/"
       val teamDetails = TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
 
-      clf.extractSlackChannel(teamDetails) shouldBe None
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field doesn't exist" in new Fixtures {
       val teamDetails = TeamDetails(slack = None, slackNotification = None, teamName = "n/a")
-      clf.extractSlackChannel(teamDetails) shouldBe None
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
 
     "return None if slack field does not contain a forward slash" in new Fixtures {
       val teamDetails = TeamDetails(slack = Some("not a url"), slackNotification = None, teamName = "n/a")
-      clf.extractSlackChannel(teamDetails) shouldBe None
+      service.extractSlackChannel(teamDetails) shouldBe None
     }
   }
 
@@ -92,12 +91,12 @@ class ChannelLookupFunctionsSpec
     val mockTeamsAndReposConn: TeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
     val mockUserManagementConnector: UserManagementConnector = mock[UserManagementConnector]
 
-    lazy val clf: ChannelLookupFunctions = new ChannelLookupFunctions {
-      override implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
-      override val slackConfig: SlackConfig = mockSlackConfig
-      override val teamsAndReposConnector: TeamsAndRepositoriesConnector = mockTeamsAndReposConn
-      override val userManagementConnector: UserManagementConnector = mockUserManagementConnector
-    }
+    lazy val service: ChannelLookupService =
+      new ChannelLookupService(
+        mockSlackConfig,
+        mockTeamsAndReposConn,
+        mockUserManagementConnector
+      )
   }
 
 }

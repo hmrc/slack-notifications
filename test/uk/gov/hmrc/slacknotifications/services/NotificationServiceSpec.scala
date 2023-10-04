@@ -24,8 +24,8 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup._
-import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamDetails, TeamName}
-import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
+import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
+import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector}
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
 import uk.gov.hmrc.slacknotifications.model.{NotificationResult, SlackMessage}
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
@@ -44,12 +44,13 @@ class NotificationServiceSpec
   "sendNotification" should {
     "work for all channel lookup types (happy path)" in new Fixtures {
       private val teamName = "team-name"
-      when(mockTeamsAndReposConnector.getRepositoryDetails(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Some(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+      when(mockChannelLookupService.getExistingRepository(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Right(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+      when(mockChannelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
+        .thenReturn(Future.successful(Right(List(teamName))))
 
       val teamChannel = "team-channel"
       val usersTeams = List(TeamName("team-one"))
-      val teamDetails = TeamDetails(slack = Some(s"https://foo.slack.com/$teamChannel"), teamName = "team-one", slackNotification = None)
 
       val channelLookups = List(
         GithubRepository("repo"),
@@ -63,8 +64,8 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(usersTeams))
       when(mockUserManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
-      when(mockUserManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Some(teamDetails)))
+      when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Right(teamChannel)))
       when(mockSlackConnector.chatPostMessage(any[SlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
@@ -89,7 +90,7 @@ class NotificationServiceSpec
         channelLookup match {
           case req: TeamsOfGithubUser => verify(mockUserManagementService, times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
           case req: TeamsOfLdapUser   => verify(mockUserManagementService, times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
-          case req: GithubTeam        => verify(mockUserManagementConnector, times(1)).getTeamSlackDetails(eqTo(req.teamName))(any)
+          case req: GithubTeam        => verify(mockChannelLookupService,  times(1)).getExistingSlackChannel(eqTo(req.teamName))(any)
           case _                      =>
         }
       }
@@ -98,9 +99,8 @@ class NotificationServiceSpec
 
   trait Fixtures {
     val mockSlackConnector          = mock[SlackConnector] //(withSettings.lenient)
-    val mockTeamsAndReposConnector  = mock[TeamsAndRepositoriesConnector] //(withSettings.lenient)
-    val mockUserManagementConnector = mock[UserManagementConnector] //(withSettings.lenient)
     val mockUserManagementService   = mock[UserManagementService]
+    val mockChannelLookupService    = mock[ChannelLookupService]
 
     val configuration =
       Configuration(
@@ -112,9 +112,8 @@ class NotificationServiceSpec
       slackNotificationConfig = new SlackNotificationConfig(configuration),
       slackConfig             = new SlackConfig(configuration),
       slackConnector          = mockSlackConnector,
-      teamsAndReposConnector  = mockTeamsAndReposConnector,
-      userManagementConnector = mockUserManagementConnector,
-      userManagementService   = mockUserManagementService
+      userManagementService   = mockUserManagementService,
+      channelLookupService    = mockChannelLookupService
     )
   }
 

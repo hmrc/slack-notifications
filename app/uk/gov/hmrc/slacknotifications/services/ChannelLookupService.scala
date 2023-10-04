@@ -22,15 +22,17 @@ import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDet
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model._
 
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
-trait ChannelLookupFunctions {
-
-  implicit val ec: ExecutionContext
-
-  val slackConfig            : SlackConfig
-  val teamsAndReposConnector : TeamsAndRepositoriesConnector
-  val userManagementConnector: UserManagementConnector
+@Singleton
+class ChannelLookupService @Inject()(
+  slackConfig: SlackConfig,
+  teamsAndReposConnector: TeamsAndRepositoriesConnector,
+  userManagementConnector: UserManagementConnector
+)(implicit
+  ec: ExecutionContext
+) {
 
   def getExistingRepository(
     repoName: String

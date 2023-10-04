@@ -113,7 +113,19 @@ object SlackMessage {
 
   def sanitise(msg: SlackMessage): SlackMessage = {
     val updatedText = LinkUtils.updateLinks(msg.text, msg.channel)
-    val updatedBlocks = msg.blocks.map(block => Json.parse(LinkUtils.updateLinks(block.toString(), msg.channel)).as[JsObject])
+
+    // update links whilst preserving json structure
+    def updateLinks(json: JsValue): JsValue =
+      json match {
+        case JsNull             => JsNull
+        case boolean: JsBoolean => boolean
+        case number : JsNumber  => number
+        case string : JsString  => JsString(LinkUtils.updateLinks(string.value, msg.channel))
+        case array  : JsArray   => JsArray(array.value.map(updateLinks))
+        case obj    : JsObject  => JsObject(underlying = obj.value.map { case (k, v) => (k, updateLinks(v)) })
+      }
+
+    val updatedBlocks = msg.blocks.map(block => updateLinks(block).as[JsObject])
 
     msg.copy(
       text        = updatedText,
