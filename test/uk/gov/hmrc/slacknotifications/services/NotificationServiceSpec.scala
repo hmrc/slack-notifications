@@ -66,7 +66,7 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(usersTeams))
       when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Right(teamChannel)))
-      when(mockSlackConnector.chatPostMessage(any[SlackMessage])(any[HeaderCarrier]))
+      when(mockSlackConnector.postChatMessage(any[SlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
       channelLookups.foreach { channelLookup =>

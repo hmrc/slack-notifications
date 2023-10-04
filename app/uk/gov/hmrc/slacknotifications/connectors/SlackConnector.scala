@@ -49,7 +49,7 @@ class SlackConnector @Inject()(
       .withProxy
       .execute[HttpResponse]
 
-  def chatPostMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
+  def postChatMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
     implicit val smF: Format[SlackMessage] = SlackMessage.format
 
     httpClientV2

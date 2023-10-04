@@ -168,7 +168,7 @@ class NotificationService @Inject()(
   ): Future[NotificationResult] =
     if (slackNotificationConfig.notificationEnabled)
       slackConnector
-        .chatPostMessage(slackMessage)
+        .postChatMessage(slackMessage)
         .map { response =>
           response.status match {
             case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
