@@ -33,13 +33,13 @@ class SlackConnector @Inject()(
 )(implicit ec: ExecutionContext) {
   import HttpReads.Implicits._
 
-  private val slackWebHookUri: String =
+  private lazy val slackWebHookUri: String =
     configuration.get[String]("slack.webhookUrl")
 
-  private val slackApiUrl: String =
+  private lazy val slackApiUrl: String =
     configuration.get[String]("slack.apiUrl")
 
-  private val botToken: String =
+  private lazy val botToken: String =
     configuration.get[String]("slack.botToken")
 
   def sendMessage(message: LegacySlackMessage)(implicit hc: HeaderCarrier): Future[HttpResponse] =
