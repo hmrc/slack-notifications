@@ -21,14 +21,14 @@ import org.scalacheck.Gen
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, _}
+import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
 import uk.gov.hmrc.slacknotifications.model._
-import uk.gov.hmrc.slacknotifications.services.AuthService.Service
+import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -58,7 +58,7 @@ class LegacyNotificationServiceSpec
             attachments = Nil,
             showAttachmentAuthor = true
           ),
-          Service("", Password(""))
+          ClientService("", Password(""))
         )
         .futureValue
 
@@ -82,7 +82,7 @@ class LegacyNotificationServiceSpec
               attachments = Nil,
               showAttachmentAuthor = true
             ),
-            Service("", Password(""))
+            ClientService("", Password(""))
           )
           .futureValue
 
@@ -116,7 +116,7 @@ class LegacyNotificationServiceSpec
               attachments = Nil,
               showAttachmentAuthor = true
             ),
-            Service("", Password(""))
+            ClientService("", Password(""))
           )
           .futureValue
 
@@ -142,7 +142,7 @@ class LegacyNotificationServiceSpec
                 attachments = Nil,
                 showAttachmentAuthor = true
               ),
-              Service("", Password("")))
+              ClientService("", Password("")))
             .futureValue
         }
 
@@ -188,7 +188,7 @@ class LegacyNotificationServiceSpec
             )
           )
 
-        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+        val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(teamChannel),
@@ -250,7 +250,7 @@ class LegacyNotificationServiceSpec
             )
           )
 
-        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+        val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
@@ -305,7 +305,7 @@ class LegacyNotificationServiceSpec
             )
           )
 
-        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+        val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
@@ -329,7 +329,7 @@ class LegacyNotificationServiceSpec
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+      val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -352,7 +352,7 @@ class LegacyNotificationServiceSpec
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+      val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -399,7 +399,7 @@ class LegacyNotificationServiceSpec
             )
           )
 
-        val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+        val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
         val space = " " //to stop ide from removing end spaces
 
         val slackMessageStr = s"""
@@ -445,7 +445,7 @@ class LegacyNotificationServiceSpec
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+      val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -467,7 +467,7 @@ class LegacyNotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+      val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -497,7 +497,7 @@ class LegacyNotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+      val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -518,7 +518,7 @@ class LegacyNotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+      val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -541,7 +541,7 @@ class LegacyNotificationServiceSpec
           messageDetails = exampleMessageDetails
         )
 
-      val result = service.sendNotification(notificationRequest, Service("", Password(""))).futureValue
+      val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
@@ -579,7 +579,7 @@ class LegacyNotificationServiceSpec
               None)),
           showAttachmentAuthor = true
         ),
-        Service("leak-detection", Password(""))
+        ClientService("leak-detection", Password(""))
       )
 
       result.username                     should be("leak-detector")
@@ -614,7 +614,7 @@ class LegacyNotificationServiceSpec
               None)),
           showAttachmentAuthor = true
         ),
-        Service("another-service", Password(""))
+        ClientService("another-service", Password(""))
       )
 
       result.username                     should be("another-service")
@@ -649,7 +649,7 @@ class LegacyNotificationServiceSpec
               None)),
           showAttachmentAuthor = false
         ),
-        Service("another-service", Password(""))
+        ClientService("another-service", Password(""))
       )
       result.attachments.head.author_name should be(None)
     }

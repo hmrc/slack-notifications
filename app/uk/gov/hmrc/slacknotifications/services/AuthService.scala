@@ -28,11 +28,11 @@ import scala.util.Try
 class AuthService @Inject()(slackNotificationConfig: SlackNotificationConfig) {
   import AuthService._
 
-  def isAuthorized(service: Service): Boolean =
+  def isAuthorized(clientService: ClientService): Boolean =
     slackNotificationConfig.serviceConfigs
       .find(sc =>
-        sc.name          == service.name &&
-        sc.password.trim == service.password.trim // \n often added when base64 encoding the password for configuration
+        sc.name          == clientService.name &&
+        sc.password.trim == clientService.password.trim // \n often added when base64 encoding the password for configuration
       )
       .isDefined
 }
@@ -47,18 +47,18 @@ object AuthService {
       Try(new String(BaseEncoding.base64().decode(s))).toOption
   }
 
-  final case class Service(
+  final case class ClientService(
     name    : String,
     password: Password
   )
 
-  object Service {
-    def fromAuthorization(authorization: Authorization): Option[Service] =
+  object ClientService {
+    def fromAuthorization(authorization: Authorization): Option[ClientService] =
       Base64String
         .decode(authorization.value.stripPrefix("Basic "))
         .map(_.split(":"))
         .collect {
-          case Array(serviceName, password) => Service(serviceName, Password(password))
+          case Array(serviceName, password) => ClientService(serviceName, Password(password))
         }
   }
 }

@@ -49,14 +49,14 @@ class LegacyNotificationController @Inject()(
     }
   }
 
-  def withAuthorization(fn: AuthService.Service => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
+  def withAuthorization(fn: AuthService.ClientService => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
     def unauthorized = {
       val message            = "Invalid credentials. Requires basic authentication"
       implicit val erFormats = Json.format[ErrorResponse]
       Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message, None, None))))
     }
 
-    hc.authorization.flatMap(AuthService.Service.fromAuthorization).fold(unauthorized) { service =>
+    hc.authorization.flatMap(AuthService.ClientService.fromAuthorization).fold(unauthorized) { service =>
       if (authService.isAuthorized(service))
         fn(service)
       else unauthorized

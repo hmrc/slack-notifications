@@ -23,7 +23,7 @@ import play.api.test.{FakeRequest, StubControllerComponentsFactory}
 import play.test.Helpers
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, NotificationResult, Password}
-import uk.gov.hmrc.slacknotifications.services.AuthService.Service
+import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 import uk.gov.hmrc.slacknotifications.services.{AuthService, LegacyNotificationService}
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
@@ -37,9 +37,9 @@ class LegacyNotificationControllerSpec extends UnitSpec with ScalaFutures {
       val validCredentials = "Zm9vOmJhcg==" // foo:bar:deployments-info base64 encoded
       val request          = baseRequest.withHeaders("Authorization" -> s"Basic $validCredentials")
 
-      when(notificationService.sendNotification(any[NotificationRequest], any[Service])(any[HeaderCarrier]))
+      when(notificationService.sendNotification(any[NotificationRequest], any[ClientService])(any[HeaderCarrier]))
         .thenReturn(Future.successful(NotificationResult()))
-      when(authService.isAuthorized(eqTo(Service("foo", Password("bar"))))).thenReturn(true)
+      when(authService.isAuthorized(eqTo(ClientService("foo", Password("bar"))))).thenReturn(true)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 200
@@ -54,7 +54,7 @@ class LegacyNotificationControllerSpec extends UnitSpec with ScalaFutures {
       val invalidCredentials = "Zm9vOmJhcg==" // foo:bar base64 encoded
       val request            = baseRequest.withHeaders("Authorization" -> s"Basic $invalidCredentials")
 
-      when(authService.isAuthorized(eqTo(Service("foo", Password("bar"))))).thenReturn(false)
+      when(authService.isAuthorized(eqTo(ClientService("foo", Password("bar"))))).thenReturn(false)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 401
