@@ -39,7 +39,7 @@ class NotificationController @Inject()(
 ) extends BackendController(controllerComponents) with Logging {
 
   private val predicate: Predicate.Permission =
-    Predicate.Permission(Resource.from("slack-notifications", "v2/notification"), IAAction("WRITE"))
+    Predicate.Permission(Resource.from("slack-notifications", "v2/notification"), IAAction("SEND_NOTIFICATION"))
 
   def sendNotification(): Action[JsValue] =
     auth.authorizedAction(predicate).async(parse.json) { implicit request =>
