@@ -18,6 +18,7 @@ package uk.gov.hmrc.slacknotifications.model
 
 import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
 import play.api.libs.json._
+import uk.gov.hmrc.slacknotifications.config.DomainConfig
 import uk.gov.hmrc.slacknotifications.utils.LinkUtils
 
 /**
@@ -55,22 +56,25 @@ object Attachment {
 
   implicit val format: OFormat[Attachment] = Json.format[Attachment]
 
-  def sanitise(attch: Attachment, channel: String): Attachment =
+  def sanitise(attch: Attachment, channel: String, domainConfig: DomainConfig): Attachment = {
+    def update(link: String) = LinkUtils.updateLinks(link, channel, domainConfig)
+
     attch.copy(
-      fallback    = attch.fallback.map{LinkUtils.updateLinks(_, channel)},
-      color       = attch.color.map{LinkUtils.updateLinks(_, channel)},
-      pretext     = attch.pretext.map{LinkUtils.updateLinks(_, channel)},
-      author_name = attch.author_name.map{LinkUtils.updateLinks(_, channel)},
-      author_link = attch.author_link.map{LinkUtils.updateLinks(_, channel)},
-      author_icon = attch.author_icon.map{LinkUtils.updateLinks(_, channel)},
-      title       = attch.title.map{LinkUtils.updateLinks(_, channel)},
-      title_link  = attch.title_link.map{LinkUtils.updateLinks(_, channel)},
-      text        = attch.text.map{LinkUtils.updateLinks(_, channel)},
-      image_url   = attch.image_url.map{LinkUtils.updateLinks(_, channel)},
-      thumb_url   = attch.thumb_url.map{LinkUtils.updateLinks(_, channel)},
-      footer      = attch.footer.map{LinkUtils.updateLinks(_, channel)},
-      footer_icon = attch.footer_icon.map{LinkUtils.updateLinks(_, channel)}
+      fallback    = attch.fallback.map(update),
+      color       = attch.color.map(update),
+      pretext     = attch.pretext.map(update),
+      author_name = attch.author_name.map(update),
+      author_link = attch.author_link.map(update),
+      author_icon = attch.author_icon.map(update),
+      title       = attch.title.map(update),
+      title_link  = attch.title_link.map(update),
+      text        = attch.text.map(update),
+      image_url   = attch.image_url.map(update),
+      thumb_url   = attch.thumb_url.map(update),
+      footer      = attch.footer.map(update),
+      footer_icon = attch.footer_icon.map(update)
     )
+  }
 }
 
 case class LegacySlackMessage(
@@ -85,10 +89,10 @@ case class LegacySlackMessage(
 object LegacySlackMessage {
   implicit val format: OFormat[LegacySlackMessage] = Json.format[LegacySlackMessage]
 
-  def sanitise(msg: LegacySlackMessage): LegacySlackMessage =
+  def sanitise(msg: LegacySlackMessage, domainConfig: DomainConfig): LegacySlackMessage =
     msg.copy(
-      text        = LinkUtils.updateLinks(msg.text, msg.channel),
-      attachments = msg.attachments.map(Attachment.sanitise(_, msg.channel))
+      text        = LinkUtils.updateLinks(msg.text, msg.channel, domainConfig),
+      attachments = msg.attachments.map(Attachment.sanitise(_, msg.channel, domainConfig))
     )
 }
 
@@ -111,8 +115,8 @@ object SlackMessage {
     ~ (__ \ "icon_emoji" ).format[String]
     )(apply, unlift(unapply))
 
-  def sanitise(msg: SlackMessage): SlackMessage = {
-    val updatedText = LinkUtils.updateLinks(msg.text, msg.channel)
+  def sanitise(msg: SlackMessage, domainConfig: DomainConfig): SlackMessage = {
+    val updatedText = LinkUtils.updateLinks(msg.text, msg.channel, domainConfig)
 
     // update links whilst preserving json structure
     def updateLinks(json: JsValue): JsValue =
@@ -120,7 +124,7 @@ object SlackMessage {
         case JsNull             => JsNull
         case boolean: JsBoolean => boolean
         case number : JsNumber  => number
-        case string : JsString  => JsString(LinkUtils.updateLinks(string.value, msg.channel))
+        case string : JsString  => JsString(LinkUtils.updateLinks(string.value, msg.channel, domainConfig))
         case array  : JsArray   => JsArray(array.value.map(updateLinks))
         case obj    : JsObject  => JsObject(underlying = obj.value.map { case (k, v) => (k, updateLinks(v)) })
       }

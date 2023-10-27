@@ -16,21 +16,12 @@
 
 package uk.gov.hmrc.slacknotifications.utils
 
+import uk.gov.hmrc.slacknotifications.config.DomainConfig
+
 import java.net.{URI, URL}
 import scala.util.Try
 
 object LinkUtils {
-  val LinkNotAllowListed = "LINK NOT ALLOW LISTED"
-
-  val allowedDomains: Set[String] = Set(
-    "tax.service.gov.uk",
-    "github.com",
-    "pagerduty.com",
-    "console.aws.amazon.com",
-    "health.aws.amazon.com",
-    "haveibeenpwned.com"
-  )
-
   // Captures urls terminated by:
   // - double quotes e.g. "https://example.com"
   // - a backtick e.g. `https://example.com`
@@ -45,8 +36,8 @@ object LinkUtils {
       .flatMap(_.toOption)
       .toSet
 
-  private[utils] def isAllowListed(url: URL): Boolean =
-    allowedDomains.exists(url.getHost.contains)
+  private[utils] def isAllowListed(url: URL, domainConfig: DomainConfig): Boolean =
+    domainConfig.allowedDomains.exists(url.getHost.contains)
 
   private def isCatalogueLink(url: URL) =
     url.getHost.contains("catalogue.tax.service.gov.uk")
@@ -73,11 +64,11 @@ object LinkUtils {
   private def overrideBadLinks(badLinkMessage: String, links: Set[URL])(str: String): String =
     links.foldLeft(str)((acc, link) => acc.replace(link.toString, badLinkMessage))
 
-  def updateLinks(text: String, channel: String): String = {
+  def updateLinks(text: String, channel: String, domainConfig: DomainConfig): String = {
     val (catalogueLinks, otherLinks) = getUris(text).partition(isCatalogueLink)
-    val badLinks = otherLinks.filterNot(isAllowListed)
+    val badLinks = otherLinks.filterNot(isAllowListed(_, domainConfig))
     updateCatalogueLinks(channel, catalogueLinks)(
-      overrideBadLinks(LinkNotAllowListed, badLinks)(
+      overrideBadLinks(domainConfig.linkNotAllowListed, badLinks)(
         text
       )
     )

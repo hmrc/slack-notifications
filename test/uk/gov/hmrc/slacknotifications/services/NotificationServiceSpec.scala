@@ -32,6 +32,7 @@ import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import uk.gov.hmrc.slacknotifications.config.DomainConfig
 
 class NotificationServiceSpec
   extends UnitSpec
@@ -104,13 +105,16 @@ class NotificationServiceSpec
 
     val configuration =
       Configuration(
-        "slack.notification.enabled"       -> true,
-        "alerts.slack.noTeamFound.channel" -> "test-channel",
+        "slack.notification.enabled"       -> true
+      , "alerts.slack.noTeamFound.channel" -> "test-channel"
+      , "allowed.domains"                  ->  Seq("domain1", "domain2")
+      , "linkNotAllowListed"               -> "LINK NOT ALLOW LISTED"
       )
 
     lazy val service = new NotificationService(
       slackNotificationConfig = new SlackNotificationConfig(configuration),
       slackConfig             = new SlackConfig(configuration),
+      domainConfig            = new DomainConfig(configuration),
       slackConnector          = mockSlackConnector,
       userManagementService   = mockUserManagementService,
       channelLookupService    = mockChannelLookupService
