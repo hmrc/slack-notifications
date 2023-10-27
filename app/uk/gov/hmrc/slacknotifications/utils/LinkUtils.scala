@@ -27,6 +27,7 @@ object LinkUtils {
     "github.com",
     "pagerduty.com",
     "console.aws.amazon.com",
+    "health.aws.amazon.com",
     "haveibeenpwned.com"
   )
 
