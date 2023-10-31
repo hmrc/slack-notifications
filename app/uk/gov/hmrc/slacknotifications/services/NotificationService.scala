@@ -21,7 +21,7 @@ import cats.implicits._
 import play.api.Logging
 import uk.gov.hmrc.http.{HeaderCarrier, UpstreamErrorResponse}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
-import uk.gov.hmrc.slacknotifications.config.SlackConfig
+import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.connectors.SlackConnector
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
@@ -35,6 +35,7 @@ import scala.util.control.NonFatal
 class NotificationService @Inject()(
   slackNotificationConfig: SlackNotificationConfig
 , slackConfig            : SlackConfig
+, domainConfig           : DomainConfig
 , slackConnector         : SlackConnector
 , userManagementService  : UserManagementService
 , channelLookupService   : ChannelLookupService
@@ -146,7 +147,8 @@ class NotificationService @Inject()(
             blocks   = Seq(SlackMessage.errorBlock(error), SlackMessage.divider) ++ request.blocks,
             username = request.displayName,
             emoji    = request.emoji
-          )
+          ),
+          domainConfig
         )
       case None =>
         SlackMessage.sanitise(
@@ -156,7 +158,8 @@ class NotificationService @Inject()(
             blocks   = request.blocks,
             username = request.displayName,
             emoji    = request.emoji
-          )
+          ),
+          domainConfig
         )
     }
 

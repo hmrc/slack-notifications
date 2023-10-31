@@ -21,7 +21,7 @@ import cats.implicits._
 import play.api.Logging
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
-import uk.gov.hmrc.slacknotifications.config.SlackConfig
+import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.connectors.SlackConnector
 import uk.gov.hmrc.slacknotifications.model._
@@ -36,6 +36,7 @@ class LegacyNotificationService @Inject()(
   slackNotificationConfig: SlackNotificationConfig,
   slackConnector         : SlackConnector,
   slackConfig            : SlackConfig,
+  domainConfig           : DomainConfig,
   userManagementService  : UserManagementService,
   channelLookupService   : ChannelLookupService
 )(implicit
@@ -131,7 +132,8 @@ class LegacyNotificationService @Inject()(
                                             )
                                           ) ++ notificationRequest.messageDetails.attachments,
                                           showAttachmentAuthor = false
-                                        )
+                                        ),
+                                        domainConfig
                                       ),
                                       service = service
                                     )
@@ -153,8 +155,8 @@ class LegacyNotificationService @Inject()(
     // username and user emoji are initially hard-coded to 'slack-notifications' and none,
     // then overridden from the authorised services config later
     errorMessage match {
-      case Some(error) => LegacySlackMessage.sanitise(LegacySlackMessage(slackChannel, error, "slack-notifications", None, Attachment(text = Some(text)) +: attachments, showAttachmentAuthor))
-      case None        => LegacySlackMessage.sanitise(LegacySlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor))
+      case Some(error) => LegacySlackMessage.sanitise(LegacySlackMessage(slackChannel, error, "slack-notifications", None, Attachment(text = Some(text)) +: attachments, showAttachmentAuthor), domainConfig)
+      case None        => LegacySlackMessage.sanitise(LegacySlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor), domainConfig)
     }
   }
 

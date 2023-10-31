@@ -23,7 +23,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
 import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
-import uk.gov.hmrc.slacknotifications.config.SlackConfig
+import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
@@ -662,17 +662,16 @@ class LegacyNotificationServiceSpec
 
     val configuration =
       Configuration(
-        "auth.authorizedServices.0.name"        -> "leak-detection",
-        "auth.authorizedServices.0.password"    -> "foo",
-        "auth.authorizedServices.0.displayName" -> "leak-detector",
-        "auth.authorizedServices.1.name"        -> "another-service",
-        "auth.authorizedServices.1.password"    -> "foo",
-        "slack.notification.enabled"            -> true,
-        "alerts.slack.noTeamFound.channel"      -> "test-channel",
-        "alerts.slack.noTeamFound.username"     -> "slack-notifications",
-        "alerts.slack.noTeamFound.iconEmoji"    -> "",
-        "alerts.slack.noTeamFound.text"         -> "test {user}"
-
+        "auth.authorizedServices.0.name"        -> "leak-detection"
+      , "auth.authorizedServices.0.password"    -> "foo"
+      , "auth.authorizedServices.0.displayName" -> "leak-detector"
+      , "auth.authorizedServices.1.name"        -> "another-service"
+      , "auth.authorizedServices.1.password"    -> "foo"
+      , "slack.notification.enabled"            -> true
+      , "alerts.slack.noTeamFound.channel"      -> "test-channel"
+      , "alerts.slack.noTeamFound.username"     -> "slack-notifications"
+      , "alerts.slack.noTeamFound.iconEmoji"    -> ""
+      , "alerts.slack.noTeamFound.text"         -> "test {user}"
       )
 
     val exampleMessageDetails =
@@ -686,6 +685,10 @@ class LegacyNotificationServiceSpec
         new SlackNotificationConfig(configuration),
         slackConnector,
         new SlackConfig(configuration),
+        new DomainConfig(Configuration(
+          "allowed.domains"    ->  Seq("domain1", "domain2")
+        , "linkNotAllowListed" -> "LINK NOT ALLOW LISTED"
+        )),
         userManagementService,
         channelLookupService
       )
