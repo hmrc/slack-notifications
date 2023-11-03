@@ -63,7 +63,7 @@ Can be one of:
 }
 ```
 
-## Setup and example usage of `POST    /notification`
+## Setup and example usage of `POST    /notification` (legacy)
 
 ### Auth
 This endpoint uses Basic Auth for access control. If you want to use it please contact team PlatOps.
@@ -155,11 +155,13 @@ This endpoint uses `internal-auth` for access control. If you want to use it the
 
 ### Example request
 
-Sends a Slack message to the channel specified
+Sends a Slack message to the channel specified using the [chat.postMessage](https://api.slack.com/methods/chat.postMessage) endpoint
 
-Here `text` is the text that will be displayed in the desktop notification, think of this like alt text for an image. It will not be displayed in the main body of the message.
+Here `text` is the text that will be displayed in the desktop notification, think of this like alt text for an image. It will not be displayed in the main body of the message when `blocks` are present, however it will be used as fallback when `blocks` fail to render.
 
 `blocks` can be designed using the [Slack Block Kit Builder](https://app.slack.com/block-kit-builder)
+
+`attachments` can be modelled in the same way, **however they are considered legacy** - See [docs](https://api.slack.com/reference/messaging/attachments)
 
 ```
 POST    /slack-notifications/v2/notification
@@ -175,10 +177,13 @@ body:
             "channel1"
         ]
     },
-    "displayName": "Example", # username associated with the message
-    "emoji": ":robot_face:",  # acts as the profile picture
-    "text": "Example message",
+    "displayName": "Example",  # username associated with the message
+    "emoji": ":robot_face:",   # acts as the profile picture
+    "text": "Example message", # plain text, used as fallback message if blocks/attachments can't be rendered
     "blocks": [
+        ...
+    ],
+    "attachments": [
         ...
     ]
 }

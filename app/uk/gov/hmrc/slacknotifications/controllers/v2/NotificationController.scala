@@ -61,7 +61,8 @@ object NotificationController {
     emoji        : String,
     channelLookup: ChannelLookup,
     text         : String,
-    blocks       : Seq[JsObject]
+    blocks       : Seq[JsObject],
+    attachments  : Seq[JsObject]
   )
 
   object SendNotificationRequest {
@@ -72,6 +73,7 @@ object NotificationController {
       ~ (__ \ "channelLookup").read[ChannelLookup]
       ~ (__ \ "text"         ).read[String]
       ~ (__ \ "blocks"       ).readWithDefault[Seq[JsObject]](Seq.empty)
+      ~ (__ \ "attachments"  ).readWithDefault[Seq[JsObject]](Seq.empty)
       )(SendNotificationRequest.apply _)
   }
 }

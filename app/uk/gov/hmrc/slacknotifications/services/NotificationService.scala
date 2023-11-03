@@ -142,22 +142,24 @@ class NotificationService @Inject()(
       case Some(error) =>
         SlackMessage.sanitise(
           SlackMessage(
-            channel  = slackChannel,
-            text     = error,
-            blocks   = Seq(SlackMessage.errorBlock(error), SlackMessage.divider) ++ request.blocks,
-            username = request.displayName,
-            emoji    = request.emoji
+            channel     = slackChannel,
+            text        = error,
+            blocks      = Seq(SlackMessage.errorBlock(error), SlackMessage.divider) ++ request.blocks,
+            attachments = request.attachments,
+            username    = request.displayName,
+            emoji       = request.emoji
           ),
           domainConfig
         )
       case None =>
         SlackMessage.sanitise(
           SlackMessage(
-            channel  = slackChannel,
-            text     = request.text,
-            blocks   = request.blocks,
-            username = request.displayName,
-            emoji    = request.emoji
+            channel     = slackChannel,
+            text        = request.text,
+            blocks      = request.blocks,
+            attachments = request.attachments,
+            username    = request.displayName,
+            emoji       = request.emoji
           ),
           domainConfig
         )
