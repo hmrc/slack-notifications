@@ -77,7 +77,8 @@ class NotificationServiceSpec
             emoji         = ":robot_face:",
             channelLookup = channelLookup,
             text          = "a test message",
-            blocks        = Seq.empty
+            blocks        = Seq.empty,
+            attachments   = Seq.empty
           )
 
         val result = service.sendNotification(request).futureValue

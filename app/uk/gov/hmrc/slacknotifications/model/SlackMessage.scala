@@ -102,6 +102,7 @@ final case class SlackMessage(
   channel    : String
 , text       : String
 , blocks     : Seq[JsObject]
+, attachments: Seq[JsObject]
 , username   : String
 , emoji      : String
 )
@@ -111,6 +112,7 @@ object SlackMessage {
     ( (__ \ "channel"    ).format[String]
     ~ (__ \ "text"       ).format[String]
     ~ (__ \ "blocks"     ).format[Seq[JsObject]]
+    ~ (__ \ "attachments").format[Seq[JsObject]]
     ~ (__ \ "username"   ).format[String]
     ~ (__ \ "icon_emoji" ).format[String]
     )(apply, unlift(unapply))
@@ -129,11 +131,13 @@ object SlackMessage {
         case obj    : JsObject  => JsObject(underlying = obj.value.map { case (k, v) => (k, updateLinks(v)) })
       }
 
-    val updatedBlocks = msg.blocks.map(block => updateLinks(block).as[JsObject])
+    val updatedBlocks      = msg.blocks.map(block => updateLinks(block).as[JsObject])
+    val updatedAttachments = msg.attachments.map(attachment => updateLinks(attachment).as[JsObject])
 
     msg.copy(
       text        = updatedText,
-      blocks      = updatedBlocks
+      blocks      = updatedBlocks,
+      attachments = updatedAttachments
     )
   }
 
