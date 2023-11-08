@@ -21,6 +21,8 @@ import play.api.libs.json._
 import uk.gov.hmrc.slacknotifications.config.DomainConfig
 import uk.gov.hmrc.slacknotifications.utils.LinkUtils
 
+import java.util.UUID
+
 /**
   * More details: https://api.slack.com/docs/message-attachments
   */
@@ -161,4 +163,21 @@ object SlackMessage {
         "type" -> JsString("divider")
       )
     )
+}
+
+final case class QueuedSlackMessage(
+  msgId       : UUID,
+  slackMessage: SlackMessage,
+  result      : NotificationResult
+)
+
+object QueuedSlackMessage {
+  implicit val smF: Format[SlackMessage]       = SlackMessage.format
+  implicit val nrF: Format[NotificationResult] = NotificationResult.format
+
+  val format: Format[QueuedSlackMessage] =
+    ( (__ \ "msgId"       ).format[UUID] // using play json uuid format to String - makes querying in mongo shell easier
+    ~ (__ \ "slackMessage").format[SlackMessage]
+    ~ (__ \ "result"      ).format[NotificationResult]
+    )(apply, unlift(unapply))
 }

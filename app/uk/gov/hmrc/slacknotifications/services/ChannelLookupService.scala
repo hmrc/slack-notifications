@@ -43,7 +43,7 @@ class ChannelLookupService @Inject()(
       .getRepositoryDetails(repoName)
       .flatMap {
         case Some(repoDetails) => Future.successful(Right(repoDetails))
-        case None => Future.successful(Left(NotificationResult().addError(RepositoryNotFound(repoName))))
+        case None => Future.successful(Left(NotificationResult().addError(Error.repositoryNotFound(repoName))))
       }
 
   private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
@@ -57,7 +57,7 @@ class ChannelLookupService @Inject()(
     repositoryDetails: RepositoryDetails
   ): Future[Either[NotificationResult, List[String]]] =
     getTeamsResponsibleForRepo(repositoryDetails) match {
-      case Nil => Future.successful(Left(NotificationResult().addError(TeamsNotFoundForRepository(repoName))))
+      case Nil => Future.successful(Left(NotificationResult().addError(Error.teamsNotFoundForRepository(repoName))))
       case teams => Future.successful(Right(teams))
     }
 
