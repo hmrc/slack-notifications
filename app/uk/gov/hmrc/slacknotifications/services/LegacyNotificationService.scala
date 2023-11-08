@@ -58,11 +58,11 @@ class LegacyNotificationService @Inject()(
                   slackChannel    <- channelLookupService.getExistingSlackChannel(teamName)
                   notificationRes <- slackChannel match {
                     case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), clientService, Some(teamName))
-                    case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(teamName).message)), clientService, Some(teamName)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(teamName))))
+                    case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(Error.unableToFindTeamSlackChannelInUMP(teamName).message)), clientService, Some(teamName)).map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName))))
                   }
                 } yield acc :+ notificationRes
               }.map(concatResults))
-            resWithExclusions          = notificationResult.addExclusion(excluded.map(NotARealTeam.apply): _*)
+            resWithExclusions          = notificationResult.addExclusion(excluded.map(Exclusion.notARealTeam): _*)
           } yield resWithExclusions
         }.merge
 
@@ -70,7 +70,7 @@ class LegacyNotificationService @Inject()(
           channelLookupService.getExistingSlackChannel(team).flatMap{slackChannel =>
             slackChannel match {
               case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), clientService, Some(team))
-              case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(team).message)), clientService, Some(team)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(team))))
+              case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(Error.unableToFindTeamSlackChannelInUMP(team).message)), clientService, Some(team)).map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(team))))
             }
           }
 
@@ -81,7 +81,7 @@ class LegacyNotificationService @Inject()(
 
       case ChannelLookup.TeamsOfGithubUser(githubUsername) =>
         if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
-          Future.successful(NotificationResult().addExclusion(NotARealGithubUser(githubUsername)))
+          Future.successful(NotificationResult().addExclusion(Exclusion.notARealGithubUser(githubUsername)))
         else
           sendNotificationForUser("github", githubUsername, userManagementService.getTeamsForGithubUser)(notificationRequest, clientService)
 
@@ -109,7 +109,7 @@ class LegacyNotificationService @Inject()(
                                       slackChannel    <- channelLookupService.getExistingSlackChannel(teamName)
                                       notificationRes <- slackChannel match {
                                         case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), service, Some(teamName))
-                                        case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(UnableToFindTeamSlackChannelInUMP(teamName).message)), service, Some(teamName)).map(_.copy(errors = Seq(UnableToFindTeamSlackChannelInUMP(teamName))))
+                                        case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(Error.unableToFindTeamSlackChannelInUMP(teamName).message)), service, Some(teamName)).map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName))))
                                       }
                                     } yield acc :+ notificationRes
                                   }}.map(concatResults)
@@ -126,7 +126,7 @@ class LegacyNotificationService @Inject()(
                                           attachments = Seq(
                                             Attachment(
                                               fields = Some(List(
-                                                Attachment.Field(title = "Error", value = TeamsNotFoundForUsername(userType, username).stylisedMessage, short = false),
+                                                Attachment.Field(title = "Error", value = Error.teamsNotFoundForUsername(userType, username).message, short = false),
                                                 Attachment.Field(title = "Message Details", value = notificationRequest.messageDetails.text, short = false),
                                               ))
                                             )
@@ -137,9 +137,9 @@ class LegacyNotificationService @Inject()(
                                       ),
                                       service = service
                                     )
-                                    Future.successful(NotificationResult().addError(TeamsNotFoundForUsername(userType, username)))
+                                    Future.successful(NotificationResult().addError(Error.teamsNotFoundForUsername(userType, username)))
                                 }
-    resWithExclusions          = notificationResult.addExclusion(excluded.map(NotARealTeam.apply): _*)
+    resWithExclusions          = notificationResult.addExclusion(excluded.map(Exclusion.notARealTeam): _*)
   } yield resWithExclusions
 
   private def concatResults(results: Seq[NotificationResult]): NotificationResult =
@@ -195,7 +195,7 @@ class LegacyNotificationService @Inject()(
     else
       Future.successful {
         val messageStr = slackMessageToString(populateNameAndIconInMessage(slackMessage, service))
-        NotificationResult().addExclusion(NotificationDisabled(messageStr))
+        NotificationResult().addExclusion(Exclusion.notificationDisabled(messageStr))
       }
 
   private def slackMessageToString(slackMessage: LegacySlackMessage): String =
@@ -219,12 +219,12 @@ class LegacyNotificationService @Inject()(
   }
 
   private def handleChannelNotFound(channel: String): Future[NotificationResult] = {
-    logger.error(SlackChannelNotFound(channel).message)
-    Future.successful(NotificationResult().addError(SlackChannelNotFound(channel)))
+    logger.error(Error.slackChannelNotFound(channel).message)
+    Future.successful(NotificationResult().addError(Error.slackChannelNotFound(channel)))
   }
 
   private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String, teamName: Option[String]): NotificationResult = {
-    val slackError = SlackError(statusCode, exceptionMessage, channel, teamName)
+    val slackError = Error.slackError(statusCode, exceptionMessage, channel, teamName)
     logger.error(s"Unable to notify Slack channel $channel, the following error occurred: ${slackError.message}")
     NotificationResult().addError(slackError)
   }

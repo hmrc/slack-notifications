@@ -17,22 +17,24 @@
 package uk.gov.hmrc.slacknotifications.services
 
 import cats.data.NonEmptyList
+import org.bson.types.ObjectId
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup._
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
-import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector}
+import uk.gov.hmrc.slacknotifications.connectors.RepositoryDetails
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
-import uk.gov.hmrc.slacknotifications.model.{NotificationResult, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.QueuedSlackMessage
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import uk.gov.hmrc.slacknotifications.config.DomainConfig
+import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
 
 class NotificationServiceSpec
   extends UnitSpec
@@ -50,10 +52,10 @@ class NotificationServiceSpec
       when(mockChannelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
         .thenReturn(Future.successful(Right(List(teamName))))
 
-      val teamChannel = "team-channel"
-      val usersTeams = List(TeamName("team-one"))
+      private val teamChannel = "team-channel"
+      private val usersTeams = List(TeamName("team-one"))
 
-      val channelLookups = List(
+      private val channelLookups = List(
         GithubRepository("repo"),
         SlackChannel(NonEmptyList.of(teamChannel)),
         TeamsOfGithubUser("a-github-handle"),
@@ -67,8 +69,8 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(usersTeams))
       when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Right(teamChannel)))
-      when(mockSlackConnector.postChatMessage(any[SlackMessage])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(HttpResponse(200, "")))
+      when(mockSlackMessageQueue.add(any[QueuedSlackMessage]))
+        .thenReturn(Future.successful(new ObjectId()))
 
       channelLookups.foreach { channelLookup =>
         val request =
@@ -81,13 +83,9 @@ class NotificationServiceSpec
             attachments   = Seq.empty
           )
 
-        val result = service.sendNotification(request).futureValue
+        val result = service.sendNotification(request).value.futureValue
 
-        result shouldBe NotificationResult(
-          successfullySentTo = List(teamChannel),
-          errors             = Nil,
-          exclusions         = Nil
-        )
+        result should be a Symbol("right")
 
         channelLookup match {
           case req: TeamsOfGithubUser => verify(mockUserManagementService, times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
@@ -100,11 +98,11 @@ class NotificationServiceSpec
   }
 
   trait Fixtures {
-    val mockSlackConnector          = mock[SlackConnector] //(withSettings.lenient)
-    val mockUserManagementService   = mock[UserManagementService]
-    val mockChannelLookupService    = mock[ChannelLookupService]
+    val mockUserManagementService: UserManagementService       = mock[UserManagementService]
+    val mockChannelLookupService : ChannelLookupService        = mock[ChannelLookupService]
+    val mockSlackMessageQueue    : SlackMessageQueueRepository = mock[SlackMessageQueueRepository]
 
-    val configuration =
+    val configuration: Configuration =
       Configuration(
         "slack.notification.enabled"       -> true
       , "alerts.slack.noTeamFound.channel" -> "test-channel"
@@ -116,9 +114,9 @@ class NotificationServiceSpec
       slackNotificationConfig = new SlackNotificationConfig(configuration),
       slackConfig             = new SlackConfig(configuration),
       domainConfig            = new DomainConfig(configuration),
-      slackConnector          = mockSlackConnector,
       userManagementService   = mockUserManagementService,
-      channelLookupService    = mockChannelLookupService
+      channelLookupService    = mockChannelLookupService,
+      slackMessageQueue       = mockSlackMessageQueue
     )
   }
 

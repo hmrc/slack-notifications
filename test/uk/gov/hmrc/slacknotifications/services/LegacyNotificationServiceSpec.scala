@@ -86,7 +86,7 @@ class LegacyNotificationServiceSpec
           )
           .futureValue
 
-        result shouldBe NotificationResult().addError(SlackError(statusCode, errorMsg, "nonexistentChannel", None))
+        result shouldBe NotificationResult().addError(Error.slackError(statusCode, errorMsg, "nonexistentChannel", None))
       }
     }
 
@@ -96,10 +96,10 @@ class LegacyNotificationServiceSpec
       val exceptionsAndErrors =
         Table(
           ("exception", "expected error"),
-          (UpstreamErrorResponse(errorMsg, 400, 400), SlackError(400, errorMsg, "name-of-a-channel", None)),
-          (UpstreamErrorResponse(errorMsg, 403, 403), SlackError(403, errorMsg, "name-of-a-channel", None)),
-          (UpstreamErrorResponse(errorMsg, 500, 500), SlackError(500, errorMsg, "name-of-a-channel", None)),
-          (UpstreamErrorResponse(errorMsg, 404, 404), SlackError(404, errorMsg, "name-of-a-channel", None))
+          (UpstreamErrorResponse(errorMsg, 400, 400), Error.slackError(400, errorMsg, "name-of-a-channel", None)),
+          (UpstreamErrorResponse(errorMsg, 403, 403), Error.slackError(403, errorMsg, "name-of-a-channel", None)),
+          (UpstreamErrorResponse(errorMsg, 500, 500), Error.slackError(500, errorMsg, "name-of-a-channel", None)),
+          (UpstreamErrorResponse(errorMsg, 404, 404), Error.slackError(404, errorMsg, "name-of-a-channel", None))
         )
 
       forAll(exceptionsAndErrors) { (exception, expectedError) =>
@@ -254,7 +254,7 @@ class LegacyNotificationServiceSpec
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
-          errors             = Seq(UnableToFindTeamSlackChannelInUMP(teamName)),
+          errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
           exclusions         = Nil
         )
       }
@@ -309,7 +309,7 @@ class LegacyNotificationServiceSpec
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
-          errors             = Seq(UnableToFindTeamSlackChannelInUMP(teamName)),
+          errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
           exclusions         = Nil
         )
       }
@@ -333,7 +333,7 @@ class LegacyNotificationServiceSpec
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(TeamsNotFoundForUsername("github", githubUsername)),
+        errors             = List(Error.teamsNotFoundForUsername("github", githubUsername)),
         exclusions         = Nil
       )
     }
@@ -356,7 +356,7 @@ class LegacyNotificationServiceSpec
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(TeamsNotFoundForUsername("ldap", ldapUsername)),
+        errors             = List(Error.teamsNotFoundForUsername("ldap", ldapUsername)),
         exclusions         = Nil
       )
     }
@@ -412,7 +412,7 @@ class LegacyNotificationServiceSpec
         result shouldBe NotificationResult(
           successfullySentTo = List(),
           errors = List(),
-          exclusions = List(NotificationDisabled(slackMessageStr)))
+          exclusions = List(Exclusion.notificationDisabled(slackMessageStr)))
       }
     }
   }
@@ -449,8 +449,8 @@ class LegacyNotificationServiceSpec
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(TeamsNotFoundForUsername("github", githubUsername)),
-        exclusions         = List(NotARealTeam(teamName1), NotARealTeam(teamName2))
+        errors             = List(Error.teamsNotFoundForUsername("github", githubUsername)),
+        exclusions         = List(Exclusion.notARealTeam(teamName1), Exclusion.notARealTeam(teamName2))
       )
     }
     "not include ignored github user names, e.g. LDS dummy commiter for admin endpoints" in new Fixtures {
@@ -472,7 +472,7 @@ class LegacyNotificationServiceSpec
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
         errors             = Nil,
-        exclusions         = List(NotARealGithubUser(ignored1))
+        exclusions         = List(Exclusion.notARealGithubUser(ignored1))
       )
     }
   }
@@ -502,7 +502,7 @@ class LegacyNotificationServiceSpec
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
         errors             = Nil,
-        exclusions         = List(NotARealTeam(teamName1), NotARealTeam(teamName2))
+        exclusions         = List(Exclusion.notARealTeam(teamName1), Exclusion.notARealTeam(teamName2))
       )
     }
 
@@ -510,7 +510,7 @@ class LegacyNotificationServiceSpec
       private val nonexistentRepoName = "nonexistent-repo"
 
       when(channelLookupService.getExistingRepository(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Left(NotificationResult().addError(RepositoryNotFound(nonexistentRepoName)))))
+        .thenReturn(Future.successful(Left(NotificationResult().addError(Error.repositoryNotFound(nonexistentRepoName)))))
 
       private val notificationRequest =
         NotificationRequest(
@@ -522,7 +522,7 @@ class LegacyNotificationServiceSpec
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(RepositoryNotFound(nonexistentRepoName)),
+        errors             = List(Error.repositoryNotFound(nonexistentRepoName)),
         exclusions         = Nil
       )
     }
@@ -533,7 +533,7 @@ class LegacyNotificationServiceSpec
       when(channelLookupService.getExistingRepository(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Right(RepositoryDetails(teamNames = List(), owningTeams = Nil))))
       when(channelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
-        .thenReturn(Future.successful(Left(NotificationResult().addError(TeamsNotFoundForRepository(repoName)))))
+        .thenReturn(Future.successful(Left(NotificationResult().addError(Error.teamsNotFoundForRepository(repoName)))))
 
       private val notificationRequest =
         NotificationRequest(
@@ -545,7 +545,7 @@ class LegacyNotificationServiceSpec
 
       result shouldBe NotificationResult(
         successfullySentTo = Nil,
-        errors             = List(TeamsNotFoundForRepository(repoName)),
+        errors             = List(Error.teamsNotFoundForRepository(repoName)),
         exclusions         = Nil
       )
     }
