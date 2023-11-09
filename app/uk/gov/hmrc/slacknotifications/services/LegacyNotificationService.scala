@@ -29,7 +29,6 @@ import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
 
 @Singleton
 class LegacyNotificationService @Inject()(
@@ -188,10 +187,10 @@ class LegacyNotificationService @Inject()(
         .map { response =>
           response.status match {
             case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
-            case _ => logAndReturnSlackError(response.status, response.body, slackMessage.channel, teamName)
+            case _ => SlackConnector.logAndReturnSlackError(response.status, response.body, slackMessage.channel, teamName)
           }
         }
-        .recoverWith(handleSlackExceptions(slackMessage.channel, teamName))
+        .recoverWith(SlackConnector.handleSlackExceptions(slackMessage.channel, teamName))
     else
       Future.successful {
         val messageStr = slackMessageToString(populateNameAndIconInMessage(slackMessage, service))
@@ -205,28 +204,5 @@ class LegacyNotificationService @Inject()(
        |   Username: ${slackMessage.username}
        |   Emoji: ${slackMessage.icon_emoji.getOrElse("")}
        |""".stripMargin
-
-  private def handleSlackExceptions(channel: String, teamName: Option[String]): PartialFunction[Throwable, Future[NotificationResult]] = {
-    case ex @ UpstreamErrorResponse.WithStatusCode(404) if ex.message.contains("channel_not_found") =>
-      handleChannelNotFound(channel)
-    case UpstreamErrorResponse.Upstream4xxResponse(ex) =>
-      Future.successful(logAndReturnSlackError(ex.statusCode, ex.message, channel, teamName))
-    case UpstreamErrorResponse.Upstream5xxResponse(ex) =>
-      Future.successful(logAndReturnSlackError(ex.statusCode, ex.message, channel, teamName))
-    case NonFatal(ex) =>
-      logger.error(s"Unable to notify Slack channel $channel", ex)
-      Future.failed(ex)
-  }
-
-  private def handleChannelNotFound(channel: String): Future[NotificationResult] = {
-    logger.error(Error.slackChannelNotFound(channel).message)
-    Future.successful(NotificationResult().addError(Error.slackChannelNotFound(channel)))
-  }
-
-  private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String, teamName: Option[String]): NotificationResult = {
-    val slackError = Error.slackError(statusCode, exceptionMessage, channel, teamName)
-    logger.error(s"Unable to notify Slack channel $channel, the following error occurred: ${slackError.message}")
-    NotificationResult().addError(slackError)
-  }
 
 }
