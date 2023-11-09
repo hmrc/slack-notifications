@@ -17,13 +17,13 @@
 package uk.gov.hmrc.slacknotifications.persistence
 
 import org.bson.types.ObjectId
-import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes}
+import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes, Updates}
 import play.api.Configuration
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.play.json.formats.MongoUuidFormats
-import uk.gov.hmrc.mongo.workitem.{WorkItem, WorkItemFields, WorkItemRepository}
-import uk.gov.hmrc.slacknotifications.model.QueuedSlackMessage
+import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem, WorkItemFields, WorkItemRepository}
+import uk.gov.hmrc.slacknotifications.model.{NotificationResult, QueuedSlackMessage}
 
 import java.time.{Duration, Instant}
 import java.util.UUID
@@ -51,16 +51,53 @@ class SlackMessageQueueRepository @Inject()(
   override def now(): Instant =
     Instant.now()
 
-  override def inProgressRetryAfter: Duration =
-    Duration.ofMillis(configuration.getMillis("queue.retryAfter"))
+  private lazy val retryAfter: Long = configuration.getMillis("slackMessageQueue.retryAfter")
 
-  def add(item: QueuedSlackMessage): Future[ObjectId] = {
+  override def inProgressRetryAfter: Duration =
+    Duration.ofMillis(retryAfter)
+
+  private def pullOutstanding: Future[Option[WorkItem[QueuedSlackMessage]]] =
+    super.pullOutstanding(
+      failedBefore = now().minusMillis(retryAfter),
+      availableBefore = now()
+    )
+
+  def pullAllOutstanding: Future[Seq[WorkItem[QueuedSlackMessage]]] = {
+    def go(acc: Future[Seq[WorkItem[QueuedSlackMessage]]]): Future[Seq[WorkItem[QueuedSlackMessage]]] =
+      acc.flatMap { items =>
+        pullOutstanding.flatMap {
+          case Some(item) => go(Future.successful(items :+ item))
+          case None       => Future.successful(items)
+        }
+      }
+
+    go(Future.successful(Seq.empty))
+  }
+
+  def add(item: QueuedSlackMessage): Future[ObjectId] =
     pushNew(item)
       .map(_.id)
-  }
 
   def getByMsgId(msgId: UUID): Future[Seq[WorkItem[QueuedSlackMessage]]] =
     collection
       .find(Filters.equal("item.msgId", msgId.toString)) // it's stored as a String in Mongo to make querying using mongo shell easier
       .toFuture()
+
+  def updateNotificationResult(workItemId: ObjectId, result: NotificationResult): Future[Unit] =
+    collection
+      .findOneAndUpdate(
+        filter = Filters.equal("_id", workItemId),
+        update = Updates.set("item.result", result)
+      )
+      .toFuture()
+      .map(_ => ())
+
+  def markSuccess(workItemId: ObjectId): Future[Boolean] =
+    super.markAs(workItemId, ProcessingStatus.Succeeded)
+
+  def markFailed(workItemId: ObjectId): Future[Boolean] =
+    super.markAs(workItemId, ProcessingStatus.Failed) // will increment retry count
+
+  def markPermFailed(workItemId: ObjectId): Future[Boolean] =
+    super.markAs(workItemId, ProcessingStatus.PermanentlyFailed) // will not be retried
 }

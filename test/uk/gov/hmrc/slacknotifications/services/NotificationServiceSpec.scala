@@ -26,7 +26,7 @@ import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup._
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
-import uk.gov.hmrc.slacknotifications.connectors.RepositoryDetails
+import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector}
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
 import uk.gov.hmrc.slacknotifications.model.QueuedSlackMessage
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
@@ -101,6 +101,7 @@ class NotificationServiceSpec
     val mockUserManagementService: UserManagementService       = mock[UserManagementService]
     val mockChannelLookupService : ChannelLookupService        = mock[ChannelLookupService]
     val mockSlackMessageQueue    : SlackMessageQueueRepository = mock[SlackMessageQueueRepository]
+    val mockSlackConnector       : SlackConnector              = mock[SlackConnector]
 
     val configuration: Configuration =
       Configuration(
@@ -116,7 +117,8 @@ class NotificationServiceSpec
       domainConfig            = new DomainConfig(configuration),
       userManagementService   = mockUserManagementService,
       channelLookupService    = mockChannelLookupService,
-      slackMessageQueue       = mockSlackMessageQueue
+      slackMessageQueue       = mockSlackMessageQueue,
+      slackConnector          = mockSlackConnector
     )
   }
 
