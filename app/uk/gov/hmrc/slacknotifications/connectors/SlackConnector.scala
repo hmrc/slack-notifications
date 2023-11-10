@@ -50,7 +50,7 @@ class SlackConnector @Inject()(
       .withProxy
       .execute[HttpResponse]
 
-  def postChatMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[JsValue] = {
+  def postChatMessage(message: SlackMessage)(implicit hc: HeaderCarrier): Future[Either[UpstreamErrorResponse, JsValue]] = {
     implicit val smF: Format[SlackMessage] = SlackMessage.format
 
     httpClientV2
@@ -59,7 +59,7 @@ class SlackConnector @Inject()(
       .setHeader(HeaderNames.Authorization -> s"Bearer $botToken")
       .withBody(Json.toJson(message))
       .withProxy
-      .execute[JsValue]
+      .execute[Either[UpstreamErrorResponse, JsValue]]
   }
 
 }

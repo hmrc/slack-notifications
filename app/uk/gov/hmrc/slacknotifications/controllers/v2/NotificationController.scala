@@ -19,13 +19,14 @@ package uk.gov.hmrc.slacknotifications.controllers.v2
 import play.api.Logging
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
-import play.api.mvc.{Action, ControllerComponents}
+import play.api.mvc.{Action, AnyContent, ControllerComponents, Result}
 import uk.gov.hmrc.internalauth.client.{AuthenticatedRequest, BackendAuthComponents, IAAction, Predicate, Resource}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
-import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationResult, SendNotificationResponse}
+import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationResult, NotificationStatus, SendNotificationResponse}
 import uk.gov.hmrc.slacknotifications.services.NotificationService
 
+import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
@@ -42,7 +43,7 @@ class NotificationController @Inject()(
     Predicate.Permission(Resource.from("slack-notifications", "v2/notification"), IAAction("SEND_NOTIFICATION"))
 
   def sendNotification(): Action[JsValue] =
-    auth.authorizedAction(predicate).async(parse.json) { implicit request: AuthenticatedRequest[JsValue, _] =>
+    auth.authorizedAction(predicate).async(parse.json) { implicit request =>
       implicit val snrR: Reads[SendNotificationRequest] = SendNotificationRequest.reads
       withJsonBody[SendNotificationRequest] { snr =>
         notificationService.sendNotification(snr).value.map {
@@ -50,14 +51,22 @@ class NotificationController @Inject()(
             implicit val format: Format[NotificationResult] = NotificationResult.format
             val asJson = Json.toJson(nr)
             logger.info(s"Request: $snr resulted in a notification result: $asJson")
-            Ok(asJson)
+            InternalServerError(asJson)
           case Right(response) =>
             implicit val writes: Writes[SendNotificationResponse] = SendNotificationResponse.writes
             val asJson = Json.toJson(response)
             logger.info(s"Request: $snr was queued with msgId: ${response.msgId.toString}")
-            Ok(asJson)
+            Accepted(asJson)
         }
       }
+    }
+
+  def status(msgId: UUID): Action[AnyContent] =
+    auth.authorizedAction(predicate).async { implicit request =>
+      implicit val nsW: Writes[NotificationStatus] = NotificationStatus.writes
+      notificationService
+        .getMessageStatus(msgId)
+        .map(_.fold[Result](NotFound)(status => Ok(Json.toJson(status))))
     }
 
 }

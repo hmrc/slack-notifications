@@ -2,11 +2,13 @@
 
 This service enables sending messages into the HMRC Digital workspace on Slack.
 
-The service exposes 2 endpoints:
+The service provides 2 ways to send messages:
 
 ```
-POST    /notification    # uses legacy incoming webhooks
-POST    /v2/notification # uses PlatOps Bot (recommended)
+POST    /notification        # (sync) uses legacy incoming webhooks
+
+POST    /v2/notification     # (async) uses a queue and PlatOps Bot (recommended)
+GET     /v2/:msgId/status    # retrieve status of queued message
 ```
 
 Both endpoints require a `channelLookup` in order to identify the correct channel for the message to be posted to.
@@ -147,7 +149,42 @@ curl -X POST -H 'Content-type: application/json' -H 'Authorization: Basic Zm9vOm
     localhost:8866/slack-notifications/notification
 ```
 
+## Response
+
+Response will typically have 200 status code and the following details:
+
+```
+
+{
+    "successfullySentTo" : [
+        "channel1",
+        "channel2"
+    ],
+    "errors" : [
+        {   
+            "code" : "error_code_1",
+            "message" : "Details of a problem"
+        },
+        {
+            "code" : "error_code_2",
+            "message" : "Details of another problem"
+        }
+    ],
+    "exclusions" : [
+        {
+            "code" : "exclusion_code",
+            "message" : "Details of why slack message was not sent"
+        }
+    ]
+}
+
+# error/exclusion codes are stable, messages may change
+
+```
+
 ## Setup and example usage of `POST    /v2/notification`
+
+This endpoint is asynchronous and utilises `work-item-repo` in order to queue messages for sending at a steady rate of 1 message per channel per second. This is to comply with Slack's [rate limit](https://api.slack.com/docs/rate-limits)
 
 ### Auth
 
@@ -155,7 +192,7 @@ This endpoint uses `internal-auth` for access control. If you want to use it the
 
 ### Example request
 
-Sends a Slack message to the channel specified using the [chat.postMessage](https://api.slack.com/methods/chat.postMessage) endpoint
+Queues a Slack message to be sent to the channel specified using the [chat.postMessage](https://api.slack.com/methods/chat.postMessage) endpoint and returns a `msgId`
 
 Here `text` is the text that will be displayed in the desktop notification, think of this like alt text for an image. It will not be displayed in the main body of the message when `blocks` are present, however it will be used as fallback when `blocks` fail to render.
 
@@ -191,38 +228,59 @@ body:
 
 ## Response
 
-Both endpoints share the same response structure, including error codes.
+If the message is queued successfully then you will receive a `202 Accepted` with the following body:
 
-Response will typically have 200 status code and the following details:
-
-```
-
+```json
 {
-    "successfullySentTo" : [
-        "channel1",
-        "channel2"
-    ],
-    "errors" : [
-        {   
-            "code" : "error_code_1",
-            "message" : "Details of a problem"
-        },
-        {
-            "code" : "error_code_2",
-            "message" : "Details of another problem"
-        }
-    ],
-    "exclusions" : [
-        {
-            "code" : "exclusion_code",
-            "message" : "Details of why slack message was not sent"
-        }
-    ]
+  "msgId": "9013ba0f-68c9-49a1-b508-d7b16159c531"
 }
+```
 
-# error/exclusion codes are stable, messages may change
+This `msgId` can be used to call:
 
 ```
+GET    /v2/:msgId/status
+```
+
+There are two statuses, `complete` and `pending`:
+
+```json
+{
+  "msgId": "9013ba0f-68c9-49a1-b508-d7b16159c531",
+  "status": "pending"
+}
+```
+```json
+{
+  "msgId": "9013ba0f-68c9-49a1-b508-d7b16159c531",
+  "status": "complete",
+  "result": {
+    "successfullySentTo" : [
+      "channel1"
+    ],
+    "errors" : [],
+    "exclusions" : []
+  }
+}
+```
+
+`result` shares the same structure as the response for `POST /notification`
+
+If your message is unable to be queued because of an issue with the channel lookup or a downstream outage you will not receive a `msgId` and instead just get the `result` e.g.
+
+```json
+{
+  "successfullySentTo" : [],
+  "errors" : [
+    {
+      "code": "repository_not_found",
+      "message": "..."
+    }
+  ],
+  "exclusions" : []
+}
+```
+
 
 ### Possible error codes are:
 

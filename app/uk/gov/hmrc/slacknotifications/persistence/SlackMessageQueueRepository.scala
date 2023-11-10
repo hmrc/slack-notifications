@@ -21,7 +21,6 @@ import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes, Upda
 import play.api.Configuration
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.Codecs
-import uk.gov.hmrc.mongo.play.json.formats.MongoUuidFormats
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem, WorkItemFields, WorkItemRepository}
 import uk.gov.hmrc.slacknotifications.model.{NotificationResult, QueuedSlackMessage}
 
@@ -46,7 +45,7 @@ class SlackMessageQueueRepository @Inject()(
     IndexModel(Indexes.hashed("item.msgId"), IndexOptions().name("msgId-idx").background(true)),
     IndexModel(Indexes.descending("updatedAt"), IndexOptions().name("ttl-idx").expireAfter(30, TimeUnit.DAYS))
   ),
-  extraCodecs = Seq(Codecs.playFormatCodec(MongoUuidFormats.uuidFormat))
+  extraCodecs = Seq(Codecs.playFormatCodec(NotificationResult.format))
 ){
   override def now(): Instant =
     Instant.now()

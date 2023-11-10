@@ -60,7 +60,7 @@ class LegacyNotificationService @Inject()(
                     case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(Error.unableToFindTeamSlackChannelInUMP(teamName).message)), clientService, Some(teamName)).map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName))))
                   }
                 } yield acc :+ notificationRes
-              }.map(concatResults))
+              }.map(NotificationResult.concatResults))
             resWithExclusions          = notificationResult.addExclusion(excluded.map(Exclusion.notARealTeam): _*)
           } yield resWithExclusions
         }.merge
@@ -76,7 +76,7 @@ class LegacyNotificationService @Inject()(
       case ChannelLookup.SlackChannel(slackChannels) =>
         slackChannels.toList.foldLeftM(Seq.empty[NotificationResult]){(acc, slackChannel) =>
           sendSlackMessage(fromNotification(notificationRequest, slackChannel), clientService).map(acc :+ _)
-        }.map(concatResults)
+        }.map(NotificationResult.concatResults)
 
       case ChannelLookup.TeamsOfGithubUser(githubUsername) =>
         if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
@@ -111,7 +111,7 @@ class LegacyNotificationService @Inject()(
                                         case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(Error.unableToFindTeamSlackChannelInUMP(teamName).message)), service, Some(teamName)).map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName))))
                                       }
                                     } yield acc :+ notificationRes
-                                  }}.map(concatResults)
+                                  }}.map(NotificationResult.concatResults)
                                   else {
                                     logger.info(s"Failed to find teams for usertype: $userType, username: $username. " +
                                       s"Sending slack notification to Platops admin channel instead")
@@ -140,14 +140,6 @@ class LegacyNotificationService @Inject()(
                                 }
     resWithExclusions          = notificationResult.addExclusion(excluded.map(Exclusion.notARealTeam): _*)
   } yield resWithExclusions
-
-  private def concatResults(results: Seq[NotificationResult]): NotificationResult =
-    results.foldLeft(NotificationResult())((acc, current) =>
-      acc
-        .addSuccessfullySent(current.successfullySentTo: _*)
-        .addError(current.errors: _*)
-        .addExclusion(current.exclusions: _*)
-    )
 
   private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String, errorMessage: Option[String] = None): LegacySlackMessage = {
     import notificationRequest.messageDetails._
