@@ -110,13 +110,13 @@ final case class NotificationResult(
   exclusions        : Seq[Exclusion] = Nil
 ) {
   def addError(e: Error*): NotificationResult =
-    copy(errors = errors ++ e)
+    copy(errors = (errors ++ e).distinct)
 
   def addSuccessfullySent(s: String*): NotificationResult =
-    copy(successfullySentTo = successfullySentTo ++ s)
+    copy(successfullySentTo = (successfullySentTo ++ s).distinct)
 
   def addExclusion(e: Exclusion*): NotificationResult =
-    copy(exclusions = exclusions ++ e)
+    copy(exclusions = (exclusions ++ e).distinct)
 }
 
 object NotificationResult {
@@ -128,4 +128,12 @@ object NotificationResult {
     ~ (__ \ "errors"            ).format[Seq[Error]]
     ~ (__ \ "exclusions"        ).format[Seq[Exclusion]]
     )(apply, unlift(unapply))
+
+  def concatResults(results: Seq[NotificationResult]): NotificationResult =
+    results.foldLeft(NotificationResult())((acc, current) =>
+      acc
+        .addSuccessfullySent(current.successfullySentTo: _*)
+        .addError(current.errors: _*)
+        .addExclusion(current.exclusions: _*)
+    )
 }

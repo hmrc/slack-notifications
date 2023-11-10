@@ -3,3 +3,4 @@
 POST        /notification             uk.gov.hmrc.slacknotifications.controllers.LegacyNotificationController.sendNotification()
 
 POST        /v2/notification          uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.sendNotification()
+GET         /v2/:msgId/status         uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.status(msgId: java.util.UUID)

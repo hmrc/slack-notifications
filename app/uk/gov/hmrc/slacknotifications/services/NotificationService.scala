@@ -20,7 +20,7 @@ import cats.data.EitherT
 import cats.implicits._
 import play.api.Logging
 import uk.gov.hmrc.http.{HeaderCarrier, UpstreamErrorResponse}
-import uk.gov.hmrc.mongo.workitem.WorkItem
+import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.SlackConnector
@@ -46,6 +46,33 @@ class NotificationService @Inject()(
 )(implicit
   ec: ExecutionContext
 ) extends Logging {
+
+  def getMessageStatus(msgId: UUID): Future[Option[NotificationStatus]] =
+    slackMessageQueue.getByMsgId(msgId).map { workItems =>
+      if(workItems.nonEmpty) {
+        val finishedStates = Seq(ProcessingStatus.Succeeded, ProcessingStatus.PermanentlyFailed)
+
+        val allStates = workItems.map(_.status).distinct
+
+        if (allStates.forall(finishedStates.contains)) {
+          Some(
+            NotificationStatus(
+              msgId = msgId,
+              status = "complete",
+              result = Some(NotificationResult.concatResults(workItems.map(_.item.result)))
+            )
+          )
+        } else {
+          Some(
+            NotificationStatus(
+              msgId = msgId,
+              status = "pending",
+              result = Some(NotificationResult.concatResults(workItems.map(_.item.result)))
+            )
+          )
+        }
+      } else None
+    }
 
   def sendNotification(request: SendNotificationRequest)(implicit hc: HeaderCarrier): EitherT[Future, NotificationResult, SendNotificationResponse] = {
     val msgId: UUID = UUID.randomUUID()
@@ -194,40 +221,49 @@ class NotificationService @Inject()(
       }
   }
 
-  def processMessageFromQueue(workItem: WorkItem[QueuedSlackMessage])(implicit hc: HeaderCarrier): Future[Unit] =
-    slackConnector
-      .postChatMessage(workItem.item.slackMessage)
-      .flatMap { _ =>
-        for {
-          _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addSuccessfullySent(workItem.item.slackMessage.channel))
-          _ <- slackMessageQueue.markSuccess(workItem.id)
-        } yield ()
-      }
-      .recoverWith {
-        case ex @ UpstreamErrorResponse.WithStatusCode(404) if ex.message.contains("channel_not_found") =>
-          for {
-            _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(Error.slackChannelNotFound(workItem.item.slackMessage.channel)))
-            _ <- slackMessageQueue.markPermFailed(workItem.id)
-          } yield ()
-        case UpstreamErrorResponse.WithStatusCode(429) =>
-          logger.warn(s"Received 429 when attempting to notify Slack channel ${workItem.item.slackMessage.channel} - queued for retry...")
-          slackMessageQueue.markFailed(workItem.id).map(_ => ())
-        case UpstreamErrorResponse.Upstream4xxResponse(ex) =>
-          val error = Error.slackError(ex.statusCode, ex.message, workItem.item.slackMessage.channel, None)
-          logger.error(s"Unable (4xx) to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}", ex)
-          for {
-            _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
-            _ <- slackMessageQueue.markPermFailed(workItem.id)
-          } yield ()
-        case UpstreamErrorResponse.Upstream5xxResponse(ex) =>
-          val error = Error.slackError(ex.statusCode, ex.message, workItem.item.slackMessage.channel, None)
-          logger.error(s"Unable (5xx) to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}")
-          for {
-            _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
-            _ <- slackMessageQueue.markFailed(workItem.id)
-          } yield ()
-        case NonFatal(ex) =>
-          logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel}", ex)
-          Future.failed(ex)
-      }
+  def processMessageFromQueue(workItem: WorkItem[QueuedSlackMessage])(implicit hc: HeaderCarrier): Future[Unit] = {
+    if(workItem.failureCount > 2) {
+      logger.info(s"WorkItem: ${workItem.id} for msgId: ${workItem.item.msgId} has failed 3 times - marking as permanently failed")
+      slackMessageQueue.markPermFailed(workItem.id).map(_ => ())
+    } else {
+      slackConnector
+        .postChatMessage(workItem.item.slackMessage)
+        .flatMap {
+          case Right(_) =>
+            for {
+              _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addSuccessfullySent(workItem.item.slackMessage.channel))
+              _ <- slackMessageQueue.markSuccess(workItem.id)
+            } yield ()
+          case Left(ex@UpstreamErrorResponse.WithStatusCode(404)) if ex.message.contains("channel_not_found") =>
+            for {
+              _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(Error.slackChannelNotFound(workItem.item.slackMessage.channel)))
+              _ <- slackMessageQueue.markPermFailed(workItem.id)
+            } yield ()
+          case Left(UpstreamErrorResponse.WithStatusCode(429)) => // TODO pause all processing
+            logger.warn(s"Received 429 when attempting to notify Slack channel ${workItem.item.slackMessage.channel} - queued for retry...")
+            slackMessageQueue.markFailed(workItem.id).map(_ => ())
+          case Left(UpstreamErrorResponse.Upstream4xxResponse(ex)) =>
+            val error = Error.slackError(ex.statusCode, ex.message, workItem.item.slackMessage.channel, None)
+            logger.error(s"Unable (4xx) to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}", ex)
+            for {
+              _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
+              _ <- slackMessageQueue.markPermFailed(workItem.id)
+            } yield ()
+          case Left(UpstreamErrorResponse.Upstream5xxResponse(ex)) =>
+            val error = Error.slackError(ex.statusCode, ex.message, workItem.item.slackMessage.channel, None)
+            logger.error(s"Unable (5xx) to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}")
+            for {
+              _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
+              _ <- slackMessageQueue.markFailed(workItem.id)
+            } yield ()
+          case Left(ex) =>
+            Future.failed(ex) // make match exhaustive, delegate to recoverWith
+        }.recoverWith {
+          case NonFatal(ex) =>
+            logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel}", ex)
+            slackMessageQueue.markFailed(workItem.id)
+            Future.failed(ex)
+        }
+    }
+  }
 }
