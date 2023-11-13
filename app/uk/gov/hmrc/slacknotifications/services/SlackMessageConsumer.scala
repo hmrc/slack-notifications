@@ -22,6 +22,7 @@ import akka.stream.ThrottleMode
 import akka.stream.scaladsl.{Sink, Source}
 import play.api.Logging
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.slacknotifications.connectors.RateLimitExceededException
 import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
 
 import javax.inject.{Inject, Singleton}
@@ -48,6 +49,10 @@ class SlackMessageConsumer @Inject()(
             .mapAsync(parallelism = 1)(notificationService.processMessageFromQueue)
             .runWith(Sink.ignore)
             .recover {
+              case _: RateLimitExceededException =>
+                logger.warn(s"Slack Rate Limit Exceeded - marking all in-progress work items back to to-do and ending current run.")
+                slackMessageQueue.resetInProgress()
+                Done
               case ex =>
                 logger.error(s"Failed to send message to channel: $channel due to ${ex.getMessage}", ex)
                 Done

@@ -18,7 +18,8 @@ package uk.gov.hmrc.slacknotifications.controllers.v2
 
 import akka.stream.Materializer
 import akka.util.Timeout
-import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, equalTo, post, get, stubFor, urlEqualTo}
+import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, containing, equalTo, get, post, stubFor, urlEqualTo}
+import com.github.tomakehurst.wiremock.stubbing.Scenario
 import org.mockito.scalatest.MockitoSugar
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
@@ -32,9 +33,13 @@ import play.api.mvc.ControllerComponents
 import play.api.test.Helpers
 import play.api.test.Helpers.stubControllerComponents
 import play.api.{Application, inject}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.internalauth.client.test.{BackendAuthComponentsStub, StubBehaviour}
 import uk.gov.hmrc.internalauth.client.{BackendAuthComponents, Retrieval}
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus
+import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
+import uk.gov.hmrc.slacknotifications.services.SlackMessageConsumer
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -69,10 +74,10 @@ class NotificationControllerISpec
       "slack.webhookUrl"                                  -> wireMockUrl,
       "slack.apiUrl"                                      -> wireMockUrl,
       "slack.botToken"                                    -> "token",
-      "slackMessageScheduler.enabled"                     -> true,
-      "slackMessageScheduler.initialDelay"                -> "1.seconds",
-      "slackMessageScheduler.interval"                    -> "1.seconds",
-      "slackMessageScheduler.lockTtl"                     -> "1.minute"
+//      "slackMessageScheduler.enabled"                     -> true,
+//      "slackMessageScheduler.initialDelay"                -> "1.seconds",
+//      "slackMessageScheduler.interval"                    -> "1.seconds",
+//      "slackMessageScheduler.lockTtl"                     -> "1.minute"
     )
     .overrides(
       inject.bind[BackendAuthComponents].toInstance(BackendAuthComponentsStub(authStubBehaviour))
@@ -80,9 +85,12 @@ class NotificationControllerISpec
     .build()
 
   implicit val mat: Materializer = app.injector.instanceOf[Materializer]
+  implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  private val wsClient = app.injector.instanceOf[WSClient]
-  private val baseUrl  = s"http://localhost:$port"
+  private val wsClient  = app.injector.instanceOf[WSClient]
+  private val consumer  = app.injector.instanceOf[SlackMessageConsumer]
+  private val queueRepo = app.injector.instanceOf[SlackMessageQueueRepository]
+  private val baseUrl   = s"http://localhost:$port"
 
   "POST /v2/notification" should {
     "queue message for processing and return a msgId - scheduler should send message successfully" in {
@@ -117,6 +125,8 @@ class NotificationControllerISpec
 
       val msgId = (response.json \ "msgId").as[UUID]
 
+      consumer.runQueue().futureValue
+
       eventually(timeout(Span(20, Seconds))) {
         val response =
           wsClient.url(s"$baseUrl/slack-notifications/v2/${msgId.toString}/status")
@@ -128,6 +138,8 @@ class NotificationControllerISpec
 
         status shouldBe "complete"
       }
+
+      queueRepo.getByMsgId(msgId).futureValue.map(_.status).forall(_ == ProcessingStatus.Succeeded) shouldBe true
     }
 
     "not queue message and return result straight away when error encountered during channel lookup" in {
@@ -135,6 +147,8 @@ class NotificationControllerISpec
         get(urlEqualTo("/api/repositories/non-existent-repo"))
           .willReturn(aResponse().withStatus(404))
       )
+
+      val queueSizeBefore = queueRepo.collection.countDocuments().toFuture().futureValue
 
       val payload =
         Json.obj(
@@ -159,16 +173,42 @@ class NotificationControllerISpec
       response.status shouldBe Helpers.INTERNAL_SERVER_ERROR
 
       (response.json \ "errors" \ 0 \ "code").as[String] shouldBe "repository_not_found"
+
+      val queueSizeAfter = queueRepo.collection.countDocuments().toFuture().futureValue
+
+      // assert no work items created
+      queueSizeBefore shouldBe queueSizeAfter
     }
 
-    "retry 3 times in the event of 429 response from Slack" in {
+    "stop processing in the event of a 429 response from Slack" in {
+      val scenarioName = "Rate Limit"
       stubFor(
         post(urlEqualTo("/chat.postMessage"))
           .withHeader("Authorization", equalTo("Bearer token"))
+          .inScenario(scenarioName)
+          .whenScenarioStateIs(Scenario.STARTED)
+          .willReturn(aResponse().withStatus(200).withBody("{}"))
+      )
+
+      stubFor(
+        post(urlEqualTo("/chat.postMessage"))
+          .withHeader("Authorization", equalTo("Bearer token"))
+          .inScenario(scenarioName)
+          .whenScenarioStateIs(Scenario.STARTED)
+          .withRequestBody(containing("Test Message 2"))
+          .willReturn(aResponse().withStatus(200).withBody("{}"))
+          .willSetStateTo("LIMITED")
+      )
+
+      stubFor(
+        post(urlEqualTo("/chat.postMessage"))
+          .withHeader("Authorization", equalTo("Bearer token"))
+          .inScenario(scenarioName)
+          .whenScenarioStateIs("LIMITED")
           .willReturn(aResponse().withStatus(429).withBody("{}"))
       )
 
-      val payload =
+      val basePayload =
         Json.obj(
           "displayName" -> JsString("my bot"),
           "emoji" -> JsString(":robot_face:"),
@@ -176,33 +216,32 @@ class NotificationControllerISpec
             "by" -> JsString("slack-channel"),
             "slackChannels" -> JsArray(Seq(JsString("a-channel")))
           ),
-          "text" -> JsString("Some text"),
           "blocks" -> JsArray(Seq.empty),
           "attachments" -> JsArray(Seq.empty)
         )
 
-      val response =
-        wsClient.url(s"$baseUrl/slack-notifications/v2/notification")
-          .withHttpHeaders(
-            "Authorization" -> "token",
-            "Content-Type" -> "application/json"
-          ).post(payload).futureValue
+      val msgIdMap: Map[Int, UUID] = (1 to 5).map { i =>
+        val payload = basePayload + ("text" -> JsString(s"Test Message $i"))
 
-      response.status shouldBe Helpers.ACCEPTED
-
-      val msgId = (response.json \ "msgId").as[UUID]
-
-      eventually(timeout(Span(20, Seconds))) {
         val response =
-          wsClient.url(s"$baseUrl/slack-notifications/v2/${msgId.toString}/status")
+          wsClient.url(s"$baseUrl/slack-notifications/v2/notification")
             .withHttpHeaders(
-              "Authorization" -> "token"
-            ).get().futureValue
+              "Authorization" -> "token",
+              "Content-Type" -> "application/json"
+            ).post(payload).futureValue
 
-        val status = (response.json \ "status").as[String]
+        val msgId = (response.json \ "msgId").as[UUID]
 
-        status shouldBe "complete"
-      }
+        i -> msgId
+      }.toMap
+
+      consumer.runQueue().futureValue
+
+      queueRepo.getByMsgId(msgIdMap(1)).futureValue.map(_.status) shouldBe Seq(ProcessingStatus.Succeeded)
+      queueRepo.getByMsgId(msgIdMap(2)).futureValue.map(_.status) shouldBe Seq(ProcessingStatus.Succeeded)
+      queueRepo.getByMsgId(msgIdMap(3)).futureValue.map(_.status) shouldBe Seq(ProcessingStatus.Failed) // Gets marked as failed in the service layer .recoverWith
+      queueRepo.getByMsgId(msgIdMap(4)).futureValue.map(_.status) shouldBe Seq(ProcessingStatus.ToDo)
+      queueRepo.getByMsgId(msgIdMap(5)).futureValue.map(_.status) shouldBe Seq(ProcessingStatus.ToDo)
     }
   }
 

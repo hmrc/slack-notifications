@@ -78,6 +78,15 @@ class SlackMessageQueueRepository @Inject()(
     pushNew(item)
       .map(_.id)
 
+  def resetInProgress(): Future[Unit] =
+    collection
+      .updateMany(
+        filter = Filters.equal("status", ProcessingStatus.toBson(ProcessingStatus.InProgress)),
+        update = Updates.set("status", ProcessingStatus.toBson(ProcessingStatus.ToDo))
+      )
+      .toFuture()
+      .map(_ => ())
+
   def getByMsgId(msgId: UUID): Future[Seq[WorkItem[QueuedSlackMessage]]] =
     collection
       .find(Filters.equal("item.msgId", msgId.toString)) // it's stored as a String in Mongo to make querying using mongo shell easier
