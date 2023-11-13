@@ -90,3 +90,5 @@ object SlackConnector {
     NotificationResult().addError(slackError)
   }
 }
+
+final case class RateLimitExceededException() extends RuntimeException("Rate Limit Exceeded")

@@ -23,7 +23,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, UpstreamErrorResponse}
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
-import uk.gov.hmrc.slacknotifications.connectors.SlackConnector
+import uk.gov.hmrc.slacknotifications.connectors.{RateLimitExceededException, SlackConnector}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
 import uk.gov.hmrc.slacknotifications.model._
@@ -240,8 +240,8 @@ class NotificationService @Inject()(
               _ <- slackMessageQueue.markPermFailed(workItem.id)
             } yield ()
           case Left(UpstreamErrorResponse.WithStatusCode(429)) => // TODO pause all processing
-            logger.warn(s"Received 429 when attempting to notify Slack channel ${workItem.item.slackMessage.channel} - queued for retry...")
-            slackMessageQueue.markFailed(workItem.id).map(_ => ())
+            logger.warn(s"Received 429 when attempting to notify Slack channel ${workItem.item.slackMessage.channel}")
+            Future.failed(RateLimitExceededException())
           case Left(UpstreamErrorResponse.Upstream4xxResponse(ex)) =>
             val error = Error.slackError(ex.statusCode, ex.message, workItem.item.slackMessage.channel, None)
             logger.error(s"Unable (4xx) to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}", ex)
