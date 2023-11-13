@@ -50,14 +50,15 @@ class SlackMessageQueueRepository @Inject()(
   override def now(): Instant =
     Instant.now()
 
-  private lazy val retryAfter: Long = configuration.getMillis("slackMessageQueue.retryAfter")
+  private lazy val retryAfterFailed    : Long = configuration.getMillis("slackMessageQueue.retryAfterFailed")
+  private lazy val retryAfterInProgress: Long = configuration.getMillis("slackMessageQueue.retryAfterInProgress")
 
   override def inProgressRetryAfter: Duration =
-    Duration.ofMillis(retryAfter)
+    Duration.ofMillis(retryAfterInProgress)
 
   private def pullOutstanding: Future[Option[WorkItem[QueuedSlackMessage]]] =
     super.pullOutstanding(
-      failedBefore = now().minusMillis(retryAfter),
+      failedBefore = now().minusMillis(retryAfterFailed),
       availableBefore = now()
     )
 
