@@ -18,12 +18,12 @@ package uk.gov.hmrc.slacknotifications.controllers
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{Format, JsValue, Json}
 import play.api.mvc._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.play.bootstrap.backend.http.ErrorResponse
-import uk.gov.hmrc.slacknotifications.model.NotificationRequest
+import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, NotificationResult}
 import uk.gov.hmrc.slacknotifications.services.{AuthService, LegacyNotificationService}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -41,6 +41,7 @@ class LegacyNotificationController @Inject()(
     withAuthorization { authenticatedService =>
       withJsonBody[NotificationRequest] { notificationRequest =>
         notificationService.sendNotification(notificationRequest, authenticatedService).map { results =>
+          implicit val writes: Format[NotificationResult] = NotificationResult.format
           val asJson = Json.toJson(results)
           logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
           Ok(asJson)
