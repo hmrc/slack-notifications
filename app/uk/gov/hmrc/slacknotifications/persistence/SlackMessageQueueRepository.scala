@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.slacknotifications.persistence
 
+import cats.Monad
+import cats.implicits._
 import org.bson.types.ObjectId
 import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions, Indexes, Updates}
 import play.api.Configuration
@@ -50,29 +52,24 @@ class SlackMessageQueueRepository @Inject()(
   override def now(): Instant =
     Instant.now()
 
-  private lazy val retryAfterFailed    : Long = configuration.getMillis("slackMessageQueue.retryAfterFailed")
-  private lazy val retryAfterInProgress: Long = configuration.getMillis("slackMessageQueue.retryAfterInProgress")
+  private lazy val retryAfterFailed: Duration = configuration.get[Duration]("slackMessageQueue.retryAfterFailed")
 
   override def inProgressRetryAfter: Duration =
-    Duration.ofMillis(retryAfterInProgress)
+    configuration.get[Duration]("slackMessageQueue.retryAfterInProgress")
 
-  private def pullOutstanding: Future[Option[WorkItem[QueuedSlackMessage]]] =
+  private def pullOutstanding(): Future[Option[WorkItem[QueuedSlackMessage]]] =
     super.pullOutstanding(
-      failedBefore = now().minusMillis(retryAfterFailed),
+      failedBefore = now().minusMillis(retryAfterFailed.toMillis),
       availableBefore = now()
     )
 
-  def pullAllOutstanding: Future[Seq[WorkItem[QueuedSlackMessage]]] = {
-    def go(acc: Future[Seq[WorkItem[QueuedSlackMessage]]]): Future[Seq[WorkItem[QueuedSlackMessage]]] =
-      acc.flatMap { items =>
-        pullOutstanding.flatMap {
-          case Some(item) => go(Future.successful(items :+ item))
-          case None       => Future.successful(items)
-        }
+  def pullAllOutstanding(): Future[Seq[WorkItem[QueuedSlackMessage]]] =
+    Monad[Future].tailRecM(Seq.empty[WorkItem[QueuedSlackMessage]]) { acc =>
+      pullOutstanding().map {
+        case Some(item) => Left(acc :+ item)
+        case None       => Right(acc)
       }
-
-    go(Future.successful(Seq.empty))
-  }
+    }
 
   def add(item: QueuedSlackMessage): Future[ObjectId] =
     pushNew(item)

@@ -36,7 +36,8 @@ class SlackMessageQueueRepositorySpec
      with ScalaFutures {
 
   val configuration: Configuration = Configuration(
-    "queue.retryAfter" -> 5000
+    "slackMessageQueue.retryAfterFailed" -> "5.seconds",
+    "slackMessageQueue.retryAfterInProgress" -> "10.minutes",
   )
 
   override protected val repository: SlackMessageQueueRepository =
@@ -69,6 +70,16 @@ class SlackMessageQueueRepositorySpec
 
       workItem.item shouldBe msg
       workItem.status shouldBe ProcessingStatus.ToDo
+    }
+  }
+
+  "pullAllOutstanding" should {
+    "return all work items that are ready to be processed" in {
+      repository.add(message(UUID.randomUUID())).futureValue
+      repository.add(message(UUID.randomUUID())).futureValue
+      repository.add(message(UUID.randomUUID())).futureValue
+
+      repository.pullAllOutstanding().futureValue.length shouldBe 3
     }
   }
 

@@ -39,7 +39,7 @@ class SlackMessageConsumer @Inject()(
 ) extends Logging {
 
   def runQueue()(implicit hc: HeaderCarrier): Future[Done] =
-    slackMessageQueue.pullAllOutstanding.flatMap { workItems =>
+    slackMessageQueue.pullAllOutstanding().flatMap { workItems =>
       val groupedByChannel = workItems.groupBy(_.item.slackMessage.channel)
 
       Future.sequence(
