@@ -20,19 +20,21 @@ import akka.actor.ActorSystem
 import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mongo.lock.{LockService, MongoLockRepository}
+import uk.gov.hmrc.mongo.TimestampSupport
+import uk.gov.hmrc.slacknotifications.persistence.MongoLockRepository
 import uk.gov.hmrc.slacknotifications.services.SlackMessageConsumer
 import uk.gov.hmrc.slacknotifications.utils.{SchedulerConfig, SchedulerUtils}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 @Singleton
 class SlackMessageScheduler @Inject()(
   configuration       : Configuration,
   mongoLockRepository : MongoLockRepository,
-  slackMessageConsumer: SlackMessageConsumer
+  slackMessageConsumer: SlackMessageConsumer,
+  timestampSupport    : TimestampSupport
 )(implicit
   ec                  : ExecutionContext,
   actorSystem         : ActorSystem,
@@ -49,14 +51,14 @@ class SlackMessageScheduler @Inject()(
     )
   }
 
-  private val lockTtl = configuration.get[FiniteDuration]("slackMessageScheduler.lockTtl")
+  private val lockTtl = configuration.get[FiniteDuration]("slackMessageScheduler.interval").plus(1.second)
 
   private val lock =
-    LockService(mongoLockRepository, "slack-message-scheduler", lockTtl)
+    TimePeriodLockService(mongoLockRepository, "slack-message-scheduler", timestampSupport, lockTtl)
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
-  scheduleWithLock(
+  scheduleWithTimePeriodLock(
     "Slack Message Scheduler",
     schedulerConfig,
     lock

@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.utils
 import akka.actor.ActorSystem
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.mongo.lock.LockService
+import uk.gov.hmrc.slacknotifications.scheduler.TimePeriodLockService
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
@@ -53,16 +53,20 @@ trait SchedulerUtils extends Logging {
     } else
       logger.info(s"$label scheduler is DISABLED. to enable, configure configure ${schedulerConfig.enabledKey}=true in config.")
 
-  def scheduleWithLock(
-    label          : String,
-    schedulerConfig: SchedulerConfig,
-    lock           : LockService
+  def scheduleWithTimePeriodLock(
+    label          : String
+  , schedulerConfig: SchedulerConfig
+  , lock           : TimePeriodLockService
   )(f: => Future[Unit]
-  )(implicit actorSystem: ActorSystem, applicationLifecycle: ApplicationLifecycle, ec: ExecutionContext): Unit =
+  )(implicit
+    actorSystem         : ActorSystem,
+    applicationLifecycle: ApplicationLifecycle,
+    ec                  : ExecutionContext
+  ): Unit =
     schedule(label, schedulerConfig) {
-      lock.withLock(f).map {
+      lock.withRenewedLock(f).map {
         case Some(_) => logger.debug(s"$label finished - releasing lock")
-        case None    => logger.debug(s"$label cannot run - lock ${lock.lockId} is taken... skipping update")
+        case None => logger.debug(s"$label cannot run - lock ${lock.lockId} is taken... skipping update")
       }
     }
 }

@@ -266,7 +266,7 @@ There are two statuses, `complete` and `pending`:
 
 `result` shares the same structure as the response for `POST /notification`
 
-If your message is unable to be queued because of an issue with the channel lookup or a downstream outage you will not receive a `msgId` and instead just get the `result` e.g.
+If your message is unable to be queued because of an issue with the channel lookup or a downstream outage you will not receive a `msgId` and instead just get a `500 Internal Server Error` and a `result` e.g.
 
 ```json
 {
