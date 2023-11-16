@@ -25,7 +25,7 @@ import uk.gov.hmrc.mongo.lock.Lock
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import uk.gov.hmrc.mongo.{MongoComponent, TimestampSupport}
 
-import java.time.{Duration => JavaDuration}
+import java.time.{Instant, Duration => JavaDuration}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
@@ -36,7 +36,7 @@ trait LockRepository {
 
   def releaseLock(lockId: String, owner: String): Future[Unit]
 
-  def abandonLock(lockId: String): Future[Unit]
+  def abandonLock(lockId: String, expiry: Instant): Future[Unit]
 
   def refreshExpiry(lockId: String, owner: String, ttl: Duration): Future[Boolean]
 
@@ -107,12 +107,15 @@ class MongoLockRepository @Inject()(
       .map(_ => ())
   }
 
-  def abandonLock(lockId: String): Future[Unit] = {
+  def abandonLock(lockId: String, expiry: Instant): Future[Unit] = {
     logger.debug(s"Abandoning lock '$lockId'")
     collection
       .findOneAndUpdate(
         filter = equal(Lock.id, lockId),
-        update = Updates.set(Lock.owner, "abandoned")
+        update = Seq(
+          Updates.set(Lock.owner, "abandoned"),
+          Updates.set(Lock.expiryTime, expiry)
+        )
       )
       .toFuture()
       .map(_ => ())
