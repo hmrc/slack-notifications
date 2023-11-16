@@ -43,7 +43,6 @@ class SlackMessageScheduler @Inject()(
 
   private val schedulerConfig = {
     val enabledKey = "slackMessageScheduler.enabled"
-    println(s">>>>> ${configuration.get[FiniteDuration]("slackMessageScheduler.interval")}")
     SchedulerConfig(
       enabledKey   = enabledKey,
       enabled      = configuration.get[Boolean](enabledKey),
