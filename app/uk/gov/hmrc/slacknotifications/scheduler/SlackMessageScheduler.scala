@@ -27,7 +27,7 @@ import uk.gov.hmrc.slacknotifications.utils.{SchedulerConfig, SchedulerUtils}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 
 @Singleton
 class SlackMessageScheduler @Inject()(
@@ -51,10 +51,8 @@ class SlackMessageScheduler @Inject()(
     )
   }
 
-  private val lockTtl = configuration.get[FiniteDuration]("slackMessageScheduler.interval").plus(1.second)
-
   private val lock =
-    TimePeriodLockService(mongoLockRepository, "slack-message-scheduler", timestampSupport, lockTtl)
+    ScheduledLockService(mongoLockRepository, "slack-message-scheduler", timestampSupport, schedulerConfig.interval)
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
 

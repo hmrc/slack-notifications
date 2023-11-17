@@ -62,7 +62,7 @@ class NotificationController @Inject()(
     }
 
   def status(msgId: UUID): Action[AnyContent] =
-    auth.authorizedAction(predicate).async { implicit request =>
+    auth.authorizedAction(predicate).async {
       implicit val nsW: Writes[NotificationStatus] = NotificationStatus.writes
       notificationService
         .getMessageStatus(msgId)

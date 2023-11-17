@@ -73,7 +73,10 @@ class NotificationControllerISpec
       "microservice.services.user-management.port"        -> wireMockPort,
       "slack.webhookUrl"                                  -> wireMockUrl,
       "slack.apiUrl"                                      -> wireMockUrl,
-      "slack.botToken"                                    -> "token"
+      "slack.botToken"                                    -> "token",
+      "slackMessageScheduler.enabled"                     -> false,
+      "slackMessageScheduler.interval"                    -> "10.seconds",
+      "slackMessageScheduler.initialDelay"                -> "1.second"
     )
     .overrides(
       inject.bind[BackendAuthComponents].toInstance(BackendAuthComponentsStub(authStubBehaviour))
