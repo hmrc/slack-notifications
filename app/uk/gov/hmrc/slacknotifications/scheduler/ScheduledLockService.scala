@@ -26,20 +26,17 @@ import scala.concurrent.duration.{Duration, DurationInt}
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
- * A locking implementation for use with akka/pekko scheduling.
+ * A locking implementation for scheduled tasks that will only execute the `body` when a new lock has been acquired.
  *
- * When a lock is acquired by an instance, the ttl is set to be now() + schedulerInterval + 1 second.
- * This ensures that the same instance will try to acquire the lock again before the ttl has expired.
+ * The lock's ttl is set to be `schedulerInterval` + 1 second, meaning that the instance that currently owns the lock
+ * will always have a chance to refresh the lock.
  *
- * Once the body: Future[T] has completed, we check if it has overrun by evaluating now() > time.lockCreated + schedulerInterval
+ * The lock will only be released once the `body` has completed - in the event that the execution of `body` takes longer
+ * than the `schedulerInterval` the lock will be released immediately, allowing another instance to acquire the lock and
+ * start another execution as soon as possible. Otherwise, the lock is abandoned and the expiryTime of the lock is altered
+ * to allow the current owning instance the opportunity to acquire a "new" lock next time round.
  *
- * If it has overrun, we release the lock immediately and another instance will have the opportunity to take the lock.
- * If it hasn't overrun, we abandon the lock (remove the owner) and amend the expiryTime to reduce it by 2 seconds meaning
- * it will expire 1 second before the scheduler fires again.
- *
- * The logic dictates that the body is only executed when a new lock has been acquired, the releasing/abandonment of a lock
- * only happens once the body: Future[T] has completed - in the meantime, the instance that owns the lock will always have an
- * opportunity to refresh the lock and allow the current running process to complete and decide what to do with the lock.
+ * In the event that the scheduled task ends in failure, the lock will be released immediately.
  */
 
 trait ScheduledLockService {
@@ -82,12 +79,13 @@ trait ScheduledLockService {
                              logger.info(s"Lock $lockId has been held by $ownerId longer than intended, releasing")
                              lockRepository.releaseLock(lockId, ownerId)
                            } else {
-                             // don't release the lock, let it timeout, so nothing else starts prematurely
-                             // we remove our ownership so that we won't refresh it again
-                             // we minus 2 seconds to make the lock expire 1 second before the next scheduler invocation
-                             // which will allow the abandoning instance to acquire a "new" lock next time.
+                             /* don't release the lock, let it timeout, so nothing else starts prematurely
+                             *  we remove our ownership so that we won't refresh it again
+                             *  we minus 2 seconds to make the lock expire 1 second before the next scheduler invocation
+                             *  which will allow the abandoning instance to acquire a "new" lock next time.
+                             */
                              logger.info(s"Lock $lockId is being abandoned by $ownerId to expire naturally")
-                             lockRepository.abandonLock(lockId, lock.expiryTime.minusSeconds(2))
+                             lockRepository.abandonLock(lockId, Some(lock.expiryTime.minusSeconds(2)))
                            }
                        } yield Some(res)
                      case None =>
