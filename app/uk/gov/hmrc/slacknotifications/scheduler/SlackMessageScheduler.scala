@@ -21,7 +21,7 @@ import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.TimestampSupport
-import uk.gov.hmrc.slacknotifications.persistence.MongoLockRepository
+import uk.gov.hmrc.mongo.lock.{MongoLockRepository, ScheduledLockService}
 import uk.gov.hmrc.slacknotifications.services.SlackMessageConsumer
 import uk.gov.hmrc.slacknotifications.utils.{SchedulerConfig, SchedulerUtils}
 
