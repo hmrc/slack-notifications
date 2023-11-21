@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.utils
 import akka.actor.ActorSystem
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
-import uk.gov.hmrc.slacknotifications.scheduler.ScheduledLockService
+import uk.gov.hmrc.mongo.lock.ScheduledLockService
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
