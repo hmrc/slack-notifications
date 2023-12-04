@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.slacknotifications.controllers.v2
 
-import akka.stream.Materializer
-import akka.util.Timeout
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.util.Timeout
 import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, containing, equalTo, get, post, stubFor, urlEqualTo}
 import com.github.tomakehurst.wiremock.stubbing.Scenario
 import org.mockito.scalatest.MockitoSugar
