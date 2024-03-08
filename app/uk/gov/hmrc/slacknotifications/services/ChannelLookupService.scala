@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.services
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
-import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, TeamsAndRepositoriesConnector, UserManagementConnector}
+import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, ServiceConfigsConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.model._
 
 import javax.inject.{Inject, Singleton}
@@ -27,9 +27,10 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ChannelLookupService @Inject()(
-  slackConfig: SlackConfig,
-  teamsAndReposConnector: TeamsAndRepositoriesConnector,
-  userManagementConnector: UserManagementConnector
+  slackConfig            : SlackConfig,
+  teamsAndReposConnector : TeamsAndRepositoriesConnector,
+  userManagementConnector: UserManagementConnector,
+  serviceConfigsConnector: ServiceConfigsConnector
 )(implicit
   ec: ExecutionContext
 ) {
@@ -38,13 +39,23 @@ class ChannelLookupService @Inject()(
     repoName: String
   )(implicit
     hc: HeaderCarrier
-  ): Future[Either[NotificationResult, RepositoryDetails]] =
+  ): Future[Either[NotificationResult, RepositoryDetails]] = {
+  // for when a service has a different repo name
+  def getRepoNameForService(serviceName: String): Future[Either[NotificationResult, RepositoryDetails]] =
+    serviceConfigsConnector.repoNameForService(serviceName).flatMap {
+      case Some(repoName) => teamsAndReposConnector
+                               .getRepositoryDetails(repoName)
+                               .map(_.toRight(NotificationResult().addError(Error.repositoryNotFound(repoName))))
+      case None           => Future.successful(Left(NotificationResult().addError(Error.repositoryNotFound(serviceName))))
+    }
+
     teamsAndReposConnector
       .getRepositoryDetails(repoName)
       .flatMap {
         case Some(repoDetails) => Future.successful(Right(repoDetails))
-        case None => Future.successful(Left(NotificationResult().addError(Error.repositoryNotFound(repoName))))
+        case None              => getRepoNameForService(repoName)
       }
+  }
 
   private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
     if (repositoryDetails.owningTeams.nonEmpty)

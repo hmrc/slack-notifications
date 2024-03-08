@@ -16,34 +16,27 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
+import org.scalatest.concurrent.ScalaFutures.convertScalaFuture
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
-import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, TeamsAndRepositoriesConnector, UserManagementConnector}
+import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, ServiceConfigsConnector, TeamsAndRepositoriesConnector, UserManagementConnector}
+import uk.gov.hmrc.slacknotifications.model.{Error, NotificationResult}
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 class ChannelLookupServiceSpec
   extends UnitSpec {
 
   "Getting teams responsible for repo" should {
     "prioritize owningTeams" in new Fixtures {
-      val repoDetails: RepositoryDetails =
-        RepositoryDetails(
-          owningTeams = List("team1"),
-          teamNames = List("team1", "team2")
-        )
-
       service.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1")
     }
-    "return contributing teams if no explicit owning teams are specified" in new Fixtures {
-      val repoDetails: RepositoryDetails =
-        RepositoryDetails(
-          owningTeams = Nil,
-          teamNames = List("team1", "team2")
-        )
 
-      service.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1", "team2")
+    "return contributing teams if no explicit owning teams are specified" in new Fixtures {
+      service.getTeamsResponsibleForRepo(repoDetails.copy(owningTeams = Nil)) shouldBe List("team1", "team2")
     }
   }
 
@@ -85,17 +78,73 @@ class ChannelLookupServiceSpec
     }
   }
 
+  "Get existing repository" should {
+    "return repository details for a service" in new Fixtures  {
+      when(mockTeamsAndReposConn.getRepositoryDetails(eqTo(serviceName))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(Some(repoDetails)))
+
+      service.getExistingRepository(eqTo(serviceName))(any[HeaderCarrier]).futureValue shouldBe Right(repoDetails)
+    }
+
+    "return a notification result when no repository details are found for a service" in new Fixtures {
+      when(mockTeamsAndReposConn.getRepositoryDetails(eqTo(serviceName))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(None))
+      when(mockServiceConfigsConnector.repoNameForService(eqTo(serviceName))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(None))
+
+      val result = service.getExistingRepository(eqTo("service"))(any[HeaderCarrier]).futureValue
+      result shouldBe Left(NotificationResult(Seq.empty, Seq(Error.repositoryNotFound(serviceName)), Seq.empty))
+    }
+
+    "return repository details for a service that has a different repo name" in new Fixtures {
+      val repoNameForService = "repo"
+
+      when(mockTeamsAndReposConn.getRepositoryDetails(eqTo(serviceName))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(None))
+      when(mockServiceConfigsConnector.repoNameForService(eqTo(serviceName))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(Some(repoNameForService)))
+      when(mockTeamsAndReposConn.getRepositoryDetails(eqTo(repoNameForService))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(Some(repoDetails)))
+
+      service.getExistingRepository(eqTo(serviceName))(any[HeaderCarrier]).futureValue shouldBe Right(repoDetails)
+    }
+
+    "return a notification result when a service has a different repo name but the repository details are not found" in new Fixtures {
+      val repoNameForService = "repo"
+
+      when(mockTeamsAndReposConn.getRepositoryDetails(eqTo(serviceName))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(None))
+      when(mockServiceConfigsConnector.repoNameForService(eqTo(serviceName))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(Some(repoNameForService)))
+      when(mockTeamsAndReposConn.getRepositoryDetails(eqTo(repoNameForService))(any[HeaderCarrier]))
+       .thenReturn(Future.successful(None))
+
+      val result = service.getExistingRepository(eqTo("service"))(any[HeaderCarrier]).futureValue
+      result shouldBe Left(NotificationResult(Seq.empty, Seq(Error.repositoryNotFound(repoNameForService)), Seq.empty))
+    }
+  }
+
   trait Fixtures {
 
-    val mockSlackConfig: SlackConfig                         = mock[SlackConfig]
-    val mockTeamsAndReposConn: TeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
-    val mockUserManagementConnector: UserManagementConnector = mock[UserManagementConnector]
+    val mockSlackConfig            : SlackConfig                   = mock[SlackConfig]
+    val mockTeamsAndReposConn      : TeamsAndRepositoriesConnector = mock[TeamsAndRepositoriesConnector]
+    val mockUserManagementConnector: UserManagementConnector       = mock[UserManagementConnector]
+    val mockServiceConfigsConnector: ServiceConfigsConnector       = mock[ServiceConfigsConnector]
 
     lazy val service: ChannelLookupService =
       new ChannelLookupService(
         mockSlackConfig,
         mockTeamsAndReposConn,
-        mockUserManagementConnector
+        mockUserManagementConnector,
+        mockServiceConfigsConnector
+      )
+
+    val serviceName = "service"
+
+    val repoDetails: RepositoryDetails =
+      RepositoryDetails(
+        owningTeams = List("team1"),
+        teamNames   = List("team1", "team2")
       )
   }
 
