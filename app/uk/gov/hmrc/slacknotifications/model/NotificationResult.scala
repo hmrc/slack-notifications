@@ -73,6 +73,12 @@ object Error {
       code    = "unable_to_find_team_slack_channel_in_ump",
       message = s"Unable to deliver slack message to *$teamName*. Either the team does not exist in UMP, or it does not have a slack channel configured."
     )
+
+  def unsupportedChannelLookUp(lookup: String): Error =
+    Error(
+      code    = "unsupported_channel_look_up",
+      message = s"channel look up by: '$lookup' is not supported. Please use the v2 API."
+    )
 }
 
 final case class Exclusion(code: String, message: String) {

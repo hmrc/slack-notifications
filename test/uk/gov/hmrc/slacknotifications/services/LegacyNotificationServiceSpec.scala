@@ -26,7 +26,7 @@ import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, Service, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
 import uk.gov.hmrc.slacknotifications.model._
 import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
@@ -360,6 +360,32 @@ class LegacyNotificationServiceSpec
         exclusions         = Nil
       )
     }
+
+    "return an error when channel type is not supported" in new Fixtures {
+      val channelLookups = List(
+        Service("service")
+      )
+
+      channelLookups.foreach { channelLookup =>
+        val notificationRequest =
+          NotificationRequest(
+            channelLookup  = channelLookup,
+            messageDetails = MessageDetails(
+              text        = "some-text-to-post-to-slack",
+              attachments = Nil
+            )
+          )
+
+        val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
+
+        result shouldBe NotificationResult(
+          successfullySentTo = List(),
+          errors             = List(Error.unsupportedChannelLookUp(Service.toString())),
+          exclusions         = Nil
+        )
+      }
+    }
+
   }
 
   "Disabled notifications" should {

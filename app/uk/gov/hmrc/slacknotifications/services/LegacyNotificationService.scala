@@ -86,6 +86,9 @@ class LegacyNotificationService @Inject()(
 
       case ChannelLookup.TeamsOfLdapUser(ldapUsername) =>
           sendNotificationForUser("ldap", ldapUsername, userManagementService.getTeamsForLdapUser)(notificationRequest, clientService)
+
+      case unsupported:ChannelLookup  =>
+        Future.successful(NotificationResult().addError(Error.unsupportedChannelLookUp(unsupported.getClass.getSimpleName.split('$').last)))
     }
 
   private def sendNotificationForUser(
