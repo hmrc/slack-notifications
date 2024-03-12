@@ -27,8 +27,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ChannelLookupService @Inject()(
-  slackConfig            : SlackConfig,
-  teamsAndReposConnector : TeamsAndRepositoriesConnector,
+  slackConfig: SlackConfig,
+  teamsAndReposConnector: TeamsAndRepositoriesConnector,
   userManagementConnector: UserManagementConnector
 )(implicit
   ec: ExecutionContext
@@ -43,7 +43,7 @@ class ChannelLookupService @Inject()(
       .getRepositoryDetails(repoName)
       .flatMap {
         case Some(repoDetails) => Future.successful(Right(repoDetails))
-        case None              => Future.successful(Left(NotificationResult().addError(Error.repositoryNotFound(repoName))))
+        case None => Future.successful(Left(NotificationResult().addError(Error.repositoryNotFound(repoName))))
       }
 
   private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =

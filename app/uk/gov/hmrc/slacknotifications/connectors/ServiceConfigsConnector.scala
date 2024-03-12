@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.connectors
 
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import javax.inject.{Inject, Singleton}
@@ -28,6 +28,8 @@ class ServiceConfigsConnector @Inject() (
   httpClientV2  : HttpClientV2
 , servicesConfig: ServicesConfig
 )(implicit val ec: ExecutionContext) {
+
+  import HttpReads.Implicits._
 
   private val serviceConfigsBaseUrl: String = servicesConfig.baseUrl("service-configs")
 
