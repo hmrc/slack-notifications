@@ -1,6 +1,7 @@
 import play.sbt.PlayImport.PlayKeys
 import uk.gov.hmrc.DefaultBuildSettings
 
+
 ThisBuild / majorVersion := 0
 ThisBuild / scalaVersion := "2.13.12"
 
@@ -16,4 +17,4 @@ lazy val it =
   (project in file("it"))
     .enablePlugins(PlayScala)
     .dependsOn(microservice % "test->test")
-    .settings(DefaultBuildSettings.itSettings)
+    .settings(DefaultBuildSettings.itSettings())

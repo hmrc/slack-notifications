@@ -25,8 +25,8 @@ import uk.gov.hmrc.http._
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
-import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, SlackConnector}
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
+import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, ServiceConfigsConnector, SlackConnector}
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, Service, SlackChannel, TeamsOfGithubUser, TeamsOfLdapUser}
 import uk.gov.hmrc.slacknotifications.model._
 import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
@@ -152,17 +152,23 @@ class LegacyNotificationServiceSpec
 
   "Sending a notification" should {
     "work for all channel lookup types (happy path scenarios)" in new Fixtures {
-      private val teamName = "team-name"
+      private val repoNameForService = "repo"
+      private val teamName           = "team-name"
+      private val repositoryDetails  = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
+
+      when(mockServiceConfigsConnector.repoNameForService(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(repoNameForService)))
       when(channelLookupService.getExistingRepository(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Right(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+        .thenReturn(Future.successful(Right(repositoryDetails)))
       when(channelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
         .thenReturn(Future.successful(Right(List(teamName))))
 
       val teamChannel = "team-channel"
-      val usersTeams = List(TeamName("team-one"))
+      val usersTeams  = List(TeamName("team-one"))
 
       val channelLookups = List(
         GithubRepository("repo"),
+        Service("service"),
         SlackChannel(NonEmptyList.of(teamChannel)),
         TeamsOfGithubUser("a-github-handle"),
         TeamsOfLdapUser("a-ldap-user"),
@@ -197,9 +203,11 @@ class LegacyNotificationServiceSpec
         )
 
         channelLookup match {
-          case req: TeamsOfGithubUser => verify(userManagementService,   times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
-          case req: TeamsOfLdapUser   => verify(userManagementService,   times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
-          case req: GithubTeam        => verify(channelLookupService,    times(1)).getExistingSlackChannel(eqTo(req.teamName))(any)
+          case req: GithubRepository  => verify(channelLookupService,  times(1)).getTeamsResponsibleForRepo(eqTo(req.repositoryName), eqTo(repositoryDetails))
+          case _  : Service           => verify(channelLookupService,  times(2)).getTeamsResponsibleForRepo(eqTo(repoNameForService), eqTo(repositoryDetails))
+          case req: TeamsOfGithubUser => verify(userManagementService, times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
+          case req: TeamsOfLdapUser   => verify(userManagementService, times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
+          case req: GithubTeam        => verify(channelLookupService,  times(1)).getExistingSlackChannel(eqTo(req.teamName))(any)
           case _                      =>
         }
       }
@@ -216,9 +224,14 @@ class LegacyNotificationServiceSpec
         "alerts.slack.noTeamFound.text"      -> "test {user}"
       )
 
-      private val teamName = "team-name"
+      private val repoNameForService = "repo"
+      private val teamName           = "team-name"
+      private val repositoryDetails  = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
+
+      when(mockServiceConfigsConnector.repoNameForService(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(repoNameForService)))
       when(channelLookupService.getExistingRepository(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Right(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+        .thenReturn(Future.successful(Right(repositoryDetails)))
       when(channelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
         .thenReturn(Future.successful(Right(List(teamName))))
 
@@ -226,6 +239,7 @@ class LegacyNotificationServiceSpec
 
       val channelLookups = List(
         GithubRepository("repo"),
+        Service("service"),
         TeamsOfGithubUser("a-github-handle"),
         TeamsOfLdapUser("a-ldap-user"),
         GithubTeam(teamName)
@@ -272,8 +286,13 @@ class LegacyNotificationServiceSpec
       )
 
       private val teamName = "team-name"
+      private val repoNameForService = "repo"
+      private val repositoryDetails  = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
+
+      when(mockServiceConfigsConnector.repoNameForService(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(repoNameForService)))
       when(channelLookupService.getExistingRepository(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Right(RepositoryDetails(teamNames = List(teamName), owningTeams = Nil))))
+        .thenReturn(Future.successful(Right(repositoryDetails)))
       when(channelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
         .thenReturn(Future.successful(Right(List(teamName))))
 
@@ -281,6 +300,7 @@ class LegacyNotificationServiceSpec
 
       val channelLookups = List(
         GithubRepository("repo"),
+        Service("service"),
         TeamsOfGithubUser("a-github-handle"),
         TeamsOfLdapUser("a-ldap-user"),
         GithubTeam(teamName)
@@ -360,6 +380,55 @@ class LegacyNotificationServiceSpec
         exclusions         = Nil
       )
     }
+
+    "handle repo names being used in the service channel lookup" in new Fixtures {
+      private val repoName          = "repo"
+      private val teamName          = "team-name"
+      private val repositoryDetails = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
+
+      when(mockServiceConfigsConnector.repoNameForService(eqTo(repoName))(any[HeaderCarrier]))
+        .thenReturn(Future.successful(None))
+      when(channelLookupService.getExistingRepository(eqTo(repoName))(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Right(repositoryDetails)))
+      when(channelLookupService.getTeamsResponsibleForRepo(eqTo(repoName), eqTo(repositoryDetails)))
+        .thenReturn(Future.successful(Right(List(teamName))))
+
+      val channelLookups = List(
+        Service(repoName)
+      )
+
+      private val teamChannel = "team-channel"
+
+      when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Right(teamChannel)))
+      when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
+
+      channelLookups.foreach { channelLookup =>
+        val notificationRequest =
+          NotificationRequest(
+            channelLookup = channelLookup,
+            messageDetails = MessageDetails(
+              text        = "some-text-to-post-to-slack",
+              attachments = Nil
+            )
+          )
+
+        val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
+
+        result shouldBe NotificationResult(
+          successfullySentTo = List(teamChannel),
+          errors             = Nil,
+          exclusions         = Nil
+        )
+
+        channelLookup match {
+          case req: Service => verify(channelLookupService, times(1)).getTeamsResponsibleForRepo(eqTo(req.serviceName), eqTo(repositoryDetails))
+          case _            =>
+        }
+      }
+    }
+
   }
 
   "Disabled notifications" should {
@@ -656,9 +725,10 @@ class LegacyNotificationServiceSpec
   }
 
   trait Fixtures {
-    val slackConnector        = mock[SlackConnector]//(withSettings.lenient)
-    val userManagementService = mock[UserManagementService]
-    val channelLookupService  = mock[ChannelLookupService]
+    val slackConnector              = mock[SlackConnector]//(withSettings.lenient)
+    val userManagementService       = mock[UserManagementService]
+    val channelLookupService        = mock[ChannelLookupService]
+    val mockServiceConfigsConnector = mock[ServiceConfigsConnector]
 
     val configuration =
       Configuration(
@@ -690,7 +760,8 @@ class LegacyNotificationServiceSpec
         , "linkNotAllowListed" -> "LINK NOT ALLOW LISTED"
         )),
         userManagementService,
-        channelLookupService
+        channelLookupService,
+        mockServiceConfigsConnector
       )
   }
 }
