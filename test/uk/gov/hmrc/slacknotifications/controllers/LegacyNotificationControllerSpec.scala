@@ -22,7 +22,7 @@ import play.api.mvc.{Headers, Result}
 import play.api.test.{FakeRequest, StubControllerComponentsFactory}
 import play.test.Helpers
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.slacknotifications.model.{Error, Exclusion, NotificationRequest, NotificationResult, Password}
+import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, NotificationResult, Password}
 import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 import uk.gov.hmrc.slacknotifications.services.{AuthService, LegacyNotificationService}
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
@@ -58,18 +58,6 @@ class LegacyNotificationControllerSpec extends UnitSpec with ScalaFutures {
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 401
-    }
-
-    "return bad request when the channel lookup is unsupported" in new TestSetup {
-      val validCredentials = "Zm9vOmJhcg=="
-      val request          = baseRequest.withHeaders("Authorization" -> s"Basic $validCredentials")
-
-      when(notificationService.sendNotification(any[NotificationRequest], any[ClientService])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(NotificationResult(List.empty[String], List(Error("unsupported_channel_look_up", "")), List.empty[Exclusion])))
-      when(authService.isAuthorized(eqTo(ClientService("foo", Password("bar"))))).thenReturn(true)
-
-      val response: Result = controller.sendNotification().apply(request).futureValue
-      response.header.status shouldBe  400
     }
   }
 

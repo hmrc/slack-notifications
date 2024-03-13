@@ -41,19 +41,14 @@ class LegacyNotificationController @Inject()(
     withAuthorization { authenticatedService =>
       withJsonBody[NotificationRequest] { notificationRequest =>
         notificationService.sendNotification(notificationRequest, authenticatedService).map { results =>
-          val asJson = Json.toJson(results)(NotificationResult.format)
-          results match {
-            case _: NotificationResult if results.errors.exists(_.code == "unsupported_channel_look_up") =>
-              BadRequest(asJson)
-            case _: NotificationResult =>
-              logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
-              Ok(asJson)
-          }
+          implicit val writes: Format[NotificationResult] = NotificationResult.format
+          val asJson = Json.toJson(results)
+          logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
+          Ok(asJson)
         }
       }
     }
   }
-
 
   def withAuthorization(fn: AuthService.ClientService => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
     def unauthorized = {

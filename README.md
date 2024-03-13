@@ -25,6 +25,13 @@ Can be one of:
     "repositoryName" : "name-of-a-repo"
 }
 ```
+`service` - will attempt to find the channel for the team that owns the service.
+```json
+{
+    "by" : "service",
+    "serviceName" : "name-of-a-service"
+}
+```
 
 `github-team` - will attempt to find the channel for the GitHub team.
 
