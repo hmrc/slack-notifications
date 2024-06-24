@@ -32,10 +32,10 @@ class UserManagementService @Inject()(
 
   def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
     userManagementConnector.getLdapUser(ldapUsername)
-      .map(_.fold(List.empty[TeamName])(_.teamsAndRoles))
+      .map(_.fold(List.empty[TeamName])(_.teamNames))
 
   def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
     userManagementConnector.getGithubUser(githubUsername)
       .map(_.headOption)
-      .map(_.fold(List.empty[TeamName])(_.teamsAndRoles))
+      .map(_.fold(List.empty[TeamName])(_.teamNames))
 }
