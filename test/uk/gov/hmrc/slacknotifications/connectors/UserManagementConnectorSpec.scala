@@ -62,15 +62,10 @@ class UserManagementConnectorSpec
                   |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
                   |     "username": "c.d",
                   |     "githubUsername": "c-d",
-                  |     "teamsAndRoles": [
-                  |       {
-                  |         "teamName": "Team A",
-                  |         "role": "user"
-                  |       },
-                  |       {
-                  |         "teamName": "Team B",
-                  |         "role": "user"
-                  |       }
+                  |     "role": "user",
+                  |     "teamNames": [
+                  |       "Team A",
+                  |       "Team B"
                   |     ]
                   |   }
                   |]
@@ -82,7 +77,7 @@ class UserManagementConnectorSpec
       connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), List(TeamName("Team A"), TeamName("Team B"))))
     }
 
-    "return github user with no teams and roles" in {
+    "return github user with no teams" in {
       stubFor(
         get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
@@ -98,7 +93,8 @@ class UserManagementConnectorSpec
                   |     "primaryEmail": "c.d@digital.hmrc.gov.uk",
                   |     "username": "c.d",
                   |     "githubUsername": "c-d",
-                  |     "teamsAndRoles": []
+                  |     "role" : "user",
+                  |     "teamNames": []
                   |   }
                   |]
                   |""".stripMargin
@@ -141,15 +137,10 @@ class UserManagementConnectorSpec
                   |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
                   |  "username": "c.d",
                   |  "githubUsername": "c-d",
-                  |  "teamsAndRoles": [
-                  |    {
-                  |      "teamName": "Team A",
-                  |      "role": "user"
-                  |    },
-                  |    {
-                  |      "teamName": "Team B",
-                  |      "role": "user"
-                  |    }
+                  |  "role": "user",
+                  |  "teamNames": [
+                  |     "Team A",
+                  |     "Team B"
                   |  ]
                   |}
                   |""".stripMargin
@@ -160,7 +151,7 @@ class UserManagementConnectorSpec
       connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), List(TeamName("Team A"), TeamName("Team B"))))
     }
 
-    "return ldap user with no teams and roles" in {
+    "return ldap user with no teams" in {
       stubFor(
         get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
@@ -176,7 +167,8 @@ class UserManagementConnectorSpec
                   |  "primaryEmail": "c.d@digital.hmrc.gov.uk",
                   |  "username": "c.d",
                   |  "githubUsername": "c-d",
-                  |  "teamsAndRoles": []
+                  |  "role": "user",
+                  |  "teamNames": []
                   |}
                   |""".stripMargin
               )

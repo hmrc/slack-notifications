@@ -58,7 +58,7 @@ object UserManagementConnector {
   case class User(
     ldapUsername  : String,
     githubUsername: Option[String],
-    teamsAndRoles : List[TeamName]
+    teamNames     : List[TeamName]
   )
 
   object User {
@@ -66,7 +66,7 @@ object UserManagementConnector {
       implicit val tnr = TeamName.reads
       ( ( __ \ "username"      ).read[String]
       ~ ( __ \ "githubUsername").readNullable[String]
-      ~ ( __ \ "teamsAndRoles" ).read[List[TeamName]]
+      ~ ( __ \ "teamNames"     ).read[List[TeamName]]
       )(User.apply _)
     }
   }
@@ -75,10 +75,10 @@ object UserManagementConnector {
     asString: String
   ) extends AnyVal
 
-  object TeamName {
-    val reads: Reads[TeamName] =
-      Reads.at[String]( __ \ "teamName").map(TeamName.apply)
-  }
+object TeamName {
+  val reads: Reads[TeamName] =
+    Reads.of[String].map(TeamName.apply)
+}
 
   final case class TeamDetails(
     teamName         : String,
