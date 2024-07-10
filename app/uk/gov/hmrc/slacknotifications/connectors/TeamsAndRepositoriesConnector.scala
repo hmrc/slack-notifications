@@ -36,7 +36,7 @@ class TeamsAndRepositoriesConnector @Inject()(
 
   def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
     httpClientV2
-      .get(url"$url/api/repositories/$repositoryName")
+      .get(url"$url/api/v2/repositories/$repositoryName")
       .execute[Option[RepositoryDetails]]
 }
 
