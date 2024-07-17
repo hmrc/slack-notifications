@@ -35,7 +35,7 @@ class UserManagementServiceSpec
     "return list of team names" in new Fixtures {
 
       val ldapUserWithTeams =
-        User("ldapUsername", Some("githubUsername"), List(TeamName("Team A"), TeamName("Team B")))
+        User("ldapUsername", None, Some("githubUsername"), "user", List(TeamName("Team A"), TeamName("Team B")))
 
       when(userManageConnector.getLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(ldapUserWithTeams)))
@@ -52,7 +52,7 @@ class UserManagementServiceSpec
 
     "return empty list when user has no team details" in new Fixtures {
       val ldapUserNoTeams =
-        User("ldapUsername", Some("githubUsername"), List.empty[TeamName])
+        User("ldapUsername", None, Some("githubUsername"), "user", List.empty[TeamName])
 
       when(userManageConnector.getLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(ldapUserNoTeams)))
@@ -65,7 +65,7 @@ class UserManagementServiceSpec
     "return list of team names" in new Fixtures {
 
       val githubUserWithTeams =
-        User("ldapUsername", Some("githubUsername"), List(TeamName("Team A"), TeamName("Team B")))
+        User("ldapUsername", None, Some("githubUsername"), "user", List(TeamName("Team A"), TeamName("Team B")))
 
       when(userManageConnector.getGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(List(githubUserWithTeams)))
@@ -82,7 +82,7 @@ class UserManagementServiceSpec
 
     "return empty list when user has no team details" in new Fixtures {
       val githubUserNoTeams =
-        User("ldapUsername", Some("githubUsername"), List.empty[TeamName])
+        User("ldapUsername", None, Some("githubUsername"), "user", List.empty[TeamName])
 
       when(userManageConnector.getGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(List(githubUserNoTeams)))

@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
+import cats.data.EitherT
+import cats.instances.future._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
@@ -65,16 +67,26 @@ class ChannelLookupService @Inject()(
     teamName: String
   )(implicit
     hc: HeaderCarrier
-  ): Future[Either[String, String]] =
-    userManagementConnector
-      .getTeamSlackDetails(teamName)
-      .map(td => td.flatMap(extractSlackChannel))
-      .flatMap {
-        case Some(slackChannel) => Future.successful(Right(slackChannel))
-        case None => Future.successful(Left(slackConfig.noTeamFoundAlert.channel))
-      }
+  ): EitherT[Future, (Seq[AdminSlackID], FallbackChannel), TeamChannel] = {
+    val fallbackChannel = FallbackChannel(slackConfig.noTeamFoundAlert.channel)
 
-  def extractSlackChannel(slackDetails: TeamDetails): Option[String] =
+     EitherT.fromOptionF(
+        userManagementConnector.getTeamSlackDetails(teamName).map(_.flatMap(extractSlackChannel)),
+        ()
+     ).leftSemiflatMap( _ =>
+       userManagementConnector
+         .getTeamUsers(teamName)
+         .map { users =>
+           (
+             users.filter(user => user.role == "team_admin" && user.slackID.isDefined)
+                  .map(user => AdminSlackID(user.slackID.get)),
+             fallbackChannel
+           )
+         }
+     )
+  }
+
+  def extractSlackChannel(slackDetails: TeamDetails): Option[TeamChannel] =
     slackDetails.slackNotification.orElse(slackDetails.slack).flatMap { slackChannelUrl =>
       val urlWithoutTrailingSpace =
         if (slackChannelUrl.endsWith("/"))
@@ -84,7 +96,11 @@ class ChannelLookupService @Inject()(
 
       val slashPos = urlWithoutTrailingSpace.lastIndexOf("/")
       val s = urlWithoutTrailingSpace.substring(slashPos + 1)
-      if (slashPos > 0 && s.nonEmpty) Some(s) else None
+      if (slashPos > 0 && s.nonEmpty) Some(TeamChannel(s)) else None
     }
 
 }
+
+case class AdminSlackID   (asString: String) extends AnyVal
+case class FallbackChannel(asString: String) extends AnyVal
+case class TeamChannel    (asString: String) extends AnyVal

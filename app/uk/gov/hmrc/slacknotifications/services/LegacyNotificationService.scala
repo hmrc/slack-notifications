@@ -52,16 +52,9 @@ class LegacyNotificationService @Inject()(
   ): EitherT[Future, NotificationResult, NotificationResult] =
     EitherT.liftF[Future, NotificationResult, NotificationResult](
       toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){(acc, teamName) =>
+        val lookupRes = channelLookupService.getExistingSlackChannel(teamName)
         for {
-          slackChannel    <- channelLookupService.getExistingSlackChannel(teamName)
-          notificationRes <- slackChannel match {
-            case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), clientService, Some(teamName))
-            case Left(fallbackChannel) =>  sendSlackMessage(
-                                             fromNotification(notificationRequest, fallbackChannel, Some(Error.unableToFindTeamSlackChannelInUMP(teamName).message)),
-                                             clientService,
-                                             Some(teamName)
-                                           ).map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName))))
-          }
+          notificationRes <- dispatchMessage(notificationRequest, teamName, clientService, lookupRes)
         } yield acc :+ notificationRes
     }.map(NotificationResult.concatResults))
 
@@ -93,12 +86,7 @@ class LegacyNotificationService @Inject()(
         ).merge
 
       case ChannelLookup.GithubTeam(team) =>
-          channelLookupService.getExistingSlackChannel(team).flatMap{slackChannel =>
-            slackChannel match {
-              case Right(teamChannel)    =>  sendSlackMessage(fromNotification(notificationRequest, teamChannel), clientService, Some(team))
-              case Left(fallbackChannel) =>  sendSlackMessage(fromNotification(notificationRequest, fallbackChannel, Some(Error.unableToFindTeamSlackChannelInUMP(team).message)), clientService, Some(team)).map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(team))))
-            }
-          }
+        dispatchMessage(notificationRequest, team, clientService, channelLookupService.getExistingSlackChannel(team))
 
       case ChannelLookup.SlackChannel(slackChannels) =>
         slackChannels.toList.foldLeftM(Seq.empty[NotificationResult]){(acc, slackChannel) =>
@@ -113,6 +101,28 @@ class LegacyNotificationService @Inject()(
 
       case ChannelLookup.TeamsOfLdapUser(ldapUsername) =>
           sendNotificationForUser("ldap", ldapUsername, userManagementService.getTeamsForLdapUser)(notificationRequest, clientService)
+    }
+
+  private def dispatchMessage(
+    notificationRequest: NotificationRequest,
+    team: String,
+    clientService: ClientService,
+    lookupRes: EitherT[Future, (Seq[AdminSlackID], FallbackChannel), TeamChannel]
+  )(implicit hc: HeaderCarrier): Future[NotificationResult] =
+    lookupRes.value.flatMap {
+      case Right(teamChannel) =>
+        sendSlackMessage(fromNotification(notificationRequest, teamChannel.asString), clientService, Some(team))
+      case Left((adminSlackIDs, fallbackChannel)) =>
+        if(adminSlackIDs.isEmpty) {
+          sendSlackMessage(fromNotification(notificationRequest, fallbackChannel.asString, Some(Error.noAdminsToFallbackToForTeam(team).message)), clientService, Some(team))
+            .map(_.copy(errors = Seq(Error.noAdminsToFallbackToForTeam(team))))
+        } else {
+          val msgs = fromNotification(notificationRequest, fallbackChannel.asString, Some(Error.unableToFindTeamSlackChannelInUMP(team).message)) +:
+            adminSlackIDs.map(adminSlackID => fromNotification(notificationRequest, adminSlackID.asString, Some(Error.unableToFindTeamSlackChannelInUMP(team).message)))
+          Future.sequence(msgs.map(msg => sendSlackMessage(msg, clientService, Some(team))
+                                            .map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(team))))
+          ))    .map(NotificationResult.concatResults)
+        }
     }
 
   private def sendNotificationForUser(

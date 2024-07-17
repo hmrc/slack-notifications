@@ -16,25 +16,24 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import cats.data.NonEmptyList
+import cats.data.{EitherT, NonEmptyList}
 import org.bson.types.ObjectId
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
-import uk.gov.hmrc.slacknotifications.config.SlackConfig
-import uk.gov.hmrc.slacknotifications.model.ChannelLookup._
+import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, ServiceConfigsConnector, SlackConnector}
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
-import uk.gov.hmrc.slacknotifications.model.QueuedSlackMessage
+import uk.gov.hmrc.slacknotifications.model.ChannelLookup._
+import uk.gov.hmrc.slacknotifications.model.{NotificationResult, QueuedSlackMessage, SlackMessage, Error}
+import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import uk.gov.hmrc.slacknotifications.config.DomainConfig
-import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
 
 class NotificationServiceSpec
   extends UnitSpec
@@ -57,13 +56,13 @@ class NotificationServiceSpec
       when(mockChannelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
         .thenReturn(Future.successful(Right(List(teamName))))
 
-      private val teamChannel = "team-channel"
+      private val teamChannel = TeamChannel("team-channel")
       private val usersTeams = List(TeamName("team-one"))
 
       private val channelLookups = List(
         GithubRepository("repo"),
         Service("service"),
-        SlackChannel(NonEmptyList.of(teamChannel)),
+        SlackChannel(NonEmptyList.of(teamChannel.asString)),
         TeamsOfGithubUser("a-github-handle"),
         TeamsOfLdapUser("a-ldap-user"),
         GithubTeam("a-github-team")
@@ -74,7 +73,7 @@ class NotificationServiceSpec
       when(mockUserManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Right(teamChannel)))
+        .thenReturn(EitherT.rightT(teamChannel))
       when(mockSlackMessageQueue.add(any[QueuedSlackMessage]))
         .thenReturn(Future.successful(new ObjectId()))
 
@@ -109,6 +108,12 @@ class NotificationServiceSpec
       private val teamName          = "team-name"
       private val repositoryDetails = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
 
+      private val channelLookups = List(
+        Service(repoName)
+      )
+
+      private val teamChannel = TeamChannel("team-channel")
+
       when(mockServiceConfigsConnector.repoNameForService(eqTo(repoName))(any[HeaderCarrier]))
         .thenReturn(Future.successful(None))
       when(mockChannelLookupService.getExistingRepository(eqTo(repoName))(any[HeaderCarrier]))
@@ -116,14 +121,8 @@ class NotificationServiceSpec
       when(mockChannelLookupService.getTeamsResponsibleForRepo(eqTo(repoName), eqTo(repositoryDetails)))
         .thenReturn(Future.successful(Right(List(teamName))))
 
-      private val channelLookups = List(
-        Service(repoName)
-      )
-
-      private val teamChannel = "team-channel"
-
       when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Right(teamChannel)))
+        .thenReturn(EitherT.rightT(teamChannel))
       when(mockSlackMessageQueue.add(any[QueuedSlackMessage]))
         .thenReturn(Future.successful(new ObjectId()))
 
@@ -147,6 +146,86 @@ class NotificationServiceSpec
           case _            =>
         }
       }
+    }
+  }
+
+  "constructMessagesWithErrors" should {
+    val team = "teamA"
+    val request = {
+      SendNotificationRequest(
+        displayName   = "a-display-name",
+        emoji         = ":robot_face:",
+        channelLookup = GithubTeam(team),
+        text          = "a test message",
+        blocks        = Seq.empty,
+        attachments   = Seq.empty
+      )}
+    val initResult = NotificationResult()
+    val teamChannel = TeamChannel("https://hmrcdigital.slack.com/messages/teamA")
+    val fallbackChannel = FallbackChannel("https://hmrcdigital.slack.com/messages/fallbackChannel")
+
+    "handle Right case correctly" in new Fixtures {
+      private val lookupRes = EitherT.rightT[Future, (Seq[AdminSlackID], FallbackChannel)](teamChannel)
+      private val result = service.constructMessagesWithErrors(request, team, lookupRes, initResult).futureValue
+      result should be (
+        Seq(SlackMessage(
+          channel = teamChannel.asString,
+          text = request.text,
+          blocks = Seq.empty,
+          attachments = Seq.empty,
+          username = request.displayName,
+          emoji = request.emoji
+        )),
+        initResult
+      )
+    }
+
+    "handle Left case without admins correctly" in new Fixtures {
+      private val lookupRes = EitherT.leftT[Future, TeamChannel]((Seq.empty[AdminSlackID], fallbackChannel))
+      service.constructMessagesWithErrors(request, team, lookupRes, initResult).futureValue should be (
+        Seq(SlackMessage(
+          channel = fallbackChannel.asString,
+          text = Error.noAdminsToFallbackToForTeam(team).message,
+          blocks = Seq(SlackMessage.errorBlock(Error.noAdminsToFallbackToForTeam(team).message), SlackMessage.divider) ++ request.blocks,
+          attachments = Seq.empty,
+          username = request.displayName,
+          emoji = request.emoji
+        )),
+        initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team), Error.noAdminsToFallbackToForTeam(team))
+      )
+    }
+
+    "handle Left case with admins correctly" in new Fixtures {
+      private val lookupRes = EitherT.leftT[Future, TeamChannel]((Seq(AdminSlackID("id_A"), AdminSlackID("id_B")), fallbackChannel))
+      service.constructMessagesWithErrors(request, team, lookupRes, initResult).futureValue should be (
+        Seq(
+          SlackMessage(
+            channel = fallbackChannel.asString,
+            text = Error.unableToFindTeamSlackChannelInUMP(team).message,
+            blocks = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            attachments = Seq.empty,
+            username = request.displayName,
+            emoji = request.emoji
+          ),
+          SlackMessage(
+            channel = "id_A",
+            text = Error.unableToFindTeamSlackChannelInUMP(team).message,
+            blocks = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            attachments = Seq.empty,
+            username = request.displayName,
+            emoji = request.emoji
+          ),
+          SlackMessage(
+            channel = "id_B",
+            text = Error.unableToFindTeamSlackChannelInUMP(team).message,
+            blocks = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            attachments = Seq.empty,
+            username = request.displayName,
+            emoji = request.emoji
+          )
+        ),
+        initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team))
+      )
     }
   }
 
