@@ -43,48 +43,38 @@ class ChannelLookupService @Inject()(
   ): Future[Either[NotificationResult, RepositoryDetails]] =
     teamsAndReposConnector
       .getRepositoryDetails(repoName)
-      .flatMap {
-        case Some(repoDetails) => Future.successful(Right(repoDetails))
-        case None => Future.successful(Left(NotificationResult().addError(Error.repositoryNotFound(repoName))))
+      .map {
+        case Some(repoDetails) => Right(repoDetails)
+        case None              => Left(NotificationResult().addError(Error.repositoryNotFound(repoName)))
       }
 
-  private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
-    if (repositoryDetails.owningTeams.nonEmpty)
-      repositoryDetails.owningTeams
-    else
-      repositoryDetails.teamNames
-
   def getTeamsResponsibleForRepo(
-    repoName: String,
+    repoName         : String,
     repositoryDetails: RepositoryDetails
-  ): Future[Either[NotificationResult, List[String]]] =
-    getTeamsResponsibleForRepo(repositoryDetails) match {
-      case Nil => Future.successful(Left(NotificationResult().addError(Error.teamsNotFoundForRepository(repoName))))
-      case teams => Future.successful(Right(teams))
+  ): Either[NotificationResult, List[String]] =
+    repositoryDetails.owningTeams match {
+      case Nil   => Left(NotificationResult().addError(Error.teamsNotFoundForRepository(repoName)))
+      case teams => Right(teams)
     }
 
   def getExistingSlackChannel(
     teamName: String
   )(implicit
     hc: HeaderCarrier
-  ): EitherT[Future, (Seq[AdminSlackId], FallbackChannel), TeamChannel] = {
-    val fallbackChannel = FallbackChannel(slackConfig.noTeamFoundAlert.channel)
-
-     EitherT.fromOptionF(
-        userManagementConnector.getTeamSlackDetails(teamName).map(_.flatMap(extractSlackChannel)),
-        ()
-     ).leftSemiflatMap( _ =>
-       userManagementConnector
-         .getTeamUsers(teamName)
-         .map { users =>
-           (
-             users.filter(user => user.role == "team_admin" && user.slackId.isDefined)
-                  .map(user => AdminSlackId(user.slackId.get)),
-             fallbackChannel
-           )
-         }
-     )
-  }
+  ): Future[Either[(Seq[AdminSlackId], FallbackChannel), TeamChannel]] =
+    EitherT.fromOptionF(
+      userManagementConnector.getTeamSlackDetails(teamName).map(_.flatMap(extractSlackChannel)),
+      ()
+    ).leftSemiflatMap(_ =>
+      userManagementConnector
+        .getTeamUsers(teamName)
+        .map { users =>
+          ( users.filter(user => user.role == "team_admin" && user.slackId.isDefined)
+              .map(user => AdminSlackId(user.slackId.get))
+          , FallbackChannel(slackConfig.noTeamFoundAlert.channel)
+          )
+        }
+    ).value
 
   def extractSlackChannel(slackDetails: TeamDetails): Option[TeamChannel] =
     slackDetails.slackNotification.orElse(slackDetails.slack).flatMap { slackChannelUrl =>

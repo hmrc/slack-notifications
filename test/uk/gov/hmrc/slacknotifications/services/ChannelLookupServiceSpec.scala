@@ -20,7 +20,7 @@ import org.scalatest.concurrent.ScalaFutures
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.config.{MessageConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
-import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, TeamsAndRepositoriesConnector, UserManagementConnector}
+import uk.gov.hmrc.slacknotifications.connectors.{TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.test.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -30,50 +30,29 @@ class ChannelLookupServiceSpec
   extends UnitSpec with ScalaFutures {
   implicit val hc: HeaderCarrier = HeaderCarrier()
 
-
-  "Getting teams responsible for repo" should {
-    "prioritize owningTeams" in new Fixtures {
-      val repoDetails: RepositoryDetails =
-        RepositoryDetails(
-          owningTeams = List("team1"),
-          teamNames = List("team1", "team2")
-        )
-
-      service.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1")
-    }
-    "return contributing teams if no explicit owning teams are specified" in new Fixtures {
-      val repoDetails: RepositoryDetails =
-        RepositoryDetails(
-          owningTeams = Nil,
-          teamNames = List("team1", "team2")
-        )
-
-      service.getTeamsResponsibleForRepo(repoDetails) shouldBe List("team1", "team2")
-    }
-  }
-
   "Extracting team slack channel" should {
     "work if slack field exists and contains team name at the end" in new Fixtures {
       val teamChannelName = "teamChannel"
-      val slackLink = "foo/" + teamChannelName
-      val teamDetails = TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
+      val slackLink       = "foo/" + teamChannelName
+      val teamDetails     = TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe Some(TeamChannel(teamChannelName))
     }
 
     "return the slackNotification channel when present" in new Fixtures {
       val teamChannelName = "teamChannel"
-      val slackLink = "foo/" + teamChannelName
-      val teamDetails = TeamDetails(
-        slack = Some(slackLink),
-        slackNotification = Some(s"foo/$teamChannelName-notification"),
-        teamName = "n/a")
+      val slackLink       = "foo/" + teamChannelName
+      val teamDetails     = TeamDetails(
+                              slack             = Some(slackLink),
+                              slackNotification = Some(s"foo/$teamChannelName-notification"),
+                              teamName = "n/a"
+                            )
 
       service.extractSlackChannel(teamDetails) shouldBe Some(TeamChannel(s"$teamChannelName-notification"))
     }
 
     "return None if slack field exists but there is no slack channel in it" in new Fixtures {
-      val slackLink = "link-without-team/"
+      val slackLink   = "link-without-team/"
       val teamDetails = TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe None
@@ -95,12 +74,10 @@ class ChannelLookupServiceSpec
       val teamName = "teamA"
       val teamDetails = TeamDetails(teamName, None, Some("https://hmrcdigital.slack.com/messages/teamA"))
 
-      when(mockSlackConfig.noTeamFoundAlert)
-        .thenReturn(MessageConfig("https://hmrcdigital.slack.com/messages/fallbackChannel", "", "", ""))
       when(mockUserManagementConnector.getTeamSlackDetails(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(teamDetails)))
 
-      service.getExistingSlackChannel(teamName).value.futureValue shouldBe Right(TeamChannel("teamA"))
+      service.getExistingSlackChannel(teamName).futureValue shouldBe Right(TeamChannel("teamA"))
     }
 
     "return only FallbackChannel channel if team channel and admins with slack do not exist" in new Fixtures {
@@ -114,7 +91,7 @@ class ChannelLookupServiceSpec
       when(mockUserManagementConnector.getTeamUsers(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(Seq.empty))
 
-      service.getExistingSlackChannel(teamName).value.futureValue shouldBe Left((Seq.empty, fallbackChannel))
+      service.getExistingSlackChannel(teamName).futureValue shouldBe Left((Seq.empty, fallbackChannel))
     }
 
     "return AdminSlackID and FallbackChannel if team channel does not exist but admins with slack do" in new Fixtures {
@@ -128,15 +105,15 @@ class ChannelLookupServiceSpec
       when(mockUserManagementConnector.getTeamUsers(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(
           Seq(
-            UserManagementConnector.User(ldapUsername = "A", slackId = Some("id_A"), githubUsername = None, role = "user", teamNames = List.empty),
+            UserManagementConnector.User(ldapUsername = "A", slackId = Some("id_A"), githubUsername = None, role = "user"      , teamNames = List.empty),
             UserManagementConnector.User(ldapUsername = "B", slackId = Some("id_B"), githubUsername = None, role = "team_admin", teamNames = List.empty),
             UserManagementConnector.User(ldapUsername = "C", slackId = Some("id_C"), githubUsername = None, role = "team_admin", teamNames = List.empty),
-            UserManagementConnector.User(ldapUsername = "D", slackId = None, githubUsername = None, role = "user", teamNames = List.empty),
-            UserManagementConnector.User(ldapUsername = "E", slackId = None, githubUsername = None, role = "team_admin", teamNames = List.empty)
+            UserManagementConnector.User(ldapUsername = "D", slackId = None        , githubUsername = None, role = "user"      , teamNames = List.empty),
+            UserManagementConnector.User(ldapUsername = "E", slackId = None        , githubUsername = None, role = "team_admin", teamNames = List.empty)
           )
         ))
 
-      service.getExistingSlackChannel(teamName).value.futureValue shouldBe
+      service.getExistingSlackChannel(teamName).futureValue shouldBe
         Left((Seq(AdminSlackId("id_B"), AdminSlackId("id_C")), fallbackChannel))
     }
 
