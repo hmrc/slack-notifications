@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import cats.data.{EitherT, NonEmptyList}
+import cats.data.NonEmptyList
 import org.bson.types.ObjectId
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -73,7 +73,7 @@ class NotificationServiceSpec
       when(mockUserManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(EitherT.rightT(teamChannel))
+        .thenReturn(Future.successful(Right(teamChannel)))
       when(mockSlackMessageQueue.add(any[QueuedSlackMessage]))
         .thenReturn(Future.successful(new ObjectId()))
 
@@ -122,7 +122,7 @@ class NotificationServiceSpec
         .thenReturn(Future.successful(Right(List(teamName))))
 
       when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(EitherT.rightT(teamChannel))
+        .thenReturn(Future.successful(Right(teamChannel)))
       when(mockSlackMessageQueue.add(any[QueuedSlackMessage]))
         .thenReturn(Future.successful(new ObjectId()))
 
@@ -165,63 +165,63 @@ class NotificationServiceSpec
     val fallbackChannel = FallbackChannel("https://hmrcdigital.slack.com/messages/fallbackChannel")
 
     "handle Right case correctly" in new Fixtures {
-      private val lookupRes = EitherT.rightT[Future, (Seq[AdminSlackID], FallbackChannel)](teamChannel)
-      private val result = service.constructMessagesWithErrors(request, team, lookupRes, initResult).futureValue
-      result should be (
+      private val lookupRes = Right(teamChannel)
+      private val result = service.constructMessagesWithErrors(request, team, lookupRes, initResult)
+      result shouldBe (
         Seq(SlackMessage(
-          channel = teamChannel.asString,
-          text = request.text,
-          blocks = Seq.empty,
+          channel     = teamChannel.asString,
+          text        = request.text,
+          blocks      = Seq.empty,
           attachments = Seq.empty,
-          username = request.displayName,
-          emoji = request.emoji
+          username    = request.displayName,
+          emoji       = request.emoji
         )),
         initResult
       )
     }
 
     "handle Left case without admins correctly" in new Fixtures {
-      private val lookupRes = EitherT.leftT[Future, TeamChannel]((Seq.empty[AdminSlackID], fallbackChannel))
-      service.constructMessagesWithErrors(request, team, lookupRes, initResult).futureValue should be (
+      private val lookupRes = Left((Seq.empty[AdminSlackID], fallbackChannel))
+      service.constructMessagesWithErrors(request, team, lookupRes, initResult) shouldBe (
         Seq(SlackMessage(
-          channel = fallbackChannel.asString,
-          text = Error.noAdminsToFallbackToForTeam(team).message,
-          blocks = Seq(SlackMessage.errorBlock(Error.noAdminsToFallbackToForTeam(team).message), SlackMessage.divider) ++ request.blocks,
+          channel     = fallbackChannel.asString,
+          text        = Error.noAdminsToFallbackToForTeam(team).message,
+          blocks      = Seq(SlackMessage.errorBlock(Error.noAdminsToFallbackToForTeam(team).message), SlackMessage.divider) ++ request.blocks,
           attachments = Seq.empty,
-          username = request.displayName,
-          emoji = request.emoji
+          username    = request.displayName,
+          emoji       = request.emoji
         )),
         initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team), Error.noAdminsToFallbackToForTeam(team))
       )
     }
 
     "handle Left case with admins correctly" in new Fixtures {
-      private val lookupRes = EitherT.leftT[Future, TeamChannel]((Seq(AdminSlackID("id_A"), AdminSlackID("id_B")), fallbackChannel))
-      service.constructMessagesWithErrors(request, team, lookupRes, initResult).futureValue should be (
+      private val lookupRes = Left((Seq(AdminSlackID("id_A"), AdminSlackID("id_B")), fallbackChannel))
+      service.constructMessagesWithErrors(request, team, lookupRes, initResult) shouldBe (
         Seq(
           SlackMessage(
-            channel = fallbackChannel.asString,
-            text = Error.unableToFindTeamSlackChannelInUMP(team).message,
-            blocks = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            channel     = fallbackChannel.asString,
+            text        = Error.unableToFindTeamSlackChannelInUMP(team).message,
+            blocks      = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
             attachments = Seq.empty,
-            username = request.displayName,
-            emoji = request.emoji
+            username    = request.displayName,
+            emoji       = request.emoji
           ),
           SlackMessage(
-            channel = "id_A",
-            text = Error.unableToFindTeamSlackChannelInUMP(team).message,
-            blocks = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            channel     = "id_A",
+            text        = Error.unableToFindTeamSlackChannelInUMP(team).message,
+            blocks      = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
             attachments = Seq.empty,
-            username = request.displayName,
-            emoji = request.emoji
+            username    = request.displayName,
+            emoji       = request.emoji
           ),
           SlackMessage(
-            channel = "id_B",
-            text = Error.unableToFindTeamSlackChannelInUMP(team).message,
-            blocks = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            channel     = "id_B",
+            text        = Error.unableToFindTeamSlackChannelInUMP(team).message,
+            blocks      = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
             attachments = Seq.empty,
-            username = request.displayName,
-            emoji = request.emoji
+            username    = request.displayName,
+            emoji       = request.emoji
           )
         ),
         initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team))

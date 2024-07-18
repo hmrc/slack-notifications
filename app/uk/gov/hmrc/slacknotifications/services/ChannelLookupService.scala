@@ -49,18 +49,11 @@ class ChannelLookupService @Inject()(
         case None => Left(NotificationResult().addError(Error.repositoryNotFound(repoName)))
       }
 
-  // TODO This workaround is now in teams-and-repositories
-  private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
-    if (repositoryDetails.owningTeams.nonEmpty)
-      repositoryDetails.owningTeams
-    else
-      repositoryDetails.teamNames
-
   def getTeamsResponsibleForRepo(
     repoName: String,
     repositoryDetails: RepositoryDetails
   ): Future[Either[NotificationResult, List[String]]] = // TODO need to return Future?
-    getTeamsResponsibleForRepo(repositoryDetails) match {
+    repositoryDetails.owningTeams match {
       case Nil   => Future.successful(Left(NotificationResult().addError(Error.teamsNotFoundForRepository(repoName))))
       case teams => Future.successful(Right(teams))
     }
@@ -69,7 +62,7 @@ class ChannelLookupService @Inject()(
     teamName: String
   )(implicit
     hc: HeaderCarrier
-  ): EitherT[Future, (Seq[AdminSlackID], FallbackChannel), TeamChannel] =
+  ): Future[Either[(Seq[AdminSlackID], FallbackChannel), TeamChannel]] =
     EitherT.fromOptionF(
       userManagementConnector.getTeamSlackDetails(teamName).map(_.flatMap(extractSlackChannel)),
       ()
@@ -82,7 +75,7 @@ class ChannelLookupService @Inject()(
           , FallbackChannel(slackConfig.noTeamFoundAlert.channel)
           )
         }
-    )
+    ).value
 
   def extractSlackChannel(slackDetails: TeamDetails): Option[TeamChannel] =
     slackDetails.slackNotification.orElse(slackDetails.slack).flatMap { slackChannelUrl =>

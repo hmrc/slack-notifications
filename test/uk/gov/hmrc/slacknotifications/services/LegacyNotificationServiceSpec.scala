@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import cats.data.{EitherT, NonEmptyList}
+import cats.data.NonEmptyList
 import org.scalacheck.Gen
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -51,11 +51,11 @@ class LegacyNotificationServiceSpec
       val result = service
         .sendSlackMessage(
           LegacySlackMessage(
-            channel     = existingChannel,
-            text        = "text",
-            username    = "someUser",
-            icon_emoji  = Some(":snowman:"),
-            attachments = Nil,
+            channel              = existingChannel,
+            text                 = "text",
+            username             = "someUser",
+            icon_emoji           = Some(":snowman:"),
+            attachments          = Nil,
             showAttachmentAuthor = true
           ),
           ClientService("", Password(""))
@@ -75,11 +75,11 @@ class LegacyNotificationServiceSpec
         val result = service
           .sendSlackMessage(
             LegacySlackMessage(
-              channel     = "nonexistentChannel",
-              text        = "text",
-              username    = "someUser",
-              icon_emoji  = Some(":snowman:"),
-              attachments = Nil,
+              channel              = "nonexistentChannel",
+              text                 = "text",
+              username             = "someUser",
+              icon_emoji           = Some(":snowman:"),
+              attachments          = Nil,
               showAttachmentAuthor = true
             ),
             ClientService("", Password(""))
@@ -109,11 +109,11 @@ class LegacyNotificationServiceSpec
         val result = service
           .sendSlackMessage(
             LegacySlackMessage(
-              channel     = "name-of-a-channel",
-              text        = "text",
-              username    = "someUser",
-              icon_emoji  = Some(":snowman:"),
-              attachments = Nil,
+              channel              = "name-of-a-channel",
+              text                 = "text",
+              username             = "someUser",
+              icon_emoji           = Some(":snowman:"),
+              attachments          = Nil,
               showAttachmentAuthor = true
             ),
             ClientService("", Password(""))
@@ -135,11 +135,11 @@ class LegacyNotificationServiceSpec
           service
             .sendSlackMessage(
               LegacySlackMessage(
-                channel     = "channel",
-                text        = "text",
-                username    = "someUser",
-                icon_emoji  = Some(":snowman:"),
-                attachments = Nil,
+                channel              = "channel",
+                text                 = "text",
+                username             = "someUser",
+                icon_emoji           = Some(":snowman:"),
+                attachments          = Nil,
                 showAttachmentAuthor = true
               ),
               ClientService("", Password("")))
@@ -180,18 +180,18 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(EitherT.rightT(TeamChannel(teamChannel)))
+        .thenReturn(Future.successful(Right(TeamChannel(teamChannel))))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
           NotificationRequest(
-            channelLookup = channelLookup,
+            channelLookup  = channelLookup,
             messageDetails = MessageDetails(
-              text        = "some-text-to-post-to-slack",
-              attachments = Nil
-            )
+                               text        = "some-text-to-post-to-slack",
+                               attachments = Nil
+                             )
           )
 
         val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
@@ -250,25 +250,25 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(EitherT.leftT(Seq.empty[AdminSlackID], FallbackChannel(fallbackChannel)))
+        .thenReturn(Future.successful(Left((Seq.empty[AdminSlackID], FallbackChannel(fallbackChannel)))))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
           NotificationRequest(
-            channelLookup = channelLookup,
+            channelLookup  = channelLookup,
             messageDetails = MessageDetails(
-              text        = "some-text-to-post-to-slack",
-              attachments = Nil
-            )
+                               text        = "some-text-to-post-to-slack",
+                               attachments = Nil
+                             )
           )
 
         val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
-          errors             = Seq(Error.noAdminsToFallbackToForTeam(teamName)),
+          errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
           exclusions         = Nil
         )
       }
@@ -306,35 +306,30 @@ class LegacyNotificationServiceSpec
         GithubTeam(teamName)
       )
 
-      val adminSlackIDs = Seq(
-        AdminSlackID("ABCD"),
-        AdminSlackID("EFGH"),
-      )
-
       when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(EitherT.leftT(Seq.empty[AdminSlackID], FallbackChannel(fallbackChannel)))
+        .thenReturn(Future.successful(Left((Seq.empty[AdminSlackID], FallbackChannel(fallbackChannel)))))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
           NotificationRequest(
-            channelLookup = channelLookup,
+            channelLookup  = channelLookup,
             messageDetails = MessageDetails(
-              text        = "some-text-to-post-to-slack",
-              attachments = Nil
-            )
+                               text        = "some-text-to-post-to-slack",
+                               attachments = Nil
+                             )
           )
 
         val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
-          errors             = Seq(Error.noAdminsToFallbackToForTeam(teamName)),
+          errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
           exclusions         = Nil
         )
       }
@@ -351,7 +346,7 @@ class LegacyNotificationServiceSpec
         "alerts.slack.noTeamFound.text"      -> "test {user}"
       )
 
-      private val teamName = "team-name"
+      private val teamName           = "team-name"
       private val repoNameForService = "repo"
       private val repositoryDetails  = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
 
@@ -377,24 +372,24 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(EitherT.leftT(Seq(AdminSlackID("id_A"), AdminSlackID("id_B")), FallbackChannel(fallbackChannel)))
+        .thenReturn(Future.successful(Left((Seq(AdminSlackID("id_A"), AdminSlackID("id_B")), FallbackChannel(fallbackChannel)))))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
           NotificationRequest(
-            channelLookup = channelLookup,
+            channelLookup  = channelLookup,
             messageDetails = MessageDetails(
-              text        = "some-text-to-post-to-slack",
-              attachments = Nil
-            )
+                               text        = "some-text-to-post-to-slack",
+                               attachments = Nil
+                             )
           )
 
         val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
-          successfullySentTo = List(fallbackChannel, "id_A", "id_B"),
+          successfullySentTo = List("id_A", "id_B", fallbackChannel),
           errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
           exclusions         = Nil
         )
@@ -466,7 +461,7 @@ class LegacyNotificationServiceSpec
       private val teamChannel = TeamChannel("team-channel")
 
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(EitherT.rightT(teamChannel))
+        .thenReturn(Future.successful(Right(teamChannel)))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
@@ -522,16 +517,16 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(EitherT.rightT(teamChannel))
+        .thenReturn(Future.successful(Right(teamChannel)))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
           NotificationRequest(
-            channelLookup = channelLookup,
+            channelLookup  = channelLookup,
             messageDetails = MessageDetails(
-              text = "some-text-to-post-to-slack",
-              attachments = Nil
-            )
+                               text        = "some-text-to-post-to-slack",
+                               attachments = Nil
+                             )
           )
 
         val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
@@ -563,7 +558,6 @@ class LegacyNotificationServiceSpec
         "alerts.slack.noTeamFound.username"  -> "slack-notifications",
         "alerts.slack.noTeamFound.iconEmoji" -> "",
         "alerts.slack.noTeamFound.text"      -> "test {user}"
-
       )
       val githubUsername = "a-github-username"
       val usersTeams     = List(TeamName(teamName1), TeamName(teamName2))
@@ -622,8 +616,8 @@ class LegacyNotificationServiceSpec
         .thenReturn(Future.successful(Right(List(teamName1, teamName2))))
 
       override val configuration = Configuration(
-        "exclusions.notRealTeams"            -> s"$teamName1, $teamName2",
-        "slack.notification.enabled"         -> true
+        "exclusions.notRealTeams"    -> s"$teamName1, $teamName2",
+        "slack.notification.enabled" -> true
       )
 
       val notificationRequest =
@@ -687,7 +681,6 @@ class LegacyNotificationServiceSpec
   }
 
   "Sanitising a slack message" should {
-
     "strip out the emoji and use displayName from config to determine author name" in new Fixtures {
       val result = service.populateNameAndIconInMessage(
         LegacySlackMessage(

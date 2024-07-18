@@ -52,14 +52,17 @@ class LegacyNotificationService @Inject()(
   ): EitherT[Future, NotificationResult, NotificationResult] =
     EitherT.liftF[Future, NotificationResult, NotificationResult](
       toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){ (acc, teamName) =>
-        dispatchMessage(
-          notificationRequest,
-          teamName,
-          clientService,
-          lookupRes = channelLookupService.getExistingSlackChannel(teamName)
-        )
-          .map(acc :+ _)
-      }.map(NotificationResult.concatResults))
+        for {
+          channelLookupResult <- channelLookupService.getExistingSlackChannel(teamName)
+          notificationResult  <- dispatchMessage(
+                                   notificationRequest,
+                                   teamName,
+                                   clientService,
+                                   channelLookupResult
+                                 )
+        } yield acc :+ notificationResult
+      }.map(NotificationResult.concatResults)
+    )
 
   def sendNotification(notificationRequest: NotificationRequest, clientService: ClientService)(
     implicit hc: HeaderCarrier): Future[NotificationResult] =
@@ -88,7 +91,8 @@ class LegacyNotificationService @Inject()(
         ).merge
 
       case ChannelLookup.GithubTeam(team) =>
-        dispatchMessage(notificationRequest, team, clientService, channelLookupService.getExistingSlackChannel(team))
+        channelLookupService.getExistingSlackChannel(team)
+          .flatMap(dispatchMessage(notificationRequest, team, clientService, _))
 
       case ChannelLookup.SlackChannel(slackChannels) =>
         slackChannels.toList.foldLeftM(Seq.empty[NotificationResult]){(acc, slackChannel) =>
@@ -109,27 +113,28 @@ class LegacyNotificationService @Inject()(
     notificationRequest: NotificationRequest,
     team               : String,
     clientService      : ClientService,
-    lookupRes          : EitherT[Future, (Seq[AdminSlackID], FallbackChannel), TeamChannel]
+    lookupRes          : Either[(Seq[AdminSlackID], FallbackChannel), TeamChannel]
   )(implicit hc: HeaderCarrier): Future[NotificationResult] =
-    lookupRes.value.flatMap {
+    lookupRes match {
       case Right(teamChannel) =>
-        sendSlackMessage(fromNotification(notificationRequest, teamChannel.asString), clientService, Some(team))
+        val msg = fromNotification(notificationRequest, teamChannel.asString)
+        sendSlackMessage(msg, clientService, Some(team))
       case Left((adminSlackIDs, fallbackChannel)) =>
-        // TODO first send off the admin notifications
-        // Then send to our fallback channel - just changing the message depending on whether there were admins or not
-        if (adminSlackIDs.isEmpty)
-          sendSlackMessage(fromNotification(notificationRequest, fallbackChannel.asString, Some(Error.noAdminsToFallbackToForTeam(team).message)), clientService, Some(team))
-            .map(_.copy(errors = Seq(Error.noAdminsToFallbackToForTeam(team))))
-        else {
-          val msgs =
-            fromNotification(notificationRequest, fallbackChannel.asString, Some(Error.unableToFindTeamSlackChannelInUMP(team).message)) +:
-              adminSlackIDs.map(adminSlackID => fromNotification(notificationRequest, adminSlackID.asString, Some(Error.unableToFindTeamSlackChannelInUMP(team).message)))
-          msgs.traverse(msg =>
+        val msgs =
+          adminSlackIDs.map(adminSlackID =>
+            fromNotification(notificationRequest, adminSlackID.asString, Some(Error.unableToFindTeamSlackChannelInUMP(team).message))
+          ) :+
+            (if (adminSlackIDs.isEmpty)
+               fromNotification(notificationRequest, fallbackChannel.asString, Some(Error.noAdminsToFallbackToForTeam(team).message))
+             else
+               fromNotification(notificationRequest, fallbackChannel.asString, Some(Error.unableToFindTeamSlackChannelInUMP(team).message))
+            )
+        msgs
+          .traverse(msg =>
             sendSlackMessage(msg, clientService, Some(team))
               .map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(team))))
           )
-            .map(NotificationResult.concatResults)
-        }
+          .map(NotificationResult.concatResults)
     }
 
   private def sendNotificationForUser(
