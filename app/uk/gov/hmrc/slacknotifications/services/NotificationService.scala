@@ -23,8 +23,8 @@ import uk.gov.hmrc.http.{HeaderCarrier, UpstreamErrorResponse}
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
 import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
-import uk.gov.hmrc.slacknotifications.connectors.{RateLimitExceededException, ServiceConfigsConnector, SlackConnector}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
+import uk.gov.hmrc.slacknotifications.connectors.{RateLimitExceededException, ServiceConfigsConnector, SlackConnector}
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
 import uk.gov.hmrc.slacknotifications.model._
 import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
@@ -89,21 +89,15 @@ class NotificationService @Inject()(
     toDo      : Seq[String]
   )(implicit
     hc: HeaderCarrier
-  ): EitherT[Future, NotificationResult, Seq[Unit]] =
-    EitherT.liftF[Future, NotificationResult, Seq[Unit]](
-      toDo.foldLeftM(Seq.empty[Unit]) { (acc, teamName) =>
+  ): EitherT[Future, NotificationResult, Unit] =
+    EitherT.liftF {
+      toDo.traverse_ { teamName =>
         for {
-          slackChannel <- channelLookupService.getExistingSlackChannel(teamName)
-          _            <- slackChannel match {
-                            case Right(teamChannel) =>
-                              queueSlackMessage(msgId, createMessageFromRequest(request, teamChannel), initResult)
-                            case Left(fallbackChannel) =>
-                              val error = Error.unableToFindTeamSlackChannelInUMP(teamName)
-                              queueSlackMessage(msgId, createMessageFromRequest(request, fallbackChannel, Some(error.message)), initResult.addError(error))
-                          }
-        } yield acc :+ ()
+          (messages, result) <- constructMessagesWithErrors(request, teamName, channelLookupService.getExistingSlackChannel(teamName), initResult)
+          _                  <- messages.traverse_(msg => queueSlackMessage(msgId, msg, result))
+        } yield ()
       }
-    )
+    }
 
   private def handleRequest(msgId: UUID, request: SendNotificationRequest)(implicit hc: HeaderCarrier): EitherT[Future, NotificationResult, Unit] =
     request.channelLookup match {
@@ -125,15 +119,10 @@ class NotificationService @Inject()(
           _                 <- createAndQueue(msgId, request, initResult, toDo)
         } yield ()
       case ChannelLookup.GithubTeam(team) =>
-        EitherT.liftF[Future, NotificationResult, Unit](
-          channelLookupService.getExistingSlackChannel(team).flatMap {
-            case Right(teamChannel) =>
-              queueSlackMessage(msgId, createMessageFromRequest(request, teamChannel), NotificationResult())
-            case Left(fallbackChannel) =>
-              val error = Error.unableToFindTeamSlackChannelInUMP(team)
-              queueSlackMessage(msgId, createMessageFromRequest(request, fallbackChannel, Some(error.message)), NotificationResult().addError(error))
-          }
-        )
+        EitherT.liftF[Future, NotificationResult, Unit] {
+          val messagesWithErr = constructMessagesWithErrors(request, team, channelLookupService.getExistingSlackChannel(team), NotificationResult())
+          messagesWithErr.map( messageWithErr => messageWithErr._1.traverse_( msg => queueSlackMessage(msgId, msg, messageWithErr._2)))
+        }
       case ChannelLookup.SlackChannel(slackChannels) =>
         EitherT.liftF(
           slackChannels.toList.foldLeftM(Seq.empty[Unit]) { (acc, slackChannel) =>
@@ -153,6 +142,25 @@ class NotificationService @Inject()(
           handleRequestForUser("ldap", ldapUsername, userManagementService.getTeamsForLdapUser)(msgId, request)
         )
     }
+
+  def constructMessagesWithErrors(
+                                   request: SendNotificationRequest,
+                                   team: String,
+                                   lookupRes: EitherT[Future, (Seq[AdminSlackId], FallbackChannel), TeamChannel],
+                                   initResult: NotificationResult
+  ): Future[(Seq[SlackMessage], NotificationResult)] = lookupRes.value.map {
+    case Right(teamChannel)                 => (Seq(createMessageFromRequest(request, teamChannel.asString)), initResult)
+    case Left((adminSlackIDs, fallbackChannel)) => if (adminSlackIDs.isEmpty) {
+      val error = Error.missingTeamChannelAndAdmins(team)
+      (Seq(createMessageFromRequest(request, fallbackChannel.asString, Some(error.message))),
+        initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team), error))
+    } else {
+      val error = Error.unableToFindTeamSlackChannelInUMP(team)
+      val messages = createMessageFromRequest(request, fallbackChannel.asString, Some(error.message)) +:
+        adminSlackIDs.map(id => createMessageFromRequest(request, id.asString, Some(error.message)))
+      (messages, initResult.addError(error))
+    }
+  }
 
   private def handleRequestForUser(
     userType   : String,

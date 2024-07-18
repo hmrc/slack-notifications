@@ -74,7 +74,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), List(TeamName("Team A"), TeamName("Team B"))))
+      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", None, Some("c-d"), "user", List(TeamName("Team A"), TeamName("Team B"))))
     }
 
     "return github user with no teams" in {
@@ -102,7 +102,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", Some("c-d"), List.empty[TeamName]))
+      connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", None, Some("c-d"), "user", List.empty[TeamName]))
     }
 
     "return empty list when github user not found" in {
@@ -148,7 +148,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), List(TeamName("Team A"), TeamName("Team B"))))
+      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", None, Some("c-d"), "user", List(TeamName("Team A"), TeamName("Team B"))))
     }
 
     "return ldap user with no teams" in {
@@ -175,7 +175,7 @@ class UserManagementConnectorSpec
           )
       )
 
-      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", Some("c-d"), List.empty[TeamName]))
+      connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", None, Some("c-d"), "user", List.empty[TeamName]))
     }
 
     "return None when ldap user not found" in {
@@ -187,6 +187,68 @@ class UserManagementConnectorSpec
           )
       )
       connector.getLdapUser("c.d").futureValue shouldBe None
+    }
+  }
+
+  "getTeamUsers" should {
+    "return users for given team" in {
+      stubFor(
+        get(urlEqualTo("/user-management/users?team=TeamA"))
+          .willReturn(
+            aResponse()
+              .withStatus(200)
+              .withBody(
+                """
+                  |[
+                  |  {
+                  |    "displayName": "A",
+                  |    "familyName": "A",
+                  |    "givenName": "B",
+                  |    "organisation": "MDTP",
+                  |    "primaryEmail": "A.B@digital.hmrc.gov.uk",
+                  |    "slackId": "id_A",
+                  |    "username": "A.B",
+                  |    "githubUsername": "ab",
+                  |    "role": "user",
+                  |    "teamNames": [
+                  |      "TeamA"
+                  |    ]
+                  |  },
+                  |  {
+                  |    "displayName": "C D",
+                  |    "familyName": "C",
+                  |    "givenName": "D",
+                  |    "organisation": "MDTP",
+                  |    "primaryEmail": "c.d@digital.hmrc.gov.uk",
+                  |    "username": "C.D",
+                  |    "githubUsername": "cd",
+                  |    "role": "team_admin",
+                  |    "teamNames": [
+                  |      "TeamA"
+                  |    ]
+                  |  }
+                  |]
+                  |""".stripMargin
+              )
+          )
+      )
+
+      connector.getTeamUsers("TeamA").futureValue shouldBe
+        Seq(
+          User(ldapUsername = "A.B"
+          , slackId = Some("id_A")
+          , githubUsername = Some("ab")
+          , role = "user"
+          , teamNames = List(TeamName("TeamA"))
+          ),
+          User(ldapUsername = "C.D"
+          , slackId = None
+          , githubUsername = Some("cd")
+          , role = "team_admin"
+          , teamNames = List(TeamName("TeamA"))
+          ),
+        )
+
     }
   }
 

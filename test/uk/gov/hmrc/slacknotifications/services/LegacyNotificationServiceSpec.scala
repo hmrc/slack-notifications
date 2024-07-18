@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
-import cats.data.NonEmptyList
+import cats.data.{EitherT, NonEmptyList}
 import org.scalacheck.Gen
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -180,7 +180,7 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Right(teamChannel)))
+        .thenReturn(EitherT.rightT(TeamChannel(teamChannel)))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
@@ -250,7 +250,7 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Left(fallbackChannel)))
+        .thenReturn(EitherT.leftT(Seq.empty[AdminSlackId], FallbackChannel(fallbackChannel)))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
@@ -268,13 +268,79 @@ class LegacyNotificationServiceSpec
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
-          errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
+          errors             = Seq(Error.missingTeamChannelAndAdmins(teamName)),
           exclusions         = Nil
         )
       }
     }
 
-    "Send the message to an admin channel if the team does not exist in UMP" in new Fixtures {
+    "Send the message to an admin channel only if the team does not exist in UMP and has no slack admins" in new Fixtures {
+      val fallbackChannel = "slack-channel-missing"
+
+      override val configuration = Configuration(
+        "slack.notification.enabled"         -> true,
+        "alerts.slack.noTeamFound.channel"   -> fallbackChannel,
+        "alerts.slack.noTeamFound.username"  -> "slack-notifications",
+        "alerts.slack.noTeamFound.iconEmoji" -> "",
+        "alerts.slack.noTeamFound.text"      -> "test {user}"
+      )
+
+      private val teamName = "team-name"
+      private val repoNameForService = "repo"
+      private val repositoryDetails  = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
+
+      when(mockServiceConfigsConnector.repoNameForService(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Some(repoNameForService)))
+      when(channelLookupService.getExistingRepository(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(Right(repositoryDetails)))
+      when(channelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
+        .thenReturn(Future.successful(Right(List(teamName))))
+
+      val usersTeams = List(TeamName("team-name"))
+
+      val channelLookups = List(
+        GithubRepository("repo"),
+        Service("service"),
+        TeamsOfGithubUser("a-github-handle"),
+        TeamsOfLdapUser("a-ldap-user"),
+        GithubTeam(teamName)
+      )
+
+      val adminSlackIDs = Seq(
+        AdminSlackId("ABCD"),
+        AdminSlackId("EFGH"),
+      )
+
+      when(userManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(usersTeams))
+      when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(usersTeams))
+      when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
+        .thenReturn(EitherT.leftT(Seq.empty[AdminSlackId], FallbackChannel(fallbackChannel)))
+      when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(HttpResponse(200, "")))
+
+      channelLookups.foreach { channelLookup =>
+        val notificationRequest =
+          NotificationRequest(
+            channelLookup = channelLookup,
+            messageDetails = MessageDetails(
+              text        = "some-text-to-post-to-slack",
+              attachments = Nil
+            )
+          )
+
+        val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
+
+        result shouldBe NotificationResult(
+          successfullySentTo = List(fallbackChannel),
+          errors             = Seq(Error.missingTeamChannelAndAdmins(teamName)),
+          exclusions         = Nil
+        )
+      }
+    }
+
+    "Send the message to an admin channel and team admins if the team does not exist in UMP" in new Fixtures {
       val fallbackChannel = "slack-channel-missing"
 
       override val configuration = Configuration(
@@ -311,7 +377,7 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Left(fallbackChannel)))
+        .thenReturn(EitherT.leftT(Seq(AdminSlackId("id_A"), AdminSlackId("id_B")), FallbackChannel(fallbackChannel)))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
@@ -328,7 +394,7 @@ class LegacyNotificationServiceSpec
         val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
-          successfullySentTo = List(fallbackChannel),
+          successfullySentTo = List(fallbackChannel, "id_A", "id_B"),
           errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
           exclusions         = Nil
         )
@@ -397,10 +463,10 @@ class LegacyNotificationServiceSpec
         Service(repoName)
       )
 
-      private val teamChannel = "team-channel"
+      private val teamChannel = TeamChannel("team-channel")
 
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Right(teamChannel)))
+        .thenReturn(EitherT.rightT(teamChannel))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
@@ -417,7 +483,7 @@ class LegacyNotificationServiceSpec
         val result = service.sendNotification(notificationRequest, ClientService("", Password(""))).futureValue
 
         result shouldBe NotificationResult(
-          successfullySentTo = List(teamChannel),
+          successfullySentTo = List(teamChannel.asString),
           errors             = Nil,
           exclusions         = Nil
         )
@@ -440,12 +506,12 @@ class LegacyNotificationServiceSpec
       when(channelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
         .thenReturn(Future.successful(Right(List(teamName))))
 
-      val teamChannel = "team-channel"
+      val teamChannel = TeamChannel("team-channel")
       val usersTeams = List(TeamName("team-name"))
 
       val channelLookups = List(
         GithubRepository("repo"),
-        SlackChannel(NonEmptyList.of(teamChannel)),
+        SlackChannel(NonEmptyList.of(teamChannel.asString)),
         TeamsOfGithubUser("a-github-handle"),
         TeamsOfLdapUser("a-ldap-user"),
         GithubTeam("a-github-team")
@@ -456,7 +522,7 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Right(teamChannel)))
+        .thenReturn(EitherT.rightT(teamChannel))
 
       channelLookups.foreach { channelLookup =>
         val notificationRequest =
