@@ -77,7 +77,7 @@ object Error {
   def missingTeamChannelAndAdmins(teamName: String): Error =
     Error(
       code    = "no_admins_found_for_fallback_of_missing_slack_channnel",
-      message = s"Could not find any admins to fallback and deliver message to for *$teamName with missing channel. Either team has no admins, or admins do not have slack setup."
+      message = s"Could not find any admins to fallback and deliver message to for *$teamName* with missing channel. Either team has no admins, or admins do not have slack setup."
     )
 }
 
