@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.slacknotifications.services
 
+import cats.data.EitherT
+import cats.instances.future._
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.config.SlackConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
@@ -41,40 +43,40 @@ class ChannelLookupService @Inject()(
   ): Future[Either[NotificationResult, RepositoryDetails]] =
     teamsAndReposConnector
       .getRepositoryDetails(repoName)
-      .flatMap {
-        case Some(repoDetails) => Future.successful(Right(repoDetails))
-        case None => Future.successful(Left(NotificationResult().addError(Error.repositoryNotFound(repoName))))
+      .map {
+        case Some(repoDetails) => Right(repoDetails)
+        case None              => Left(NotificationResult().addError(Error.repositoryNotFound(repoName)))
       }
 
-  private[services] def getTeamsResponsibleForRepo(repositoryDetails: RepositoryDetails): List[String] =
-    if (repositoryDetails.owningTeams.nonEmpty)
-      repositoryDetails.owningTeams
-    else
-      repositoryDetails.teamNames
-
   def getTeamsResponsibleForRepo(
-    repoName: String,
+    repoName         : String,
     repositoryDetails: RepositoryDetails
-  ): Future[Either[NotificationResult, List[String]]] =
-    getTeamsResponsibleForRepo(repositoryDetails) match {
-      case Nil => Future.successful(Left(NotificationResult().addError(Error.teamsNotFoundForRepository(repoName))))
-      case teams => Future.successful(Right(teams))
+  ): Either[NotificationResult, List[String]] =
+    repositoryDetails.owningTeams match {
+      case Nil   => Left(NotificationResult().addError(Error.teamsNotFoundForRepository(repoName)))
+      case teams => Right(teams)
     }
 
   def getExistingSlackChannel(
     teamName: String
   )(implicit
     hc: HeaderCarrier
-  ): Future[Either[String, String]] =
-    userManagementConnector
-      .getTeamSlackDetails(teamName)
-      .map(td => td.flatMap(extractSlackChannel))
-      .flatMap {
-        case Some(slackChannel) => Future.successful(Right(slackChannel))
-        case None => Future.successful(Left(slackConfig.noTeamFoundAlert.channel))
-      }
+  ): Future[Either[(Seq[AdminSlackId], FallbackChannel), TeamChannel]] =
+    EitherT.fromOptionF(
+      userManagementConnector.getTeamSlackDetails(teamName).map(_.flatMap(extractSlackChannel)),
+      ()
+    ).leftSemiflatMap(_ =>
+      userManagementConnector
+        .getTeamUsers(teamName)
+        .map { users =>
+          ( users.filter(user => user.role == "team_admin" && user.slackId.isDefined)
+              .map(user => AdminSlackId(user.slackId.get))
+          , FallbackChannel(slackConfig.noTeamFoundAlert.channel)
+          )
+        }
+    ).value
 
-  def extractSlackChannel(slackDetails: TeamDetails): Option[String] =
+  def extractSlackChannel(slackDetails: TeamDetails): Option[TeamChannel] =
     slackDetails.slackNotification.orElse(slackDetails.slack).flatMap { slackChannelUrl =>
       val urlWithoutTrailingSpace =
         if (slackChannelUrl.endsWith("/"))
@@ -84,7 +86,11 @@ class ChannelLookupService @Inject()(
 
       val slashPos = urlWithoutTrailingSpace.lastIndexOf("/")
       val s = urlWithoutTrailingSpace.substring(slashPos + 1)
-      if (slashPos > 0 && s.nonEmpty) Some(s) else None
+      if (slashPos > 0 && s.nonEmpty) Some(TeamChannel(s)) else None
     }
 
 }
+
+case class AdminSlackId(asString: String) extends AnyVal
+case class FallbackChannel(asString: String) extends AnyVal
+case class TeamChannel    (asString: String) extends AnyVal

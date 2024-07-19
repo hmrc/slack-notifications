@@ -73,6 +73,12 @@ object Error {
       code    = "unable_to_find_team_slack_channel_in_ump",
       message = s"Unable to deliver slack message to *$teamName*. Either the team does not exist in UMP, or it does not have a slack channel configured."
     )
+
+  def missingTeamChannelAndAdmins(teamName: String): Error =
+    Error(
+      code    = "no_admins_found_for_fallback_of_missing_slack_channnel",
+      message = s"Could not find any admins to fallback and deliver message to for *$teamName* with missing channel. Either team has no admins, or admins do not have slack setup."
+    )
 }
 
 final case class Exclusion(code: String, message: String) {

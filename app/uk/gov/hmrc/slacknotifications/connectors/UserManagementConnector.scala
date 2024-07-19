@@ -47,6 +47,11 @@ class UserManagementConnector @Inject()(
       .get(url"$baseUrl/user-management/users?github=$githubUsername")
       .execute[List[User]]
 
+  def getTeamUsers(team: String)(implicit hc: HeaderCarrier): Future[Seq[User]] =
+    httpClientV2
+      .get(url"$baseUrl/user-management/users?team=$team")
+      .execute[Seq[User]]
+
   def getTeamSlackDetails(teamName: String)(implicit hc: HeaderCarrier): Future[Option[TeamDetails]] =
     httpClientV2
       .get(url"$baseUrl/user-management/teams/$teamName")
@@ -57,15 +62,19 @@ object UserManagementConnector {
 
   case class User(
     ldapUsername  : String,
+    slackId       : Option[String],
     githubUsername: Option[String],
+    role          : String,
     teamNames     : List[TeamName]
   )
 
   object User {
     implicit val reads: Reads[User] = {
-      implicit val tnr = TeamName.reads
+      implicit val tnr: Reads[TeamName] = TeamName.reads
       ( ( __ \ "username"      ).read[String]
+      ~ ( __ \ "slackId"       ).readNullable[String]
       ~ ( __ \ "githubUsername").readNullable[String]
+      ~ ( __ \ "role"          ).read[String]
       ~ ( __ \ "teamNames"     ).read[List[TeamName]]
       )(User.apply _)
     }
