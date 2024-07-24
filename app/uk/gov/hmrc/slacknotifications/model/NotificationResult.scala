@@ -86,8 +86,8 @@ object Error {
   def errorForAdminMissingTeamSlackChannel(teamName: String): Error =
     Error(
       code    = "unable_to_find_team_slack_channel_in_ump_admin",
-      message = s"Unable to deliver slack message to team <$umpTeamsUrl/$teamName|*$teamName*>. Either the team does not exist in UMP, or it does not have a slack channel configured.\n" +
-        "You are receiving this alert since you are an `admin`. Please configure a team slack notification channel."
+      message = s"Unable to deliver slack message to team <$umpTeamsUrl/$teamName|*$teamName*>. The team does not have a slack channel configured.\n" +
+        "You are receiving this alert since you are an *admin* in this team. Please configure a team slack notification channel."
     )
 }
 
