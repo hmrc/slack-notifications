@@ -268,13 +268,13 @@ class LegacyNotificationServiceSpec
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
-          errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
+          errors             = Seq(Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(teamName)),
           exclusions         = Nil
         )
       }
     }
 
-    "Send the message to an admin channel only if the team does not exist in UMP and has no slack admins" in new Fixtures {
+    "Send the message to an admin channel if the team does not exist in UMP and has no slack admins" in new Fixtures {
       val fallbackChannel = "slack-channel-missing"
 
       override val configuration = Configuration(
@@ -329,7 +329,7 @@ class LegacyNotificationServiceSpec
 
         result shouldBe NotificationResult(
           successfullySentTo = List(fallbackChannel),
-          errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
+          errors             = Seq(Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(teamName)),
           exclusions         = Nil
         )
       }
@@ -337,6 +337,7 @@ class LegacyNotificationServiceSpec
 
     "Send the message to an admin channel and team admins if the team does not exist in UMP" in new Fixtures {
       val fallbackChannel = "slack-channel-missing"
+      val adminSlackIds = Seq(AdminSlackId("id_A"), AdminSlackId("id_B"))
 
       override val configuration = Configuration(
         "slack.notification.enabled"         -> true,
@@ -372,7 +373,7 @@ class LegacyNotificationServiceSpec
       when(userManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
       when(channelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(Left((Seq(AdminSlackId("id_A"), AdminSlackId("id_B")), FallbackChannel(fallbackChannel)))))
+        .thenReturn(Future.successful(Left((adminSlackIds, FallbackChannel(fallbackChannel)))))
       when(slackConnector.sendMessage(any[LegacySlackMessage])(any[HeaderCarrier]))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
@@ -390,7 +391,7 @@ class LegacyNotificationServiceSpec
 
         result shouldBe NotificationResult(
           successfullySentTo = List("id_A", "id_B", fallbackChannel),
-          errors             = Seq(Error.unableToFindTeamSlackChannelInUMP(teamName)),
+          errors             = Seq(Error.errorForAdminMissingTeamSlackChannel(teamName), Error.unableToFindTeamSlackChannelInUMP(teamName, adminSlackIds.size)),
           exclusions         = Nil
         )
       }

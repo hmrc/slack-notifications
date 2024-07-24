@@ -160,15 +160,15 @@ class NotificationService @Inject()(
         )
 
       case Left((adminSlackIds, fallbackChannel)) if adminSlackIds.isEmpty =>
-        val error = Error.missingTeamChannelAndAdmins(team)
+        val error = Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(team)
         ( Seq(createMessageFromRequest(request, fallbackChannel.asString, Some(error.message)))
-        , initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team), error)
+        , initResult.addError(error)
         )
 
       case Left((adminSlackIds, fallbackChannel)) =>
-        val error = Error.unableToFindTeamSlackChannelInUMP(team)
+        val error = Error.unableToFindTeamSlackChannelInUMP(team, adminSlackIds.size)
         ( createMessageFromRequest(request, fallbackChannel.asString, Some(error.message)) +:
-            adminSlackIds.map(id => createMessageFromRequest(request, id.asString, Some(error.message)))
+            adminSlackIds.map(id => createMessageFromRequest(request, id.asString, Some(Error.errorForAdminMissingTeamSlackChannel(team).message)))
         , initResult.addError(error)
         )
     }

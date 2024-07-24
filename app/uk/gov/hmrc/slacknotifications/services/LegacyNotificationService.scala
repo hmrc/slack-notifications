@@ -120,20 +120,23 @@ class LegacyNotificationService @Inject()(
         val msg = fromNotification(notificationRequest, teamChannel.asString)
         sendSlackMessage(msg, clientService, Some(team))
       case Left((adminSlackIds, fallbackChannel)) =>
-        val msgs =
-          adminSlackIds.map(adminSlackId =>
-            fromNotification(notificationRequest, adminSlackId.asString, Some(Error.unableToFindTeamSlackChannelInUMP(team).message))
-          ) :+
-            (if (adminSlackIds.isEmpty)
-               fromNotification(notificationRequest, fallbackChannel.asString, Some(Error.missingTeamChannelAndAdmins(team).message))
-             else
-               fromNotification(notificationRequest, fallbackChannel.asString, Some(Error.unableToFindTeamSlackChannelInUMP(team).message))
-            )
+        val msgs: Seq[(LegacySlackMessage, Error)] =
+          adminSlackIds.map { adminSlackId =>
+            val error = Error.errorForAdminMissingTeamSlackChannel(team)
+            (fromNotification(notificationRequest, adminSlackId.asString, Some(error.message)), error)
+          } :+
+            (if (adminSlackIds.isEmpty){
+               val error = Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(team)
+               (fromNotification(notificationRequest, fallbackChannel.asString, Some(error.message)), error)
+            } else {
+              val error = Error.unableToFindTeamSlackChannelInUMP(team, adminSlackIds.size)
+              (fromNotification(notificationRequest, fallbackChannel.asString, Some(error.message)), error)
+            })
         msgs
-          .traverse(msg =>
+          .traverse{ case (msg, error) =>
             sendSlackMessage(msg, clientService, Some(team))
-              .map(_.copy(errors = Seq(Error.unableToFindTeamSlackChannelInUMP(team))))
-          )
+              .map(_.copy(errors = Seq(error)))
+          }
           .map(NotificationResult.concatResults)
     }
 
