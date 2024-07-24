@@ -28,7 +28,9 @@ object LinkUtils {
   // - any whitespace e.g. https://example.com has lots of examples
   // - the end of the string e.g. visit https://example.com
   // - a literal pipe character e.g. Click <https://example.com|here>
-  private val urlPattern = """(http[s]?.+?)(?="|`|\s|$|\|)""".r
+  // - a angle bracket character e.g. <http://example:test>
+  // - a dot followed by space e.g. "https://example.com/test. Start of sentence"
+  private val urlPattern = """(http[s]?.+?)(?="|`|\s|$|>|\||\.\s)""".r
 
   private[utils] def getUris(str: String): Set[URL] =
     urlPattern.findAllMatchIn(str)

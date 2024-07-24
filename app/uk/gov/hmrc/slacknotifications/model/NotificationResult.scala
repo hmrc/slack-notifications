@@ -24,6 +24,8 @@ final case class Error(code: String, message: String) {
 }
 
 object Error {
+  private val umpTeamsUrl = "https://user-management.tools.tax.service.gov.uk/teams"
+
   val format: Format[Error] =
     ( (__ \ "code"   ).format[String]
     ~ (__ \ "message").format[String]
@@ -68,16 +70,24 @@ object Error {
       message = s"Slack channel: '$channelName' not found"
     )
 
-  def unableToFindTeamSlackChannelInUMP(teamName: String): Error =
+  def unableToFindTeamSlackChannelInUMP(teamName: String, numAdmins: Int): Error =
     Error(
-      code    = "unable_to_find_team_slack_channel_in_ump",
-      message = s"Unable to deliver slack message to *$teamName*. Either the team does not exist in UMP, or it does not have a slack channel configured."
+      code = "unable_to_find_team_slack_channel_in_ump",
+      message = s"Unable to deliver slack message to team <$umpTeamsUrl/$teamName|*$teamName*>. Either the team does not exist in UMP, or it does not have a slack channel configured. *$numAdmins* admins have been notified."
     )
 
-  def missingTeamChannelAndAdmins(teamName: String): Error =
+  def unableToFindTeamSlackChannelInUMPandNoSlackAdmins(teamName: String): Error =
     Error(
-      code    = "no_admins_found_for_fallback_of_missing_slack_channnel",
-      message = s"Could not find any admins to fallback and deliver message to for *$teamName* with missing channel. Either team has no admins, or admins do not have slack setup."
+      code = "unable_to_find_team_slack_channel_in_ump_and_no_slack_admins",
+      message = s"Unable to deliver slack message to team <$umpTeamsUrl/$teamName|*$teamName*>. Either the team does not exist in UMP, or it does not have a slack channel configured.\n"
+        + s"Could not find any admins to fallback and deliver message to for team <$umpTeamsUrl/$teamName|*$teamName*> with missing channel. Either team has no admins, or admins do not have slack setup."
+    )
+
+  def errorForAdminMissingTeamSlackChannel(teamName: String): Error =
+    Error(
+      code    = "unable_to_find_team_slack_channel_in_ump_admin",
+      message = s"Unable to deliver slack message to team <$umpTeamsUrl/$teamName|*$teamName*>. Either the team does not exist in UMP, or it does not have a slack channel configured.\n" +
+        "You are receiving this alert since you are an `admin`. Please configure a team slack notification channel."
     )
 }
 

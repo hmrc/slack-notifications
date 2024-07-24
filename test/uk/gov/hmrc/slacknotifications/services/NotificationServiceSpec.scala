@@ -182,16 +182,18 @@ class NotificationServiceSpec
 
     "handle Left case without admins correctly" in new Fixtures {
       private val lookupRes = Left((Seq.empty[AdminSlackId], fallbackChannel))
+      val error = Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(team)
+
       service.constructMessagesWithErrors(request, team, lookupRes, initResult) shouldBe ((
         Seq(SlackMessage(
           channel     = fallbackChannel.asString,
-          text        = Error.missingTeamChannelAndAdmins(team).message,
-          blocks      = Seq(SlackMessage.errorBlock(Error.missingTeamChannelAndAdmins(team).message), SlackMessage.divider) ++ request.blocks,
+          text        = error.message,
+          blocks      = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(team).message), SlackMessage.divider) ++ request.blocks,
           attachments = Seq.empty,
           username    = request.displayName,
           emoji       = request.emoji
         )),
-        initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team), Error.missingTeamChannelAndAdmins(team))
+        initResult.addError(error)
       ))
     }
 
@@ -199,32 +201,32 @@ class NotificationServiceSpec
       private val lookupRes = Left((Seq(AdminSlackId("id_A"), AdminSlackId("id_B")), fallbackChannel))
       service.constructMessagesWithErrors(request, team, lookupRes, initResult) shouldBe (
         Seq(
-          SlackMessage(
+          SlackMessage.sanitise( SlackMessage(
             channel     = fallbackChannel.asString,
-            text        = Error.unableToFindTeamSlackChannelInUMP(team).message,
-            blocks      = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            text        = Error.unableToFindTeamSlackChannelInUMP(team, lookupRes.value._1.size).message,
+            blocks      = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team, lookupRes.value._1.size).message), SlackMessage.divider) ++ request.blocks,
             attachments = Seq.empty,
             username    = request.displayName,
             emoji       = request.emoji
-          ),
-          SlackMessage(
+          ), domainConfig),
+          SlackMessage.sanitise( SlackMessage(
             channel     = "id_A",
-            text        = Error.unableToFindTeamSlackChannelInUMP(team).message,
-            blocks      = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            text        = Error.errorForAdminMissingTeamSlackChannel(team).message,
+            blocks      = Seq(SlackMessage.errorBlock(Error.errorForAdminMissingTeamSlackChannel(team).message), SlackMessage.divider) ++ request.blocks,
             attachments = Seq.empty,
             username    = request.displayName,
             emoji       = request.emoji
-          ),
-          SlackMessage(
+          ), domainConfig),
+          SlackMessage.sanitise( SlackMessage(
             channel     = "id_B",
-            text        = Error.unableToFindTeamSlackChannelInUMP(team).message,
-            blocks      = Seq(SlackMessage.errorBlock(Error.unableToFindTeamSlackChannelInUMP(team).message), SlackMessage.divider) ++ request.blocks,
+            text        = Error.errorForAdminMissingTeamSlackChannel(team).message,
+            blocks      = Seq(SlackMessage.errorBlock(Error.errorForAdminMissingTeamSlackChannel(team).message), SlackMessage.divider) ++ request.blocks,
             attachments = Seq.empty,
             username    = request.displayName,
             emoji       = request.emoji
-          )
+          ), domainConfig)
         ),
-        initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team))
+        initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team, lookupRes.value._1.size))
       )
     }
   }
@@ -240,7 +242,7 @@ class NotificationServiceSpec
       Configuration(
         "slack.notification.enabled"       -> true
       , "alerts.slack.noTeamFound.channel" -> "test-channel"
-      , "allowed.domains"                  ->  Seq("domain1", "domain2")
+      , "allowed.domains"                  ->  Seq("domain1", "domain2","tax.service.gov.uk")
       , "linkNotAllowListed"               -> "LINK NOT ALLOW LISTED"
       )
 
@@ -254,5 +256,7 @@ class NotificationServiceSpec
       slackConnector          = mockSlackConnector,
       serviceConfigsConnector = mockServiceConfigsConnector
     )
+
+    val domainConfig = new DomainConfig(configuration)
   }
 }
