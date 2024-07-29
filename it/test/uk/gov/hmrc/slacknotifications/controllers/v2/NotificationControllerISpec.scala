@@ -143,7 +143,7 @@ class NotificationControllerISpec
 
     "not queue message and return result straight away when error encountered during channel lookup" in {
       stubFor(
-        get(urlEqualTo("/api/repositories/non-existent-repo"))
+        get(urlEqualTo("/api/v2/repositories/non-existent-repo"))
           .willReturn(aResponse().withStatus(404))
       )
 
