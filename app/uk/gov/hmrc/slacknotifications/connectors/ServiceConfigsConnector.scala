@@ -27,15 +27,14 @@ import scala.concurrent.{ExecutionContext, Future}
 class ServiceConfigsConnector @Inject() (
   httpClientV2  : HttpClientV2
 , servicesConfig: ServicesConfig
-)(implicit val ec: ExecutionContext) {
+)(using ExecutionContext):
 
   import HttpReads.Implicits._
 
   private val serviceConfigsBaseUrl: String = servicesConfig.baseUrl("service-configs")
 
-  def repoNameForService(serviceName: String)(implicit hc: HeaderCarrier): Future[Option[String]] =
+  def repoNameForService(serviceName: String)(using HeaderCarrier): Future[Option[String]] =
     httpClientV2
       .get(url"$serviceConfigsBaseUrl/service-configs/services/repo-name?serviceName=$serviceName")
       .execute[Option[String]]
 
-}

@@ -18,14 +18,15 @@ package uk.gov.hmrc.slacknotifications.services
 
 import uk.gov.hmrc.slacknotifications.model.{ServiceConfig, Password}
 import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
-import uk.gov.hmrc.slacknotifications.test.UnitSpec
+import uk.gov.hmrc.slacknotifications.base.UnitSpec
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
+import org.mockito.Mockito.when
 
-class AuthServiceSpec extends UnitSpec {
+class AuthServiceSpec extends UnitSpec:
 
-  "Checking if user is authorised" should {
+  "Checking if user is authorised" should:
 
-    "return true if the service is present in the configuration" in {
+    "return true if the service is present in the configuration" in:
       val service = ClientService("foo", Password("bar"))
 
       val configuration = mock[SlackNotificationConfig]
@@ -37,12 +38,11 @@ class AuthServiceSpec extends UnitSpec {
           userEmoji   = None
         )))
 
-      val authService = new AuthService(configuration)
+      val authService = AuthService(configuration)
 
       authService.isAuthorized(service) shouldBe true
-    }
 
-    "ignore trailing \n for password in config" in {
+    "ignore trailing \n for password in config" in:
       val service = ClientService("foo", Password("bar"))
 
       val configuration = mock[SlackNotificationConfig]
@@ -54,12 +54,11 @@ class AuthServiceSpec extends UnitSpec {
           userEmoji   = None
         )))
 
-      val authService = new AuthService(configuration)
+      val authService = AuthService(configuration)
 
       authService.isAuthorized(service) shouldBe true
-    }
 
-    "return false if no matching service is found in config" in {
+    "return false if no matching service is found in config" in:
       val service = ClientService("foo", Password("bar"))
 
       val configuration = mock[SlackNotificationConfig]
@@ -71,11 +70,8 @@ class AuthServiceSpec extends UnitSpec {
           userEmoji   = None
         )))
 
-      val authService = new AuthService(configuration)
+      val authService = AuthService(configuration)
 
       val anotherServiceNotInConfig = ClientService("x", Password("y"))
 
       authService.isAuthorized(anotherServiceNotInConfig) shouldBe false
-    }
-  }
-}

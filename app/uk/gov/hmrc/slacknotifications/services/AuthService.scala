@@ -25,7 +25,7 @@ import uk.gov.hmrc.slacknotifications.model.Password
 import scala.util.Try
 
 @Singleton
-class AuthService @Inject()(slackNotificationConfig: SlackNotificationConfig) {
+class AuthService @Inject()(slackNotificationConfig: SlackNotificationConfig):
   import AuthService._
 
   def isAuthorized(clientService: ClientService): Boolean =
@@ -35,30 +35,25 @@ class AuthService @Inject()(slackNotificationConfig: SlackNotificationConfig) {
         sc.password.trim == clientService.password.trim // \n often added when base64 encoding the password for configuration
       )
       .isDefined
-}
 
-object AuthService {
+object AuthService:
 
-  object Base64String {
+  object Base64String:
     def unapply(s: String): Option[String] =
       decode(s)
 
     def decode(s: String): Option[String] =
       Try(new String(BaseEncoding.base64().decode(s))).toOption
-  }
 
   final case class ClientService(
     name    : String,
     password: Password
   )
 
-  object ClientService {
+  object ClientService:
     def fromAuthorization(authorization: Authorization): Option[ClientService] =
       Base64String
         .decode(authorization.value.stripPrefix("Basic "))
         .map(_.split(":"))
-        .collect {
+        .collect:
           case Array(serviceName, password) => ClientService(serviceName, Password(password))
-        }
-  }
-}

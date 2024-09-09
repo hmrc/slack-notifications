@@ -20,80 +20,71 @@ import org.scalatest.concurrent.ScalaFutures
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.{TeamName, User}
-import uk.gov.hmrc.slacknotifications.test.UnitSpec
+import uk.gov.hmrc.slacknotifications.base.UnitSpec
+import org.mockito.Mockito.when
+import org.mockito.ArgumentMatchers.any
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class UserManagementServiceSpec
   extends UnitSpec
-  with ScalaFutures {
+  with ScalaFutures:
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  given HeaderCarrier = HeaderCarrier()
 
-  "getTeamsForLdapUser" should {
-    "return list of team names" in new Fixtures {
+  "getTeamsForLdapUser" should:
+    "return list of team names" in new Fixtures:
 
-      val ldapUserWithTeams =
+      val ldapUserWithTeams: User =
         User("ldapUsername", None, Some("githubUsername"), "user", List(TeamName("Team A"), TeamName("Team B")))
 
-      when(userManageConnector.getLdapUser(any[String])(any[HeaderCarrier]))
+      when(userManageConnector.getLdapUser(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(ldapUserWithTeams)))
 
       service.getTeamsForLdapUser("ldapUsername").futureValue shouldBe List(TeamName("Team A"), TeamName("Team B"))
-    }
 
-    "return empty list when no user details found" in new Fixtures {
-      when(userManageConnector.getLdapUser(any[String])(any[HeaderCarrier]))
+    "return empty list when no user details found" in new Fixtures:
+      when(userManageConnector.getLdapUser(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(None))
 
       service.getTeamsForLdapUser("ldapUsername").futureValue shouldBe List.empty[TeamName]
-    }
 
-    "return empty list when user has no team details" in new Fixtures {
-      val ldapUserNoTeams =
+    "return empty list when user has no team details" in new Fixtures:
+      val ldapUserNoTeams: User =
         User("ldapUsername", None, Some("githubUsername"), "user", List.empty[TeamName])
 
-      when(userManageConnector.getLdapUser(any[String])(any[HeaderCarrier]))
+      when(userManageConnector.getLdapUser(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(ldapUserNoTeams)))
 
       service.getTeamsForLdapUser("ldapUsername").futureValue shouldBe List.empty[TeamName]
-    }
-  }
 
-  "getTeamsForGithubUser" should {
-    "return list of team names" in new Fixtures {
+  "getTeamsForGithubUser" should:
+    "return list of team names" in new Fixtures:
 
-      val githubUserWithTeams =
+      val githubUserWithTeams: User =
         User("ldapUsername", None, Some("githubUsername"), "user", List(TeamName("Team A"), TeamName("Team B")))
 
-      when(userManageConnector.getGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManageConnector.getGithubUser(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(List(githubUserWithTeams)))
 
       service.getTeamsForGithubUser("githubUsername").futureValue shouldBe List(TeamName("Team A"), TeamName("Team B"))
-    }
 
-    "return empty list when no user details found" in new Fixtures {
-      when(userManageConnector.getGithubUser(any[String])(any[HeaderCarrier]))
+    "return empty list when no user details found" in new Fixtures:
+      when(userManageConnector.getGithubUser(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(List.empty))
 
       service.getTeamsForGithubUser("githubUsername").futureValue shouldBe List.empty[TeamName]
-    }
 
-    "return empty list when user has no team details" in new Fixtures {
-      val githubUserNoTeams =
+    "return empty list when user has no team details" in new Fixtures:
+      val githubUserNoTeams: User =
         User("ldapUsername", None, Some("githubUsername"), "user", List.empty[TeamName])
 
-      when(userManageConnector.getGithubUser(any[String])(any[HeaderCarrier]))
+      when(userManageConnector.getGithubUser(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(List(githubUserNoTeams)))
 
       service.getTeamsForGithubUser("githubUsername").futureValue shouldBe List.empty[TeamName]
-    }
-  }
 
-  trait Fixtures {
-    val userManageConnector = mock[UserManagementConnector]
-    lazy val service = new UserManagementService(userManageConnector)
-  }
-}
-
+  trait Fixtures:
+    val userManageConnector: UserManagementConnector = mock[UserManagementConnector]
+    lazy val service: UserManagementService = UserManagementService(userManageConnector)

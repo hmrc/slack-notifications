@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 
 import java.util.UUID
@@ -27,11 +27,10 @@ case class NotificationStatus(
   result: Option[NotificationResult]
 )
 
-object NotificationStatus {
-  implicit val nrF: Format[NotificationResult] = NotificationResult.format
+object NotificationStatus:
+  given Format[NotificationResult] = NotificationResult.format
   val writes: Writes[NotificationStatus] =
     ( (__ \ "msgId" ).write[UUID]
     ~ (__ \ "status").write[String]
     ~ (__ \ "result").writeNullable[NotificationResult]
-    )(unlift(unapply))
-}
+    )(n => Tuple.fromProductTyped(n))

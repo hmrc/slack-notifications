@@ -19,11 +19,11 @@ package uk.gov.hmrc.slacknotifications.model
 import cats.data.NonEmptyList
 import play.api.libs.json.{JsError, Json}
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup.{GithubRepository, GithubTeam, SlackChannel, TeamsOfGithubUser}
-import uk.gov.hmrc.slacknotifications.test.UnitSpec
+import uk.gov.hmrc.slacknotifications.base.UnitSpec
 
-class ChannelLookupSpec extends UnitSpec {
-  "Channel lookup" should {
-    "be possible by github repository name" in {
+class ChannelLookupSpec extends UnitSpec:
+  "Channel lookup" should:
+    "be possible by github repository name" in:
       val by       = "github-repository"
       val repoName = "a-repo-name"
       val json =
@@ -35,9 +35,8 @@ class ChannelLookupSpec extends UnitSpec {
         """
 
       Json.parse(json).as[ChannelLookup] shouldBe GithubRepository(repoName)
-    }
 
-    "be possible directly by slack channel name" in {
+    "be possible directly by slack channel name" in:
       val by           = "slack-channel"
       val slackChannel = "a-team-channel"
       val json =
@@ -52,9 +51,8 @@ class ChannelLookupSpec extends UnitSpec {
 
       val parsingResult = Json.parse(json).as[ChannelLookup]
       parsingResult shouldBe SlackChannel(NonEmptyList.of(slackChannel))
-    }
 
-    "fail if user specified empty list of slack channels" in {
+    "fail if user specified empty list of slack channels" in:
       val json =
         s"""
           {
@@ -70,9 +68,8 @@ class ChannelLookupSpec extends UnitSpec {
         invalid => invalid.head._2.head.message shouldBe "Expected a non-empty list",
         _ => fail("didn't expect parsing to succeed")
       )
-    }
 
-    "be possible by github username for their teams" in {
+    "be possible by github username for their teams" in:
       val by             = "teams-of-github-user"
       val githubUsername = "a-github-username"
       val json =
@@ -85,9 +82,8 @@ class ChannelLookupSpec extends UnitSpec {
 
       val parsingResult = Json.parse(json).as[ChannelLookup]
       parsingResult shouldBe TeamsOfGithubUser(githubUsername)
-    }
 
-    "be possible by github team" in {
+    "be possible by github team" in:
       val by             = "github-team"
       val githubTeamName = "a-github-team"
       val json =
@@ -100,9 +96,7 @@ class ChannelLookupSpec extends UnitSpec {
       val parsingResult = Json.parse(json).as[ChannelLookup]
       parsingResult shouldBe GithubTeam(githubTeamName)
 
-    }
-
-    "fail if lookup method not specified" in {
+    "fail if lookup method not specified" in:
       val json =
         s"""
           {
@@ -118,6 +112,3 @@ class ChannelLookupSpec extends UnitSpec {
         invalid => invalid.head._2.head.message shouldBe "Unknown channel lookup type",
         _ => fail("didn't expect parsing to succeed")
       )
-    }
-  }
-}

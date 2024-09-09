@@ -25,22 +25,20 @@ final case class MessageDetails(
   showAttachmentAuthor: Boolean = true
 )
 
-object MessageDetails {
-  implicit val reads: Reads[MessageDetails] =
+object MessageDetails:
+  given Reads[MessageDetails] =
     ( (__ \ "text"                ).read[String]
     ~ (__ \ "attachments"         ).readNullable[Seq[Attachment]].map(_.getOrElse(Nil))
     ~ (__ \ "showAttachmentAuthor").readNullable[Boolean].map(_.getOrElse(true))
     )(MessageDetails.apply _)
-}
 
 final case class NotificationRequest(
   channelLookup : ChannelLookup,
   messageDetails: MessageDetails
 )
 
-object NotificationRequest {
-  implicit val reads: Reads[NotificationRequest] =
+object NotificationRequest:
+  given Reads[NotificationRequest] =
     ( (__ \ "channelLookup" ).read[ChannelLookup]
     ~ (__ \ "messageDetails").read[MessageDetails]
     )(NotificationRequest.apply _)
-}

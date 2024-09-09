@@ -26,16 +26,14 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class UserManagementService @Inject()(
   userManagementConnector: UserManagementConnector
-)(implicit
-  ec: ExecutionContext
-) {
+)(using ExecutionContext
+):
 
-  def getTeamsForLdapUser(ldapUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
+  def getTeamsForLdapUser(ldapUsername: String)(using HeaderCarrier): Future[List[TeamName]] =
     userManagementConnector.getLdapUser(ldapUsername)
       .map(_.fold(List.empty[TeamName])(_.teamNames))
 
-  def getTeamsForGithubUser(githubUsername: String)(implicit hc: HeaderCarrier): Future[List[TeamName]] =
+  def getTeamsForGithubUser(githubUsername: String)(using HeaderCarrier): Future[List[TeamName]] =
     userManagementConnector.getGithubUser(githubUsername)
       .map(_.headOption)
       .map(_.fold(List.empty[TeamName])(_.teamNames))
-}

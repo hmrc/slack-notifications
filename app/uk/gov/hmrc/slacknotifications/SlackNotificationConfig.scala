@@ -25,10 +25,10 @@ import scala.jdk.CollectionConverters._
 
 
 @Singleton
-class SlackNotificationConfig @Inject()(configuration: Configuration) {
+class SlackNotificationConfig @Inject()(configuration: Configuration):
 
-  val serviceConfigs: Seq[ServiceConfig] = {
-    def parseService(config: Config): ServiceConfig = {
+  val serviceConfigs: Seq[ServiceConfig] =
+    def parseService(config: Config): ServiceConfig =
       val name = config.getString("name")
       ServiceConfig(
         name        = name,
@@ -39,10 +39,8 @@ class SlackNotificationConfig @Inject()(configuration: Configuration) {
         displayName = getOptionString(config, "displayName"),
         userEmoji   = getOptionString(config, "userEmoji")
       )
-    }
 
     getConfigList(configuration.underlying, "auth.authorizedServices").map(parseService)
-  }
 
   val notRealTeams: Seq[String] =
     getCommaSeparatedListFromConfig("exclusions.notRealTeams")
@@ -59,13 +57,12 @@ class SlackNotificationConfig @Inject()(configuration: Configuration) {
       .getOrElse(Nil)
 
   private def getConfigList(config: Config, path: String): List[Config] =
-    if (config.hasPath(path))
+    if config.hasPath(path) then
       config.getConfigList(path).asScala.toList
     else
       List.empty
 
   private def getOptionString(config: Config, path: String): Option[String] =
-    if (config.hasPath(path))
+    if config.hasPath(path) then
       Some(config.getString(path))
     else None
-}

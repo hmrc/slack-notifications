@@ -23,7 +23,7 @@ import uk.gov.hmrc.slacknotifications.JsonHelpers
 
 sealed trait ChannelLookup
 
-object ChannelLookup extends JsonHelpers {
+object ChannelLookup extends JsonHelpers:
 
   final case class GithubRepository(repositoryName: String) extends ChannelLookup
 
@@ -44,9 +44,9 @@ object ChannelLookup extends JsonHelpers {
   private val teamsOfGithubUserReads = Json.reads[TeamsOfGithubUser].map(upcastAsChannelLookup)
   private val teamsOfLdapUserReads   = Json.reads[TeamsOfLdapUser].map(upcastAsChannelLookup)
 
-  implicit val reads: Reads[ChannelLookup] =
+  given reads: Reads[ChannelLookup] =
     Reads[ChannelLookup] { json =>
-      (json \ "by").validate[String].flatMap {
+      (json \ "by").validate[String].flatMap:
         case "github-repository"    => json.validate(githubRepositoryReads)
         case "service"              => json.validate(serviceReads)
         case "github-team"          => json.validate(githubTeamReads)
@@ -54,9 +54,6 @@ object ChannelLookup extends JsonHelpers {
         case "teams-of-github-user" => json.validate(teamsOfGithubUserReads)
         case "teams-of-ldap-user"   => json.validate(teamsOfLdapUserReads)
         case _                      => JsError("Unknown channel lookup type")
-      }
     }
 
   private def upcastAsChannelLookup[A <: ChannelLookup](a: A): ChannelLookup = a: ChannelLookup
-
-}

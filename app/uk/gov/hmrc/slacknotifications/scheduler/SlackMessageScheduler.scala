@@ -35,13 +35,10 @@ class SlackMessageScheduler @Inject()(
   mongoLockRepository : MongoLockRepository,
   slackMessageConsumer: SlackMessageConsumer,
   timestampSupport    : TimestampSupport
-)(implicit
-  ec                  : ExecutionContext,
-  actorSystem         : ActorSystem,
-  applicationLifecycle: ApplicationLifecycle
-) extends SchedulerUtils {
+)(using ExecutionContext, ActorSystem, ApplicationLifecycle
+) extends SchedulerUtils:
 
-  private val schedulerConfig = {
+  private val schedulerConfig =
     val enabledKey = "slackMessageScheduler.enabled"
     SchedulerConfig(
       enabledKey   = enabledKey,
@@ -49,12 +46,11 @@ class SlackMessageScheduler @Inject()(
       interval     = configuration.get[FiniteDuration]("slackMessageScheduler.interval"),
       initialDelay = configuration.get[FiniteDuration]("slackMessageScheduler.initialDelay")
     )
-  }
 
   private val lock =
     ScheduledLockService(mongoLockRepository, "slack-message-scheduler", timestampSupport, schedulerConfig.interval)
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  given HeaderCarrier = HeaderCarrier()
 
   scheduleWithTimePeriodLock(
     "Slack Message Scheduler",
@@ -63,10 +59,8 @@ class SlackMessageScheduler @Inject()(
   ) {
     logger.info("Processing queued Slack messages...")
 
-    for {
+    for
       _ <- slackMessageConsumer.runQueue()
       _ =  logger.info("Finished processing queued Slack messages")
-    } yield ()
+    yield ()
   }
-
-}

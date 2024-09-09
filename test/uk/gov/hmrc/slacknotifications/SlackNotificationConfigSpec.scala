@@ -14,49 +14,50 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.slacknotifications.services
+package uk.gov.hmrc.slacknotifications
 
 import com.google.common.io.BaseEncoding
 import play.api.Configuration
 import uk.gov.hmrc.slacknotifications.model.{ServiceConfig, Password}
 import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
-import uk.gov.hmrc.slacknotifications.test.UnitSpec
-import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
+import uk.gov.hmrc.slacknotifications.base.UnitSpec
 
-class SlackNotificationConfigSpec extends UnitSpec {
-  "SlackNotificationConfig" should {
-    "fail if password is not base64 encoded" in {
-      val configuration =
+class SlackNotificationConfigSpec extends UnitSpec:
+  "SlackNotificationConfig" should:
+    "fail if password is not base64 encoded" in:
+      val configuration: Configuration =
         Configuration(
           "auth.authorizedServices.0.name"     -> "name",
           "auth.authorizedServices.0.password" -> "not base64 encoded $%£*&^",
           "slack.notification.enabled"         -> true
         )
 
-      val exception = intercept[Exception] {
-        new SlackNotificationConfig(configuration)
-      }
+      val exception: Exception =
+        intercept[Exception] {
+          SlackNotificationConfig(configuration)
+        }
 
-      exception.getMessage() should include("Could not base64 decode password")
-    }
+      exception.getMessage should include("Could not base64 decode password")
 
-    "default displayName end userEmoji if not set" in {
-      val service = ClientService("foo", Password("bar"))
-      val configuration =
+    "default displayName end userEmoji if not set" in:
+      val service: ClientService =
+        ClientService("foo", Password("bar"))
+      val configuration: Configuration =
         Configuration(
           "auth.authorizedServices.0.name"     -> service.name,
           "auth.authorizedServices.0.password" -> base64Encode(service.password.value),
           "slack.notification.enabled"         -> true
         )
 
-      val config = new SlackNotificationConfig(configuration).serviceConfigs
+      val config: Seq[ServiceConfig] =
+        SlackNotificationConfig(configuration).serviceConfigs
 
       config shouldBe List(ServiceConfig(service.name, service.password, None, None))
-    }
 
-    "use the specified displayName end userEmoji if set" in {
-      val service = ClientService("foo", Password("bar"))
-      val configuration =
+    "use the specified displayName end userEmoji if set" in:
+      val service: ClientService =
+        ClientService("foo", Password("bar"))
+      val configuration: Configuration =
         Configuration(
           "auth.authorizedServices.0.name"        -> service.name,
           "auth.authorizedServices.0.password"    -> base64Encode(service.password.value),
@@ -65,12 +66,10 @@ class SlackNotificationConfigSpec extends UnitSpec {
           "slack.notification.enabled"            -> true
         )
 
-      val config = new SlackNotificationConfig(configuration).serviceConfigs
+      val config: Seq[ServiceConfig] =
+        SlackNotificationConfig(configuration).serviceConfigs
 
       config shouldBe List(ServiceConfig(service.name, service.password, Some("custom"), Some(":some-emoji:")))
-    }
-  }
 
   def base64Encode(s: String): String =
     BaseEncoding.base64().encode(s.getBytes("UTF-8"))
-}

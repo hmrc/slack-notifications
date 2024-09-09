@@ -44,18 +44,17 @@ class NotificationService @Inject()(
 , slackMessageQueue      : SlackMessageQueueRepository
 , slackConnector         : SlackConnector
 , serviceConfigsConnector: ServiceConfigsConnector
-)(implicit
-  ec: ExecutionContext
-) extends Logging {
+)(using ExecutionContext
+) extends Logging:
 
   def getMessageStatus(msgId: UUID): Future[Option[NotificationStatus]] =
-    slackMessageQueue.getByMsgId(msgId).map { workItems =>
-      if(workItems.nonEmpty) {
+    slackMessageQueue.getByMsgId(msgId).map: workItems =>
+      if workItems.nonEmpty then
         val finishedStates = Seq(ProcessingStatus.Succeeded, ProcessingStatus.PermanentlyFailed)
 
         val allStates = workItems.map(_.status).distinct
 
-        if (allStates.forall(finishedStates.contains)) {
+        if allStates.forall(finishedStates.contains) then
           Some(
             NotificationStatus(
               msgId = msgId,
@@ -63,7 +62,7 @@ class NotificationService @Inject()(
               result = Some(NotificationResult.concatResults(workItems.map(_.item.result)))
             )
           )
-        } else {
+        else
           Some(
             NotificationStatus(
               msgId = msgId,
@@ -71,61 +70,57 @@ class NotificationService @Inject()(
               result = Some(NotificationResult.concatResults(workItems.map(_.item.result)))
             )
           )
-        }
-      } else None
-    }
+      else None
 
-  def sendNotification(request: SendNotificationRequest)(implicit hc: HeaderCarrier): EitherT[Future, NotificationResult, SendNotificationResponse] = {
+  def sendNotification(request: SendNotificationRequest)(using HeaderCarrier): EitherT[Future, NotificationResult, SendNotificationResponse] =
     val msgId: UUID = UUID.randomUUID()
 
     handleRequest(msgId, request)
       .map(_ => SendNotificationResponse(msgId))
-  }
 
   private def createAndQueue(
     msgId     : UUID,
     request   : SendNotificationRequest,
     initResult: NotificationResult,
     toDo      : Seq[String]
-  )(implicit
-    hc: HeaderCarrier
+  )(using HeaderCarrier
   ): EitherT[Future, NotificationResult, Unit] =
     EitherT.liftF {
       toDo.traverse_ { teamName =>
-        for {
+        for
           channelLookupResult <- channelLookupService.getExistingSlackChannel(teamName)
           (messages, result)  =  constructMessagesWithErrors(request, teamName, channelLookupResult, initResult)
           _                   <- messages.traverse_(msg => queueSlackMessage(msgId, msg, result))
-        } yield ()
+        yield ()
       }
     }
 
-  private def handleRequest(msgId: UUID, request: SendNotificationRequest)(implicit hc: HeaderCarrier): EitherT[Future, NotificationResult, Unit] =
-    request.channelLookup match {
+  private def handleRequest(msgId: UUID, request: SendNotificationRequest)(using HeaderCarrier): EitherT[Future, NotificationResult, Unit] =
+    request.channelLookup match
       case ChannelLookup.GithubRepository(repoName) =>
-        for {
+        for
           repositoryDetails <- EitherT(channelLookupService.getExistingRepository(repoName))
           allTeams          <- EitherT.fromEither[Future](channelLookupService.getTeamsResponsibleForRepo(repoName, repositoryDetails))
           (excluded, toDo)  =  allTeams.partition(slackNotificationConfig.notRealTeams.contains)
           initResult        =  NotificationResult().addExclusion(excluded.map(Exclusion.notARealTeam): _*)
           _                 <- createAndQueue(msgId, request, initResult, toDo)
-        } yield ()
+        yield ()
       case ChannelLookup.Service(serviceName) =>
-        for {
+        for
           repoName          <- EitherT.liftF(serviceConfigsConnector.repoNameForService(serviceName)).map(_.getOrElse(serviceName))
           repositoryDetails <- EitherT(channelLookupService.getExistingRepository(repoName))
           allTeams          <- EitherT.fromEither[Future](channelLookupService.getTeamsResponsibleForRepo(repoName, repositoryDetails))
           (excluded, toDo)  =  allTeams.partition(slackNotificationConfig.notRealTeams.contains)
           initResult        =  NotificationResult().addExclusion(excluded.map(Exclusion.notARealTeam): _*)
           _                 <- createAndQueue(msgId, request, initResult, toDo)
-        } yield ()
+        yield ()
       case ChannelLookup.GithubTeam(team) =>
         EitherT.liftF[Future, NotificationResult, Unit] {
-          for {
+          for
             channelLookupResult <- channelLookupService.getExistingSlackChannel(team)
             (messages, result)  =  constructMessagesWithErrors(request, team, channelLookupResult, NotificationResult())
             res                 <- messages.traverse_(queueSlackMessage(msgId, _, result))
-          } yield res
+          yield res
         }
       case ChannelLookup.SlackChannel(slackChannels) =>
         EitherT.liftF(
@@ -135,7 +130,7 @@ class NotificationService @Inject()(
           }.map(_ => ())
         )
       case ChannelLookup.TeamsOfGithubUser(githubUsername) =>
-        if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
+        if slackNotificationConfig.notRealGithubUsers.contains(githubUsername) then
           EitherT.leftT[Future, Unit](NotificationResult().addExclusion(Exclusion.notARealGithubUser(githubUsername)))
         else
           EitherT.liftF(
@@ -145,7 +140,6 @@ class NotificationService @Inject()(
         EitherT.liftF(
           handleRequestForUser("ldap", ldapUsername, userManagementService.getTeamsForLdapUser)(msgId, request)
         )
-    }
 
   def constructMessagesWithErrors(
     request   : SendNotificationRequest,
@@ -153,7 +147,7 @@ class NotificationService @Inject()(
     lookupRes : Either[(Seq[AdminSlackId], FallbackChannel), TeamChannel],
     initResult: NotificationResult
   ): (Seq[SlackMessage], NotificationResult) =
-    lookupRes match {
+    lookupRes match
       case Right(teamChannel) =>
         ( Seq(createMessageFromRequest(request, teamChannel.asString))
         , initResult
@@ -171,7 +165,6 @@ class NotificationService @Inject()(
             adminSlackIds.map(id => createMessageFromRequest(request, id.asString, Some(Error.errorForAdminMissingTeamSlackChannel(team).message)))
         , initResult.addError(error)
         )
-    }
 
   private def handleRequestForUser(
     userType   : String,
@@ -183,12 +176,12 @@ class NotificationService @Inject()(
   )(implicit
     hc: HeaderCarrier
   ): Future[Unit] =
-    for {
+    for
       allTeams         <- teamsGetter(username)
       (excluded, toDo) =  allTeams.map(_.asString).partition(slackNotificationConfig.notRealTeams.contains)
       initResult       =  NotificationResult().addExclusion(excluded.map(Exclusion.notARealTeam): _*)
-      _                =  if (toDo.nonEmpty) createAndQueue(msgId, request, initResult, toDo)
-                          else {
+      _                =  if toDo.nonEmpty then createAndQueue(msgId, request, initResult, toDo)
+                          else
                             logger.info(s"Failed to find teams for usertype: $userType, username: $username. " +
                               s"Sending slack notification to Platops admin channel instead")
 
@@ -196,15 +189,14 @@ class NotificationService @Inject()(
                             val error = Error.teamsNotFoundForUsername(userType, username)
 
                             queueSlackMessage(msgId, createMessageFromRequest(request, fallbackChannel, Some(error.message)), initResult.addError(error))
-                          }
-    } yield ()
+    yield ()
 
   private def createMessageFromRequest(
     request     : SendNotificationRequest,
     slackChannel: String,
     errorMessage: Option[String] = None
   ): SlackMessage =
-    errorMessage match {
+    errorMessage match
       case Some(error) =>
         SlackMessage.sanitise(
           SlackMessage(
@@ -229,13 +221,12 @@ class NotificationService @Inject()(
           ),
           domainConfig
         )
-    }
 
   private[services] def queueSlackMessage(
     msgId       : UUID,
     slackMessage: SlackMessage,
     init        : NotificationResult
-  ): Future[Unit] = {
+  ): Future[Unit] =
     val queuedSlackMessage =
       QueuedSlackMessage(
         msgId        = msgId,
@@ -245,54 +236,48 @@ class NotificationService @Inject()(
 
     slackMessageQueue
       .add(queuedSlackMessage)
-      .map { workItemId =>
+      .map: workItemId =>
         logger.info(s"Message with work item id: ${workItemId.toString} queued for request with msgId: ${msgId.toString}")
-      }
-  }
 
-  def processMessageFromQueue(workItem: WorkItem[QueuedSlackMessage])(implicit hc: HeaderCarrier): Future[Unit] = {
-    if(workItem.failureCount > 2) {
+  def processMessageFromQueue(workItem: WorkItem[QueuedSlackMessage])(using HeaderCarrier): Future[Unit] =
+    if workItem.failureCount > 2 then
       logger.info(s"WorkItem: ${workItem.id} for msgId: ${workItem.item.msgId} has failed 3 times - marking as permanently failed")
       slackMessageQueue.markPermFailed(workItem.id).map(_ => ())
-    } else {
+    else
       slackConnector
         .postChatMessage(workItem.item.slackMessage)
-        .flatMap {
+        .flatMap:
           case Right(_) =>
-            for {
+            for
               _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addSuccessfullySent(workItem.item.slackMessage.channel))
               _ <- slackMessageQueue.markSuccess(workItem.id)
-            } yield ()
+            yield ()
           case Left(ex@UpstreamErrorResponse.WithStatusCode(404)) if ex.message.contains("channel_not_found") =>
-            for {
+            for
               _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(Error.slackChannelNotFound(workItem.item.slackMessage.channel)))
               _ <- slackMessageQueue.markPermFailed(workItem.id)
-            } yield ()
+            yield ()
           case Left(UpstreamErrorResponse.WithStatusCode(429)) => // TODO pause all processing
             logger.warn(s"Received 429 when attempting to notify Slack channel ${workItem.item.slackMessage.channel}")
             Future.failed(RateLimitExceededException())
           case Left(UpstreamErrorResponse.Upstream4xxResponse(ex)) =>
             val error = Error.slackError(ex.statusCode, ex.message, workItem.item.slackMessage.channel, None)
             logger.error(s"Unable (4xx) to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}", ex)
-            for {
+            for
               _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
               _ <- slackMessageQueue.markPermFailed(workItem.id)
-            } yield ()
+            yield ()
           case Left(UpstreamErrorResponse.Upstream5xxResponse(ex)) =>
             val error = Error.slackError(ex.statusCode, ex.message, workItem.item.slackMessage.channel, None)
             logger.error(s"Unable (5xx) to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}")
-            for {
+            for
               _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
               _ <- slackMessageQueue.markFailed(workItem.id)
-            } yield ()
+            yield ()
           case Left(ex) =>
             Future.failed(ex) // make match exhaustive, delegate to recoverWith
-        }.recoverWith {
+        .recoverWith:
           case NonFatal(ex) =>
             logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel}", ex)
             slackMessageQueue.markFailed(workItem.id)
             Future.failed(ex)
-        }
-    }
-  }
-}

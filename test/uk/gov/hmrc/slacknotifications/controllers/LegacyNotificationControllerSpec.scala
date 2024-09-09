@@ -25,32 +25,32 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.model.{NotificationRequest, NotificationResult, Password}
 import uk.gov.hmrc.slacknotifications.services.AuthService.ClientService
 import uk.gov.hmrc.slacknotifications.services.{AuthService, LegacyNotificationService}
-import uk.gov.hmrc.slacknotifications.test.UnitSpec
+import uk.gov.hmrc.slacknotifications.base.UnitSpec
+import org.mockito.Mockito.when
+import org.mockito.ArgumentMatchers.{any, eq => eqTo}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class LegacyNotificationControllerSpec extends UnitSpec with ScalaFutures {
+class LegacyNotificationControllerSpec extends UnitSpec with ScalaFutures:
 
-  "The controller" should {
-    "allow requests with valid credentials in the Authorization header" in new TestSetup {
+  "The controller" should:
+    "allow requests with valid credentials in the Authorization header" in new TestSetup:
       val validCredentials = "Zm9vOmJhcg==" // foo:bar:deployments-info base64 encoded
       val request          = baseRequest.withHeaders("Authorization" -> s"Basic $validCredentials")
 
-      when(notificationService.sendNotification(any[NotificationRequest], any[ClientService])(any[HeaderCarrier]))
+      when(notificationService.sendNotification(any[NotificationRequest], any[ClientService])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(NotificationResult()))
       when(authService.isAuthorized(eqTo(ClientService("foo", Password("bar"))))).thenReturn(true)
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 200
-    }
 
-    "stop requests with no Authorization header" in new TestSetup {
+    "stop requests with no Authorization header" in new TestSetup:
       val response: Result = controller.sendNotification().apply(baseRequest).futureValue
       response.header.status shouldBe 401
-    }
 
-    "block requests with invalid credentials in the Authorization header" in new TestSetup {
+    "block requests with invalid credentials in the Authorization header" in new TestSetup:
       val invalidCredentials = "Zm9vOmJhcg==" // foo:bar base64 encoded
       val request            = baseRequest.withHeaders("Authorization" -> s"Basic $invalidCredentials")
 
@@ -58,10 +58,8 @@ class LegacyNotificationControllerSpec extends UnitSpec with ScalaFutures {
 
       val response: Result = controller.sendNotification().apply(request).futureValue
       response.header.status shouldBe 401
-    }
-  }
 
-  private trait TestSetup extends StubControllerComponentsFactory {
+  private trait TestSetup extends StubControllerComponentsFactory:
 
     val authService         = mock[AuthService]
     val notificationService = mock[LegacyNotificationService]
@@ -85,5 +83,3 @@ class LegacyNotificationControllerSpec extends UnitSpec with ScalaFutures {
         Headers("Content-Type" -> "application/json"),
         Json.parse(body)
       )
-  }
-}

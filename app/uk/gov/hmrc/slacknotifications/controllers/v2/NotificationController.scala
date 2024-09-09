@@ -35,25 +35,24 @@ class NotificationController @Inject()(
   auth                : BackendAuthComponents
 , controllerComponents: ControllerComponents
 , notificationService : NotificationService
-)(implicit
-  ec: ExecutionContext
-) extends BackendController(controllerComponents) with Logging {
+)(using ExecutionContext
+) extends BackendController(controllerComponents) with Logging:
 
   private val predicate: Predicate.Permission =
     Predicate.Permission(Resource.from("slack-notifications", "v2/notification"), IAAction("SEND_NOTIFICATION"))
 
   def sendNotification(): Action[JsValue] =
     auth.authorizedAction(predicate).async(parse.json) { implicit request =>
-      implicit val snrR: Reads[SendNotificationRequest] = SendNotificationRequest.reads
+      given Reads[SendNotificationRequest] = SendNotificationRequest.reads
       withJsonBody[SendNotificationRequest] { snr =>
         notificationService.sendNotification(snr).value.map {
           case Left(nr) =>
-            implicit val format: Format[NotificationResult] = NotificationResult.format
+            given Format[NotificationResult] = NotificationResult.format
             val asJson = Json.toJson(nr)
             logger.info(s"Request: $snr resulted in a notification result: $asJson")
             InternalServerError(asJson)
           case Right(response) =>
-            implicit val writes: Writes[SendNotificationResponse] = SendNotificationResponse.writes
+            given Writes[SendNotificationResponse] = SendNotificationResponse.writes
             val asJson = Json.toJson(response)
             logger.info(s"Request: $snr was queued with msgId: ${response.msgId.toString}")
             Accepted(asJson)
@@ -63,15 +62,13 @@ class NotificationController @Inject()(
 
   def status(msgId: UUID): Action[AnyContent] =
     auth.authorizedAction(predicate).async {
-      implicit val nsW: Writes[NotificationStatus] = NotificationStatus.writes
+      given Writes[NotificationStatus] = NotificationStatus.writes
       notificationService
         .getMessageStatus(msgId)
         .map(_.fold[Result](NotFound)(status => Ok(Json.toJson(status))))
     }
 
-}
-
-object NotificationController {
+object NotificationController:
   final case class SendNotificationRequest(
     displayName  : String,
     emoji        : String,
@@ -81,8 +78,8 @@ object NotificationController {
     attachments  : Seq[JsObject]
   )
 
-  object SendNotificationRequest {
-    implicit val clR: Reads[ChannelLookup] = ChannelLookup.reads
+  object SendNotificationRequest:
+    given Reads[ChannelLookup] = ChannelLookup.reads
     val reads: Reads[SendNotificationRequest] =
       ( (__ \ "displayName"  ).read[String]
       ~ (__ \ "emoji"        ).read[String]
@@ -91,5 +88,3 @@ object NotificationController {
       ~ (__ \ "blocks"       ).readWithDefault[Seq[JsObject]](Seq.empty)
       ~ (__ \ "attachments"  ).readWithDefault[Seq[JsObject]](Seq.empty)
       )(SendNotificationRequest.apply _)
-  }
-}

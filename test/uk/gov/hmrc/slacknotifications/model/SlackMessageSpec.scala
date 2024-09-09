@@ -18,81 +18,82 @@ package uk.gov.hmrc.slacknotifications.model
 
 import play.api.Configuration
 import uk.gov.hmrc.slacknotifications.config.DomainConfig
-import uk.gov.hmrc.slacknotifications.test.UnitSpec
+import uk.gov.hmrc.slacknotifications.base.UnitSpec
 
-class SlackMessageSpec extends UnitSpec {
-  "A legacy slack message" should {
-    "contain a text message with allowlisted links" in new Fixtures {
-      val message = LegacySlackMessage(
-        channel  = "slack_channel",
-        text     = "Random text and link to https://domain1/hmrc",
-        username = "someone",
-        None,
-        Seq.empty,
-        showAttachmentAuthor = true
-      )
-      val sanitisedMessage = LegacySlackMessage.sanitise(message, domainConfig)
+class SlackMessageSpec extends UnitSpec:
+  "A legacy slack message" should:
+    "contain a text message with allowlisted links" in new Fixtures:
+      val message: LegacySlackMessage =
+        LegacySlackMessage(
+          channel  = "slack_channel",
+          text     = "Random text and link to https://domain1/hmrc",
+          username = "someone",
+          None,
+          Seq.empty,
+          showAttachmentAuthor = true
+        )
+      val sanitisedMessage: LegacySlackMessage =
+        LegacySlackMessage.sanitise(message, domainConfig)
       sanitisedMessage shouldBe message
-    }
 
-    "contain a text with non-allowlisted links replaced" in new Fixtures {
-      val message = LegacySlackMessage(
-        channel  = "slack_channel",
-        text     = "Evil text with links to http://very.bad.url/with-plenty-malware and http://url.i.dont?know=about",
-        username = "someone",
-        None,
-        Seq.empty,
-        showAttachmentAuthor = true
-      )
-      val sanitisedMessage = LegacySlackMessage.sanitise(message, domainConfig)
+    "contain a text with non-allowlisted links replaced" in new Fixtures:
+      val message: LegacySlackMessage =
+        LegacySlackMessage(
+          channel  = "slack_channel",
+          text     = "Evil text with links to http://very.bad.url/with-plenty-malware and http://url.i.dont?know=about",
+          username = "someone",
+          None,
+          Seq.empty,
+          showAttachmentAuthor = true
+        )
+      val sanitisedMessage: LegacySlackMessage =
+        LegacySlackMessage.sanitise(message, domainConfig)
 
       val sanitisedText = s"Evil text with links to ${domainConfig.linkNotAllowListed} and ${domainConfig.linkNotAllowListed}"
       sanitisedMessage shouldBe message.copy(text = sanitisedText)
-    }
-  }
 
-  "An attachment" should {
-    val emptyAttachment = Attachment(
-      fallback    = None,
-      color       = None,
-      pretext     = None,
-      author_name = None,
-      author_link = None,
-      author_icon = None,
-      title       = None,
-      title_link  = None,
-      text        = None,
-      fields      = None,
-      image_url   = None,
-      thumb_url   = None,
-      footer      = None,
-      footer_icon = None,
-      ts          = None
-    )
-
-    "have sanitised links" in new Fixtures {
-      val attachment = emptyAttachment.copy(
-        author_link = Some("https://domain1/hmrc"),
-        title_link  = Some("http://very.bad.url/with-plenty-malware"),
-        image_url   = Some("http://url.i.dont?know=about"),
-        thumb_url   = Some("https://domain2/hmrc")
+  "An attachment" should:
+    val emptyAttachment: Attachment =
+      Attachment(
+        fallback    = None,
+        color       = None,
+        pretext     = None,
+        author_name = None,
+        author_link = None,
+        author_icon = None,
+        title       = None,
+        title_link  = None,
+        text        = None,
+        fields      = None,
+        image_url   = None,
+        thumb_url   = None,
+        footer      = None,
+        footer_icon = None,
+        ts          = None
       )
 
-      val expected = emptyAttachment.copy(
-        author_link = Some("https://domain1/hmrc"),
-        title_link  = Some(domainConfig.linkNotAllowListed),
-        image_url   = Some(domainConfig.linkNotAllowListed),
-        thumb_url   = Some("https://domain2/hmrc")
-      )
+    "have sanitised links" in new Fixtures:
+      val attachment: Attachment =
+        emptyAttachment.copy(
+          author_link = Some("https://domain1/hmrc"),
+          title_link  = Some("http://very.bad.url/with-plenty-malware"),
+          image_url   = Some("http://url.i.dont?know=about"),
+          thumb_url   = Some("https://domain2/hmrc")
+        )
+
+      val expected: Attachment =
+        emptyAttachment.copy(
+          author_link = Some("https://domain1/hmrc"),
+          title_link  = Some(domainConfig.linkNotAllowListed),
+          image_url   = Some(domainConfig.linkNotAllowListed),
+          thumb_url   = Some("https://domain2/hmrc")
+        )
 
       Attachment.sanitise(attachment, "channel", domainConfig) shouldBe expected
-    }
-  }
 
-  trait Fixtures {
-    val domainConfig = new DomainConfig(Configuration(
-      "allowed.domains"    ->  Seq("domain1", "domain2")
-    , "linkNotAllowListed" -> "LINK NOT ALLOW LISTED"
+  trait Fixtures:
+    val domainConfig: DomainConfig =
+      DomainConfig(Configuration(
+        "allowed.domains"    ->  Seq("domain1", "domain2"),
+        "linkNotAllowListed" -> "LINK NOT ALLOW LISTED"
     ))
-  }
-}
