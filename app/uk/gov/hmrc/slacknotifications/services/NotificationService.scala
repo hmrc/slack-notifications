@@ -173,8 +173,7 @@ class NotificationService @Inject()(
   )(
     msgId  : UUID,
     request: SendNotificationRequest
-  )(implicit
-    hc: HeaderCarrier
+  )(using HeaderCarrier
   ): Future[Unit] =
     for
       allTeams         <- teamsGetter(username)

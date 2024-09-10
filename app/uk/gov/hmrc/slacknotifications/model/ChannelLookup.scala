@@ -17,43 +17,33 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import cats.data.NonEmptyList
-import play.api.libs.json.Reads._
-import play.api.libs.json.{Json, Reads, _}
+import play.api.libs.json.{Json, Reads, JsError, JsResult, JsValue}
 import uk.gov.hmrc.slacknotifications.JsonHelpers
 
-sealed trait ChannelLookup
+enum ChannelLookup:
+  case GithubRepository(repositoryName: String)
+  case Service(serviceName: String)
+  case GithubTeam(teamName: String)
+  case SlackChannel(slackChannels: NonEmptyList[String])
+  case TeamsOfGithubUser(githubUsername: String)
+  case TeamsOfLdapUser(ldapUsername: String)
 
 object ChannelLookup extends JsonHelpers:
 
-  final case class GithubRepository(repositoryName: String) extends ChannelLookup
+  given Reads[ChannelLookup.GithubRepository] = Json.reads[ChannelLookup.GithubRepository]
+  given Reads[ChannelLookup.Service] = Json.reads[ChannelLookup.Service]
+  given Reads[ChannelLookup.GithubTeam] = Json.reads[ChannelLookup.GithubTeam]
+  given Reads[ChannelLookup.SlackChannel] = Json.reads[ChannelLookup.SlackChannel]
+  given Reads[ChannelLookup.TeamsOfGithubUser] = Json.reads[ChannelLookup.TeamsOfGithubUser]
+  given Reads[ChannelLookup.TeamsOfLdapUser] = Json.reads[ChannelLookup.TeamsOfLdapUser]
 
-  final case class Service(serviceName: String) extends ChannelLookup
-
-  final case class GithubTeam(teamName: String) extends ChannelLookup
-
-  final case class SlackChannel(slackChannels: NonEmptyList[String]) extends ChannelLookup
-
-  final case class TeamsOfGithubUser(githubUsername: String) extends ChannelLookup
-
-  final case class TeamsOfLdapUser(ldapUsername: String) extends ChannelLookup
-
-  private val githubRepositoryReads  = Json.reads[GithubRepository].map(upcastAsChannelLookup)
-  private val serviceReads           = Json.reads[Service].map(upcastAsChannelLookup)
-  private val githubTeamReads        = Json.reads[GithubTeam].map(upcastAsChannelLookup)
-  private val slackChannelReads      = Json.reads[SlackChannel].map(upcastAsChannelLookup)
-  private val teamsOfGithubUserReads = Json.reads[TeamsOfGithubUser].map(upcastAsChannelLookup)
-  private val teamsOfLdapUserReads   = Json.reads[TeamsOfLdapUser].map(upcastAsChannelLookup)
-
-  given reads: Reads[ChannelLookup] =
-    Reads[ChannelLookup] { json =>
-      (json \ "by").validate[String].flatMap:
-        case "github-repository"    => json.validate(githubRepositoryReads)
-        case "service"              => json.validate(serviceReads)
-        case "github-team"          => json.validate(githubTeamReads)
-        case "slack-channel"        => json.validate(slackChannelReads)
-        case "teams-of-github-user" => json.validate(teamsOfGithubUserReads)
-        case "teams-of-ldap-user"   => json.validate(teamsOfLdapUserReads)
-        case _                      => JsError("Unknown channel lookup type")
-    }
-
-  private def upcastAsChannelLookup[A <: ChannelLookup](a: A): ChannelLookup = a: ChannelLookup
+  given Reads[ChannelLookup] = Reads[ChannelLookup] { json =>
+    (json \ "by").validate[String].flatMap:
+      case "github-repository"    => json.validate[ChannelLookup.GithubRepository]
+      case "service"              => json.validate[ChannelLookup.Service]
+      case "github-team"          => json.validate[ChannelLookup.GithubTeam]
+      case "slack-channel"        => json.validate[ChannelLookup.SlackChannel]
+      case "teams-of-github-user" => json.validate[ChannelLookup.TeamsOfGithubUser]
+      case "teams-of-ldap-user"   => json.validate[ChannelLookup.TeamsOfLdapUser]
+      case _                      => JsError("Unknown channel lookup type")
+  }

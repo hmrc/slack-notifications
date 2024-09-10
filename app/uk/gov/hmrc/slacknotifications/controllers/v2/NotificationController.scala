@@ -79,7 +79,6 @@ object NotificationController:
   )
 
   object SendNotificationRequest:
-    given Reads[ChannelLookup] = ChannelLookup.reads
     val reads: Reads[SendNotificationRequest] =
       ( (__ \ "displayName"  ).read[String]
       ~ (__ \ "emoji"        ).read[String]
