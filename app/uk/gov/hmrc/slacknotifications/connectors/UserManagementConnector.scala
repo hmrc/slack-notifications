@@ -77,7 +77,7 @@ object UserManagementConnector:
       ~ ( __ \ "teamNames"     ).read[List[TeamName]]
       )(User.apply _)
 
-  final case class TeamName(
+  case class TeamName(
     asString: String
   ) extends AnyVal
 
@@ -85,7 +85,7 @@ object UserManagementConnector:
     val reads: Reads[TeamName] =
       Reads.of[String].map(TeamName.apply)
 
-  final case class TeamDetails(
+  case class TeamDetails(
     teamName         : String,
     slack            : Option[String],
     slackNotification: Option[String]

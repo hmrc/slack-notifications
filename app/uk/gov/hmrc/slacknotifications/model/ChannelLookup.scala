@@ -30,12 +30,12 @@ enum ChannelLookup:
 
 object ChannelLookup extends JsonHelpers:
 
-  given Reads[ChannelLookup.GithubRepository] = Json.reads[ChannelLookup.GithubRepository]
-  given Reads[ChannelLookup.Service] = Json.reads[ChannelLookup.Service]
-  given Reads[ChannelLookup.GithubTeam] = Json.reads[ChannelLookup.GithubTeam]
-  given Reads[ChannelLookup.SlackChannel] = Json.reads[ChannelLookup.SlackChannel]
-  given Reads[ChannelLookup.TeamsOfGithubUser] = Json.reads[ChannelLookup.TeamsOfGithubUser]
-  given Reads[ChannelLookup.TeamsOfLdapUser] = Json.reads[ChannelLookup.TeamsOfLdapUser]
+  private given Reads[ChannelLookup.GithubRepository] = Json.reads[ChannelLookup.GithubRepository]
+  private given Reads[ChannelLookup.Service] = Json.reads[ChannelLookup.Service]
+  private given Reads[ChannelLookup.GithubTeam] = Json.reads[ChannelLookup.GithubTeam]
+  private given Reads[ChannelLookup.SlackChannel] = Json.reads[ChannelLookup.SlackChannel]
+  private given Reads[ChannelLookup.TeamsOfGithubUser] = Json.reads[ChannelLookup.TeamsOfGithubUser]
+  private given Reads[ChannelLookup.TeamsOfLdapUser] = Json.reads[ChannelLookup.TeamsOfLdapUser]
 
   given Reads[ChannelLookup] = Reads[ChannelLookup] { json =>
     (json \ "by").validate[String].flatMap:

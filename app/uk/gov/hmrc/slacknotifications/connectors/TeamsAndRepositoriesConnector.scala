@@ -39,7 +39,7 @@ class TeamsAndRepositoriesConnector @Inject()(
       .get(url"$url/api/v2/repositories/$repositoryName")
       .execute[Option[RepositoryDetails]]
 
-final case class RepositoryDetails(
+case class RepositoryDetails(
   teamNames  : List[String],
   owningTeams: List[String]
 )

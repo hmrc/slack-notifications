@@ -30,7 +30,7 @@ class SlackConfig @Inject()(configuration: Configuration):
       text      = configuration.get[String]("alerts.slack.noTeamFound.text")
     )
 
-final case class MessageConfig(
+case class MessageConfig(
   channel   : String,
   username  : String,
   iconEmoji : String,

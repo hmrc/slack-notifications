@@ -28,8 +28,8 @@ case class NotificationStatus(
 )
 
 object NotificationStatus:
-  given Format[NotificationResult] = NotificationResult.format
   val writes: Writes[NotificationStatus] =
+    given Format[NotificationResult] = NotificationResult.format
     ( (__ \ "msgId" ).write[UUID]
     ~ (__ \ "status").write[String]
     ~ (__ \ "result").writeNullable[NotificationResult]

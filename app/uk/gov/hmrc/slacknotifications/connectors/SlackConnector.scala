@@ -84,4 +84,4 @@ object SlackConnector extends Logging:
     logger.error(s"Unable to notify Slack channel $channel, the following error occurred: ${slackError.message}")
     NotificationResult().addError(slackError)
 
-final case class RateLimitExceededException() extends RuntimeException("Rate Limit Exceeded")
+case class RateLimitExceededException() extends RuntimeException("Rate Limit Exceeded")

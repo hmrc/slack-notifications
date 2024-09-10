@@ -69,7 +69,7 @@ class NotificationController @Inject()(
     }
 
 object NotificationController:
-  final case class SendNotificationRequest(
+  case class SendNotificationRequest(
     displayName  : String,
     emoji        : String,
     channelLookup: ChannelLookup,

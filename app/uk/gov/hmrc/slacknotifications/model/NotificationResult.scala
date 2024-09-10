@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.model
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 
-final case class Error(code: String, message: String):
+case class Error(code: String, message: String):
   override def toString: String = message
 
 object Error:
@@ -87,7 +87,7 @@ object Error:
         "You are receiving this alert since you are an *admin* in this team. Please configure a team slack notification channel."
     )
 
-final case class Exclusion(code: String, message: String):
+case class Exclusion(code: String, message: String):
   override def toString: String = message
 
 object Exclusion:
@@ -114,7 +114,7 @@ object Exclusion:
       message = s"Slack notifications have been disabled. Slack message: $slackMessage"
     )
 
-final case class NotificationResult(
+case class NotificationResult(
   successfullySentTo: Seq[String]    = Nil,
   errors            : Seq[Error]     = Nil,
   exclusions        : Seq[Exclusion] = Nil

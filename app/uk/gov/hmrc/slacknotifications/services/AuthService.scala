@@ -45,7 +45,7 @@ object AuthService:
     def decode(s: String): Option[String] =
       Try(new String(BaseEncoding.base64().decode(s))).toOption
 
-  final case class ClientService(
+  case class ClientService(
     name    : String,
     password: Password
   )

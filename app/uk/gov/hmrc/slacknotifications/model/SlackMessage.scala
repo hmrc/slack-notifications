@@ -46,7 +46,7 @@ case class Attachment(
 
 object Attachment:
 
-  final case class Field(
+  case class Field(
     title: String,
     value: String,
     short: Boolean
@@ -96,7 +96,7 @@ object LegacySlackMessage:
 
 // model for https://api.slack.com/methods/chat.postMessage
 // omitting attachments and irrelevant optional fields
-final case class SlackMessage(
+case class SlackMessage(
   channel    : String
 , text       : String
 , blocks     : Seq[JsObject]
@@ -158,7 +158,7 @@ object SlackMessage:
       )
     )
 
-final case class QueuedSlackMessage(
+case class QueuedSlackMessage(
   msgId       : UUID,
   slackMessage: SlackMessage,
   result      : NotificationResult
