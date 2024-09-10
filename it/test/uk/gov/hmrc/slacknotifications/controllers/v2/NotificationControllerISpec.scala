@@ -20,7 +20,9 @@ import org.apache.pekko.stream.Materializer
 import org.apache.pekko.util.Timeout
 import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, containing, equalTo, get, post, stubFor, urlEqualTo}
 import com.github.tomakehurst.wiremock.stubbing.Scenario
-import org.mockito.scalatest.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.when
+import org.mockito.ArgumentMatchers.{any, eq as eqTo}
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
@@ -40,6 +42,8 @@ import uk.gov.hmrc.internalauth.client.{BackendAuthComponents, Retrieval}
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
 import uk.gov.hmrc.slacknotifications.services.SlackMessageConsumer
+import org.mongodb.scala.SingleObservableFuture
+import play.api.libs.ws.writeableOf_JsValue
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
