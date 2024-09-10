@@ -129,10 +129,9 @@ case class NotificationResult(
     copy(exclusions = (exclusions ++ e).distinct)
 
 object NotificationResult:
-  given Format[Error]     = Error.format
-  given Format[Exclusion] = Exclusion.format
-
   val format: Format[NotificationResult] =
+    given Format[Error]     = Error.format
+    given Format[Exclusion] = Exclusion.format
     ( (__ \ "successfullySentTo").format[Seq[String]]
     ~ (__ \ "errors"            ).format[Seq[Error]]
     ~ (__ \ "exclusions"        ).format[Seq[Exclusion]]

@@ -165,10 +165,9 @@ case class QueuedSlackMessage(
 )
 
 object QueuedSlackMessage:
-  given Format[SlackMessage]       = SlackMessage.format
-  given Format[NotificationResult] = NotificationResult.format
-
   val format: Format[QueuedSlackMessage] =
+    given Format[SlackMessage]       = SlackMessage.format
+    given Format[NotificationResult] = NotificationResult.format
     ( (__ \ "msgId"       ).format[UUID] // using play json uuid format to String - makes querying in mongo shell easier
     ~ (__ \ "slackMessage").format[SlackMessage]
     ~ (__ \ "result"      ).format[NotificationResult]
