@@ -22,6 +22,5 @@ import java.util.UUID
 
 case class SendNotificationResponse(msgId: UUID)
 
-object SendNotificationResponse {
+object SendNotificationResponse:
   val writes: Writes[SendNotificationResponse] = Writes.at[UUID](__ \ "msgId").contramap(_.msgId)
-}

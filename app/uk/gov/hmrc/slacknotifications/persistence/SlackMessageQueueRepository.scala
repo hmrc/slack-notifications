@@ -25,6 +25,7 @@ import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.Codecs
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem, WorkItemFields, WorkItemRepository}
 import uk.gov.hmrc.slacknotifications.model.{NotificationResult, QueuedSlackMessage}
+import org.mongodb.scala.{ObservableFuture, SingleObservableFuture}
 
 import java.time.{Duration, Instant}
 import java.util.UUID
@@ -36,8 +37,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlackMessageQueueRepository @Inject()(
   configuration: Configuration,
   mongoComponent: MongoComponent
-)(implicit
-  ec: ExecutionContext
+)(using ExecutionContext
 ) extends WorkItemRepository[QueuedSlackMessage](
   collectionName = "slackMessageQueue",
   mongoComponent = mongoComponent,
@@ -48,7 +48,7 @@ class SlackMessageQueueRepository @Inject()(
     IndexModel(Indexes.descending("updatedAt"), IndexOptions().name("ttl-idx").expireAfter(30, TimeUnit.DAYS))
   ),
   extraCodecs = Seq(Codecs.playFormatCodec(NotificationResult.format))
-){
+):
   override def now(): Instant =
     Instant.now()
 
@@ -106,4 +106,3 @@ class SlackMessageQueueRepository @Inject()(
 
   def markPermFailed(workItemId: ObjectId): Future[Boolean] =
     super.markAs(workItemId, ProcessingStatus.PermanentlyFailed) // will not be retried
-}

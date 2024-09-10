@@ -21,7 +21,7 @@ import uk.gov.hmrc.slacknotifications.config.DomainConfig
 import java.net.{URI, URL}
 import scala.util.Try
 
-object LinkUtils {
+object LinkUtils:
   // Captures urls terminated by:
   // - double quotes e.g. "https://example.com"
   // - a backtick e.g. `https://example.com`
@@ -34,7 +34,7 @@ object LinkUtils {
 
   private[utils] def getUris(str: String): Set[URL] =
     urlPattern.findAllMatchIn(str)
-      .map(m => Try(new URI(m.group(1)).toURL))
+      .map(m => Try(URI(m.group(1)).toURL))
       .flatMap(_.toOption)
       .toSet
 
@@ -44,20 +44,19 @@ object LinkUtils {
   private def isCatalogueLink(url: URL) =
     url.getHost.contains("catalogue.tax.service.gov.uk")
 
-  private def appendSource(link: URL, source: String): URL = {
+  private def appendSource(link: URL, source: String): URL =
     val uri = link.toURI
-    new URI(
+    URI(
       uri.getScheme,
       uri.getAuthority,
       uri.getPath,
       Option(uri.getQuery).fold(source)(_ ++ s"&$source"),
       uri.getFragment
     ).toURL
-  }
 
   private def updateCatalogueLinks(channel: String, links: Set[URL])(str: String): String =
     links.foldLeft(str)((acc, link) =>
-      if (Option(link.getQuery).exists(_.contains("source=")))
+      if Option(link.getQuery).exists(_.contains("source=")) then
         acc
       else
         acc.replace(link.toString, appendSource(link, s"source=slack-$channel").toString)
@@ -66,7 +65,7 @@ object LinkUtils {
   private def overrideBadLinks(badLinkMessage: String, links: Set[URL])(str: String): String =
     links.foldLeft(str)((acc, link) => acc.replace(link.toString, badLinkMessage))
 
-  def updateLinks(text: String, channel: String, domainConfig: DomainConfig): String = {
+  def updateLinks(text: String, channel: String, domainConfig: DomainConfig): String =
     val (catalogueLinks, otherLinks) = getUris(text).partition(isCatalogueLink)
     val badLinks = otherLinks.filterNot(isAllowListed(_, domainConfig))
     updateCatalogueLinks(channel, catalogueLinks)(
@@ -74,5 +73,3 @@ object LinkUtils {
         text
       )
     )
-  }
-}

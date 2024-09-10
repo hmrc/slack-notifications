@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.slacknotifications.test
+package uk.gov.hmrc.slacknotifications.base
 
-import org.mockito.scalatest.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.matchers.should
 import org.scalatest.wordspec.AnyWordSpecLike
 

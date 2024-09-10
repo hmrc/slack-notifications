@@ -33,31 +33,26 @@ import scala.concurrent.{ExecutionContext, Future}
 class SlackMessageConsumer @Inject()(
   slackMessageQueue  : SlackMessageQueueRepository,
   notificationService: NotificationService
-)(implicit
-  ec         : ExecutionContext,
-  actorSystem: ActorSystem
-) extends Logging {
+)(using ExecutionContext, ActorSystem
+) extends Logging:
 
-  def runQueue()(implicit hc: HeaderCarrier): Future[Done] =
-    slackMessageQueue.pullAllOutstanding().flatMap { workItems =>
+  def runQueue()(using HeaderCarrier): Future[Done] =
+    slackMessageQueue.pullAllOutstanding().flatMap: workItems =>
       val groupedByChannel = workItems.groupBy(_.item.slackMessage.channel)
 
       Future.sequence(
-        groupedByChannel.map { case (channel, messages) =>
-          Source(messages)
-            .throttle(elements = 1, per = 1.second, maximumBurst = 1, mode = ThrottleMode.Shaping)
-            .mapAsync(parallelism = 1)(notificationService.processMessageFromQueue)
-            .runWith(Sink.ignore)
-            .recover {
-              case _: RateLimitExceededException =>
-                logger.warn(s"Slack Rate Limit Exceeded - marking all in-progress work items back to to-do and ending current run.")
-                slackMessageQueue.resetInProgress()
-                Done
-              case ex =>
-                logger.error(s"Failed to send message to channel: $channel due to ${ex.getMessage}", ex)
-                Done
-            }
-        }
+        groupedByChannel.map:
+          case (channel, messages) =>
+            Source(messages)
+              .throttle(elements = 1, per = 1.second, maximumBurst = 1, mode = ThrottleMode.Shaping)
+              .mapAsync(parallelism = 1)(notificationService.processMessageFromQueue)
+              .runWith(Sink.ignore)
+              .recover:
+                case _: RateLimitExceededException =>
+                  logger.warn(s"Slack Rate Limit Exceeded - marking all in-progress work items back to to-do and ending current run.")
+                  slackMessageQueue.resetInProgress()
+                  Done
+                case ex =>
+                  logger.error(s"Failed to send message to channel: $channel due to ${ex.getMessage}", ex)
+                  Done
       ).map(_ => Done)
-    }
-}

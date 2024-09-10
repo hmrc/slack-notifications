@@ -19,9 +19,7 @@ package uk.gov.hmrc.slacknotifications
 import com.google.inject.AbstractModule
 import uk.gov.hmrc.slacknotifications.scheduler.SlackMessageScheduler
 
-class Module extends AbstractModule {
+class Module extends AbstractModule:
 
-  override def configure(): Unit = {
+  override def configure(): Unit =
     bind(classOf[SlackMessageScheduler]).asEagerSingleton()
-  }
-}

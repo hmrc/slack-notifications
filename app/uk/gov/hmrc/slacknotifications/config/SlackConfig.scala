@@ -19,9 +19,8 @@ package uk.gov.hmrc.slacknotifications.config
 import play.api.Configuration
 import javax.inject.{Inject, Singleton}
 
-
 @Singleton
-class SlackConfig @Inject()(configuration: Configuration) {
+class SlackConfig @Inject()(configuration: Configuration):
 
   lazy val noTeamFoundAlert: MessageConfig =
     MessageConfig(
@@ -30,9 +29,8 @@ class SlackConfig @Inject()(configuration: Configuration) {
       iconEmoji = configuration.get[String]("alerts.slack.noTeamFound.iconEmoji"),
       text      = configuration.get[String]("alerts.slack.noTeamFound.text")
     )
-}
 
-final case class MessageConfig(
+case class MessageConfig(
   channel   : String,
   username  : String,
   iconEmoji : String,

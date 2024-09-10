@@ -23,7 +23,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.{HttpClientV2Support, WireMockSupport}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector._
-import uk.gov.hmrc.slacknotifications.test.UnitSpec
+import uk.gov.hmrc.slacknotifications.base.UnitSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -32,21 +32,21 @@ class UserManagementConnectorSpec
      with ScalaFutures
      with IntegrationPatience
      with WireMockSupport
-     with HttpClientV2Support {
+     with HttpClientV2Support:
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  given HeaderCarrier = HeaderCarrier()
 
   private val connector: UserManagementConnector =
-    new UserManagementConnector(
+    UserManagementConnector(
       httpClientV2,
-      new ServicesConfig(Configuration(
+      ServicesConfig(Configuration(
         "microservice.services.user-management.port" -> wireMockPort,
         "microservice.services.user-management.host" -> wireMockHost
       ))
     )
 
-  "getGithubUser" should {
-    "return a users details by github username" in {
+  "getGithubUser" should:
+    "return a users details by github username" in:
       stubFor(
         get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
@@ -75,9 +75,8 @@ class UserManagementConnectorSpec
       )
 
       connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", None, Some("c-d"), "user", List(TeamName("Team A"), TeamName("Team B"))))
-    }
 
-    "return github user with no teams" in {
+    "return github user with no teams" in:
       stubFor(
         get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
@@ -103,9 +102,8 @@ class UserManagementConnectorSpec
       )
 
       connector.getGithubUser("c-d").futureValue shouldBe List(User("c.d", None, Some("c-d"), "user", List.empty[TeamName]))
-    }
 
-    "return empty list when github user not found" in {
+    "return empty list when github user not found" in:
       stubFor(
         get(urlEqualTo("/user-management/users?github=c-d"))
           .willReturn(
@@ -117,11 +115,9 @@ class UserManagementConnectorSpec
           )
       )
       connector.getGithubUser("c-d").futureValue shouldBe List.empty[User]
-    }
-  }
 
-  "getLdapUser" should {
-    "return a users details by ldap username" in {
+  "getLdapUser" should:
+    "return a users details by ldap username" in:
       stubFor(
         get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
@@ -149,9 +145,8 @@ class UserManagementConnectorSpec
       )
 
       connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", None, Some("c-d"), "user", List(TeamName("Team A"), TeamName("Team B"))))
-    }
 
-    "return ldap user with no teams" in {
+    "return ldap user with no teams" in:
       stubFor(
         get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
@@ -176,9 +171,8 @@ class UserManagementConnectorSpec
       )
 
       connector.getLdapUser("c.d").futureValue shouldBe Some(User("c.d", None, Some("c-d"), "user", List.empty[TeamName]))
-    }
 
-    "return None when ldap user not found" in {
+    "return None when ldap user not found" in:
       stubFor(
         get(urlEqualTo("/user-management/users/c.d"))
           .willReturn(
@@ -187,11 +181,9 @@ class UserManagementConnectorSpec
           )
       )
       connector.getLdapUser("c.d").futureValue shouldBe None
-    }
-  }
 
-  "getTeamUsers" should {
-    "return users for given team" in {
+  "getTeamUsers" should:
+    "return users for given team" in:
       stubFor(
         get(urlEqualTo("/user-management/users?team=TeamA"))
           .willReturn(
@@ -249,11 +241,8 @@ class UserManagementConnectorSpec
           ),
         )
 
-    }
-  }
-
-  "getTeamSlackDetails" should {
-    "return slack details for a team" in {
+  "getTeamSlackDetails" should:
+    "return slack details for a team" in:
       stubFor(
         get(urlEqualTo("/user-management/teams/TeamA"))
           .willReturn(
@@ -284,9 +273,8 @@ class UserManagementConnectorSpec
           )
       )
         connector.getTeamSlackDetails("TeamA").futureValue shouldBe Some(TeamDetails("TeamA", Some("https://slack.com/messages/team-a"), Some("https://slack.com/messages/team-a-alerts")))
-    }
 
-    "return None when team not found" in {
+    "return None when team not found" in:
       stubFor(
         get(urlEqualTo("/user-management/teams/TeamA"))
           .willReturn(
@@ -295,6 +283,3 @@ class UserManagementConnectorSpec
           )
       )
       connector.getTeamSlackDetails("TeamA").futureValue shouldBe None
-    }
-  }
-}

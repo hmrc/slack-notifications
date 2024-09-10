@@ -19,13 +19,11 @@ package uk.gov.hmrc.slacknotifications.config
 import play.api.Configuration
 import javax.inject.{Inject, Singleton}
 
-
 @Singleton
-class DomainConfig @Inject()(configuration: Configuration) {
+class DomainConfig @Inject()(configuration: Configuration):
 
   val linkNotAllowListed: String =
     configuration.get[String]("linkNotAllowListed")
 
   val allowedDomains: Set[String] =
     configuration.get[Seq[String]]("allowed.domains").toSet
-}

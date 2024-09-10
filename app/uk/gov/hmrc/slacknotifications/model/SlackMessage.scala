@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 import uk.gov.hmrc.slacknotifications.config.DomainConfig
 import uk.gov.hmrc.slacknotifications.utils.LinkUtils
@@ -44,21 +44,20 @@ case class Attachment(
   ts         : Option[Int]    = None
 )
 
-object Attachment {
+object Attachment:
 
-  final case class Field(
+  case class Field(
     title: String,
     value: String,
     short: Boolean
   )
 
-  object Field {
-    implicit val format: OFormat[Field] = Json.format[Field]
-  }
+  object Field:
+    given OFormat[Field] = Json.format[Field]
 
-  implicit val format: OFormat[Attachment] = Json.format[Attachment]
+  given OFormat[Attachment] = Json.format[Attachment]
 
-  def sanitise(attch: Attachment, channel: String, domainConfig: DomainConfig): Attachment = {
+  def sanitise(attch: Attachment, channel: String, domainConfig: DomainConfig): Attachment =
     def update(link: String) = LinkUtils.updateLinks(link, channel, domainConfig)
 
     attch.copy(
@@ -76,8 +75,6 @@ object Attachment {
       footer      = attch.footer.map(update),
       footer_icon = attch.footer_icon.map(update)
     )
-  }
-}
 
 case class LegacySlackMessage(
   channel             : String,
@@ -88,19 +85,18 @@ case class LegacySlackMessage(
   showAttachmentAuthor: Boolean
 )
 
-object LegacySlackMessage {
-  implicit val format: OFormat[LegacySlackMessage] = Json.format[LegacySlackMessage]
+object LegacySlackMessage:
+  given OFormat[LegacySlackMessage] = Json.format[LegacySlackMessage]
 
   def sanitise(msg: LegacySlackMessage, domainConfig: DomainConfig): LegacySlackMessage =
     msg.copy(
       text        = LinkUtils.updateLinks(msg.text, msg.channel, domainConfig),
       attachments = msg.attachments.map(Attachment.sanitise(_, msg.channel, domainConfig))
     )
-}
 
 // model for https://api.slack.com/methods/chat.postMessage
 // omitting attachments and irrelevant optional fields
-final case class SlackMessage(
+case class SlackMessage(
   channel    : String
 , text       : String
 , blocks     : Seq[JsObject]
@@ -109,7 +105,7 @@ final case class SlackMessage(
 , emoji      : String
 )
 
-object SlackMessage {
+object SlackMessage:
   val format: Format[SlackMessage] =
     ( (__ \ "channel"    ).format[String]
     ~ (__ \ "text"       ).format[String]
@@ -117,21 +113,20 @@ object SlackMessage {
     ~ (__ \ "attachments").format[Seq[JsObject]]
     ~ (__ \ "username"   ).format[String]
     ~ (__ \ "icon_emoji" ).format[String]
-    )(apply, unlift(unapply))
+    )(apply, s => Tuple.fromProductTyped(s))
 
-  def sanitise(msg: SlackMessage, domainConfig: DomainConfig): SlackMessage = {
+  def sanitise(msg: SlackMessage, domainConfig: DomainConfig): SlackMessage =
     val updatedText = LinkUtils.updateLinks(msg.text, msg.channel, domainConfig)
 
     // update links whilst preserving json structure
     def updateLinks(json: JsValue): JsValue =
-      json match {
+      json match
         case JsNull             => JsNull
         case boolean: JsBoolean => boolean
         case number : JsNumber  => number
         case string : JsString  => JsString(LinkUtils.updateLinks(string.value, msg.channel, domainConfig))
         case array  : JsArray   => JsArray(array.value.map(updateLinks))
         case obj    : JsObject  => JsObject(underlying = obj.value.map { case (k, v) => (k, updateLinks(v)) })
-      }
 
     val updatedBlocks      = msg.blocks.map(block => updateLinks(block).as[JsObject])
     val updatedAttachments = msg.attachments.map(attachment => updateLinks(attachment).as[JsObject])
@@ -141,7 +136,6 @@ object SlackMessage {
       blocks      = updatedBlocks,
       attachments = updatedAttachments
     )
-  }
 
   def errorBlock(error: String): JsObject =
     JsObject(
@@ -163,21 +157,18 @@ object SlackMessage {
         "type" -> JsString("divider")
       )
     )
-}
 
-final case class QueuedSlackMessage(
+case class QueuedSlackMessage(
   msgId       : UUID,
   slackMessage: SlackMessage,
   result      : NotificationResult
 )
 
-object QueuedSlackMessage {
-  implicit val smF: Format[SlackMessage]       = SlackMessage.format
-  implicit val nrF: Format[NotificationResult] = NotificationResult.format
-
+object QueuedSlackMessage:
   val format: Format[QueuedSlackMessage] =
+    given Format[SlackMessage]       = SlackMessage.format
+    given Format[NotificationResult] = NotificationResult.format
     ( (__ \ "msgId"       ).format[UUID] // using play json uuid format to String - makes querying in mongo shell easier
     ~ (__ \ "slackMessage").format[SlackMessage]
     ~ (__ \ "result"      ).format[NotificationResult]
-    )(apply, unlift(unapply))
-}
+    )(apply, q => Tuple.fromProductTyped(q))

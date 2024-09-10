@@ -29,25 +29,23 @@ import scala.concurrent.{ExecutionContext, Future}
 class TeamsAndRepositoriesConnector @Inject()(
   httpClientV2  : HttpClientV2,
   servicesConfig: ServicesConfig
-)(implicit ec: ExecutionContext) {
+)(using ExecutionContext):
   import HttpReads.Implicits._
 
   private val url  = servicesConfig.baseUrl("teams-and-repositories")
 
-  def getRepositoryDetails(repositoryName: String)(implicit hc: HeaderCarrier): Future[Option[RepositoryDetails]] =
+  def getRepositoryDetails(repositoryName: String)(using HeaderCarrier): Future[Option[RepositoryDetails]] =
     httpClientV2
       .get(url"$url/api/v2/repositories/$repositoryName")
       .execute[Option[RepositoryDetails]]
-}
 
-final case class RepositoryDetails(
+case class RepositoryDetails(
   teamNames  : List[String],
   owningTeams: List[String]
 )
 
-object RepositoryDetails {
-  implicit val format: Format[RepositoryDetails] =
+object RepositoryDetails:
+  given Format[RepositoryDetails] =
     ( (__ \ "teamNames"  ).format[List[String]]
     ~ (__ \ "owningTeams").format[List[String]]
-    )(RepositoryDetails.apply, unlift(RepositoryDetails.unapply))
-}
+    )(RepositoryDetails.apply, r => Tuple.fromProductTyped(r))

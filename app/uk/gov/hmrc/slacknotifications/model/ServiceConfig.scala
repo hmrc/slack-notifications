@@ -16,12 +16,11 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-case class Password(value: String) extends AnyVal {
+case class Password(value: String) extends AnyVal:
   override def toString = "Password<>"
 
   def trim: Password =
     Password(value.trim())
-}
 
 case class ServiceConfig(
   name       : String,

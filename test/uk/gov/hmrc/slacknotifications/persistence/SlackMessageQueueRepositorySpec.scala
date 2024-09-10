@@ -33,20 +33,21 @@ class SlackMessageQueueRepositorySpec
   extends AnyWordSpec
      with Matchers
      with DefaultPlayMongoRepositorySupport[WorkItem[QueuedSlackMessage]]
-     with ScalaFutures {
+     with ScalaFutures:
 
-  val configuration: Configuration = Configuration(
-    "slackMessageQueue.retryAfterFailed" -> "5.seconds",
-    "slackMessageQueue.retryAfterInProgress" -> "10.minutes",
-  )
+  val configuration: Configuration =
+    Configuration(
+      "slackMessageQueue.retryAfterFailed" -> "5.seconds",
+      "slackMessageQueue.retryAfterInProgress" -> "10.minutes",
+    )
 
   override protected val repository: SlackMessageQueueRepository =
-    new SlackMessageQueueRepository(
+    SlackMessageQueueRepository(
       configuration,
       mongoComponent
     )
 
-  def message(id: UUID) =
+  def message(id: UUID): QueuedSlackMessage =
     QueuedSlackMessage(
       msgId = id,
       slackMessage = SlackMessage(
@@ -60,8 +61,8 @@ class SlackMessageQueueRepositorySpec
       result = NotificationResult()
     )
 
-  "add" should {
-    "push a new message onto the queue" in {
+  "add" should:
+    "push a new message onto the queue" in:
       val msg: QueuedSlackMessage = message(UUID.randomUUID())
 
       val workItemId = repository.add(msg).futureValue
@@ -70,28 +71,25 @@ class SlackMessageQueueRepositorySpec
 
       workItem.item shouldBe msg
       workItem.status shouldBe ProcessingStatus.ToDo
-    }
-  }
 
-  "pullAllOutstanding" should {
-    "return all work items that are ready to be processed" in {
+  "pullAllOutstanding" should:
+    "return all work items that are ready to be processed" in:
       repository.add(message(UUID.randomUUID())).futureValue
       repository.add(message(UUID.randomUUID())).futureValue
       repository.add(message(UUID.randomUUID())).futureValue
 
       repository.pullAllOutstanding().futureValue.length shouldBe 3
-    }
-  }
 
-  "getByMsgId" should {
-    "return all work items relating to the same msgId" in {
+  "getByMsgId" should:
+    "return all work items relating to the same msgId" in:
       val id = UUID.randomUUID()
 
-      val workItemIds: Seq[ObjectId] = Seq(
-        repository.add(message(id)).futureValue,
-        repository.add(message(id)).futureValue,
-        repository.add(message(id)).futureValue,
-      )
+      val workItemIds: Seq[ObjectId] =
+        Seq(
+          repository.add(message(id)).futureValue,
+          repository.add(message(id)).futureValue,
+          repository.add(message(id)).futureValue,
+        )
 
       // add some unrelated ones with different ids to ensure the find is working as expected
       repository.add(message(UUID.randomUUID())).futureValue
@@ -101,6 +99,3 @@ class SlackMessageQueueRepositorySpec
 
       workItems.length should be(3)
       workItems.map(_.id) should contain theSameElementsAs workItemIds
-    }
-  }
-}

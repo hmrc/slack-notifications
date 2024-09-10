@@ -18,8 +18,8 @@ package uk.gov.hmrc.slacknotifications.controllers
 
 import javax.inject.{Inject, Singleton}
 import play.api.Logging
-import play.api.libs.json.{Format, JsValue, Json}
-import play.api.mvc._
+import play.api.libs.json.{Format, JsValue, Json, OFormat}
+import play.api.mvc.*
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.play.bootstrap.backend.http.ErrorResponse
@@ -33,15 +33,14 @@ class LegacyNotificationController @Inject()(
   authService         : AuthService,
   notificationService : LegacyNotificationService,
   controllerComponents: ControllerComponents
-)(implicit
-  ec: ExecutionContext
-) extends BackendController(controllerComponents) with Logging {
+)(using ExecutionContext
+) extends BackendController(controllerComponents) with Logging:
 
   def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     withAuthorization { authenticatedService =>
       withJsonBody[NotificationRequest] { notificationRequest =>
         notificationService.sendNotification(notificationRequest, authenticatedService).map { results =>
-          implicit val writes: Format[NotificationResult] = NotificationResult.format
+          given Format[NotificationResult] = NotificationResult.format
           val asJson = Json.toJson(results)
           logger.info(s"Request: $notificationRequest resulted in a notification result: $asJson")
           Ok(asJson)
@@ -50,17 +49,13 @@ class LegacyNotificationController @Inject()(
     }
   }
 
-  def withAuthorization(fn: AuthService.ClientService => Future[Result])(implicit hc: HeaderCarrier): Future[Result] = {
-    def unauthorized = {
-      val message            = "Invalid credentials. Requires basic authentication"
-      implicit val erFormats = Json.format[ErrorResponse]
+  def withAuthorization(fn: AuthService.ClientService => Future[Result])(using hc: HeaderCarrier): Future[Result] =
+    def unauthorized: Future[Result] =
+      val message                  = "Invalid credentials. Requires basic authentication"
+      given OFormat[ErrorResponse] = Json.format[ErrorResponse]
       Future.successful(Unauthorized(Json.toJson(ErrorResponse(401, message, None, None))))
-    }
 
-    hc.authorization.flatMap(AuthService.ClientService.fromAuthorization).fold(unauthorized) { service =>
-      if (authService.isAuthorized(service))
+    hc.authorization.flatMap(AuthService.ClientService.fromAuthorization).fold(unauthorized): service =>
+      if authService.isAuthorized(service) then
         fn(service)
       else unauthorized
-    }
-  }
-}

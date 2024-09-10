@@ -30,7 +30,9 @@ import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.Send
 import uk.gov.hmrc.slacknotifications.model.ChannelLookup._
 import uk.gov.hmrc.slacknotifications.model.{NotificationResult, QueuedSlackMessage, SlackMessage, Error}
 import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
-import uk.gov.hmrc.slacknotifications.test.UnitSpec
+import uk.gov.hmrc.slacknotifications.base.UnitSpec
+import org.mockito.Mockito.{times, verify, when}
+import org.mockito.ArgumentMatchers.{any, eq => eqTo}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -39,19 +41,19 @@ class NotificationServiceSpec
   extends UnitSpec
      with ScalaFutures
      with IntegrationPatience
-     with ScalaCheckPropertyChecks {
+     with ScalaCheckPropertyChecks:
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  given HeaderCarrier = HeaderCarrier()
 
-  "sendNotification" should {
-    "work for all channel lookup types (happy path)" in new Fixtures {
+  "sendNotification" should:
+    "work for all channel lookup types (happy path)" in new Fixtures:
       private val repoNameForService = "repo"
       private val teamName           = "team-name"
       private val repositoryDetails  = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
 
-      when(mockServiceConfigsConnector.repoNameForService(any[String])(any[HeaderCarrier]))
+      when(mockServiceConfigsConnector.repoNameForService(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(repoNameForService)))
-      when(mockChannelLookupService.getExistingRepository(any[String])(any[HeaderCarrier]))
+      when(mockChannelLookupService.getExistingRepository(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Right(repositoryDetails)))
       when(mockChannelLookupService.getTeamsResponsibleForRepo(any[String], any[RepositoryDetails]))
         .thenReturn(Right(List(teamName)))
@@ -68,16 +70,16 @@ class NotificationServiceSpec
         GithubTeam("a-github-team")
       )
 
-      when(mockUserManagementService.getTeamsForGithubUser(any[String])(any[HeaderCarrier]))
+      when(mockUserManagementService.getTeamsForGithubUser(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
-      when(mockUserManagementService.getTeamsForLdapUser(any[String])(any[HeaderCarrier]))
+      when(mockUserManagementService.getTeamsForLdapUser(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(usersTeams))
-      when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
+      when(mockChannelLookupService.getExistingSlackChannel(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Right(teamChannel)))
       when(mockSlackMessageQueue.add(any[QueuedSlackMessage]))
         .thenReturn(Future.successful(new ObjectId()))
 
-      channelLookups.foreach { channelLookup =>
+      channelLookups.foreach: channelLookup =>
         val request =
           SendNotificationRequest(
             displayName   = "a-display-name",
@@ -92,18 +94,15 @@ class NotificationServiceSpec
 
         result should be a Symbol("right")
 
-        channelLookup match {
+        channelLookup match
           case req: GithubRepository  => verify(mockChannelLookupService,  times(1)).getTeamsResponsibleForRepo(eqTo(req.repositoryName), eqTo(repositoryDetails))
           case _: Service             => verify(mockChannelLookupService,  times(2)).getTeamsResponsibleForRepo(eqTo(repoNameForService), eqTo(repositoryDetails))
-          case req: TeamsOfGithubUser => verify(mockUserManagementService, times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(any)
-          case req: TeamsOfLdapUser   => verify(mockUserManagementService, times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(any)
-          case req: GithubTeam        => verify(mockChannelLookupService,  times(1)).getExistingSlackChannel(eqTo(req.teamName))(any)
+          case req: TeamsOfGithubUser => verify(mockUserManagementService, times(1)).getTeamsForGithubUser(eqTo(req.githubUsername))(using any[HeaderCarrier])
+          case req: TeamsOfLdapUser   => verify(mockUserManagementService, times(1)).getTeamsForLdapUser(eqTo(req.ldapUsername))(using any[HeaderCarrier])
+          case req: GithubTeam        => verify(mockChannelLookupService,  times(1)).getExistingSlackChannel(eqTo(req.teamName))(using any[HeaderCarrier])
           case _                      =>
-        }
-      }
-    }
 
-    "handle repo names being used in the service channel lookup" in new Fixtures {
+    "handle repo names being used in the service channel lookup" in new Fixtures:
       private val repoName          = "repo"
       private val teamName          = "team-name"
       private val repositoryDetails = RepositoryDetails(teamNames = List(teamName), owningTeams = Nil)
@@ -114,19 +113,19 @@ class NotificationServiceSpec
 
       private val teamChannel = TeamChannel("team-channel")
 
-      when(mockServiceConfigsConnector.repoNameForService(eqTo(repoName))(any[HeaderCarrier]))
+      when(mockServiceConfigsConnector.repoNameForService(eqTo(repoName))(using any[HeaderCarrier]))
         .thenReturn(Future.successful(None))
-      when(mockChannelLookupService.getExistingRepository(eqTo(repoName))(any[HeaderCarrier]))
+      when(mockChannelLookupService.getExistingRepository(eqTo(repoName))(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Right(repositoryDetails)))
       when(mockChannelLookupService.getTeamsResponsibleForRepo(eqTo(repoName), eqTo(repositoryDetails)))
         .thenReturn(Right(List(teamName)))
 
-      when(mockChannelLookupService.getExistingSlackChannel(any[String])(any[HeaderCarrier]))
+      when(mockChannelLookupService.getExistingSlackChannel(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Right(teamChannel)))
       when(mockSlackMessageQueue.add(any[QueuedSlackMessage]))
         .thenReturn(Future.successful(new ObjectId()))
 
-      channelLookups.foreach { channelLookup =>
+      channelLookups.collect { case service: Service => service }.foreach: channelLookup =>
         val request =
           SendNotificationRequest(
             displayName   = "a-display-name",
@@ -141,17 +140,11 @@ class NotificationServiceSpec
 
         result should be a Symbol("right")
 
-        channelLookup match {
-          case req: Service => verify(mockChannelLookupService, times(1)).getTeamsResponsibleForRepo(eqTo(req.serviceName), eqTo(repositoryDetails))
-          case _            =>
-        }
-      }
-    }
-  }
+        verify(mockChannelLookupService, times(1)).getTeamsResponsibleForRepo(eqTo(channelLookup.serviceName), eqTo(repositoryDetails))
 
-  "constructMessagesWithErrors" should {
+  "constructMessagesWithErrors" should:
     val team = "teamA"
-    val request = {
+    val request =
       SendNotificationRequest(
         displayName   = "a-display-name",
         emoji         = ":robot_face:",
@@ -159,12 +152,12 @@ class NotificationServiceSpec
         text          = "a test message",
         blocks        = Seq.empty,
         attachments   = Seq.empty
-      )}
+      )
     val initResult = NotificationResult()
     val teamChannel = TeamChannel("https://hmrcdigital.slack.com/messages/teamA")
     val fallbackChannel = FallbackChannel("https://hmrcdigital.slack.com/messages/fallbackChannel")
 
-    "handle Right case correctly" in new Fixtures {
+    "handle Right case correctly" in new Fixtures:
       private val lookupRes = Right(teamChannel)
       private val result = service.constructMessagesWithErrors(request, team, lookupRes, initResult)
       result shouldBe (
@@ -178,11 +171,10 @@ class NotificationServiceSpec
         )),
         initResult
       )
-    }
 
-    "handle Left case without admins correctly" in new Fixtures {
+    "handle Left case without admins correctly" in new Fixtures:
       private val lookupRes = Left((Seq.empty[AdminSlackId], fallbackChannel))
-      val error = Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(team)
+      val error: Error = Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(team)
 
       service.constructMessagesWithErrors(request, team, lookupRes, initResult) shouldBe ((
         Seq(SlackMessage(
@@ -195,9 +187,8 @@ class NotificationServiceSpec
         )),
         initResult.addError(error)
       ))
-    }
 
-    "handle Left case with admins correctly" in new Fixtures {
+    "handle Left case with admins correctly" in new Fixtures:
       private val lookupRes = Left((Seq(AdminSlackId("id_A"), AdminSlackId("id_B")), fallbackChannel))
       service.constructMessagesWithErrors(request, team, lookupRes, initResult) shouldBe (
         Seq(
@@ -228,10 +219,8 @@ class NotificationServiceSpec
         ),
         initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team, lookupRes.value._1.size))
       )
-    }
-  }
 
-  trait Fixtures {
+  trait Fixtures:
     val mockUserManagementService  : UserManagementService       = mock[UserManagementService]
     val mockChannelLookupService   : ChannelLookupService        = mock[ChannelLookupService]
     val mockSlackMessageQueue      : SlackMessageQueueRepository = mock[SlackMessageQueueRepository]
@@ -246,17 +235,17 @@ class NotificationServiceSpec
       , "linkNotAllowListed"               -> "LINK NOT ALLOW LISTED"
       )
 
-    lazy val service = new NotificationService(
-      slackNotificationConfig = new SlackNotificationConfig(configuration),
-      slackConfig             = new SlackConfig(configuration),
-      domainConfig            = new DomainConfig(configuration),
-      userManagementService   = mockUserManagementService,
-      channelLookupService    = mockChannelLookupService,
-      slackMessageQueue       = mockSlackMessageQueue,
-      slackConnector          = mockSlackConnector,
-      serviceConfigsConnector = mockServiceConfigsConnector
-    )
+    lazy val service: NotificationService =
+      NotificationService(
+        slackNotificationConfig = new SlackNotificationConfig(configuration),
+        slackConfig             = new SlackConfig(configuration),
+        domainConfig            = new DomainConfig(configuration),
+        userManagementService   = mockUserManagementService,
+        channelLookupService    = mockChannelLookupService,
+        slackMessageQueue       = mockSlackMessageQueue,
+        slackConnector          = mockSlackConnector,
+        serviceConfigsConnector = mockServiceConfigsConnector
+      )
 
-    val domainConfig = new DomainConfig(configuration)
-  }
-}
+    val domainConfig: DomainConfig =
+      DomainConfig(configuration)

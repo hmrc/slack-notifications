@@ -20,7 +20,9 @@ import org.apache.pekko.stream.Materializer
 import org.apache.pekko.util.Timeout
 import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, containing, equalTo, get, post, stubFor, urlEqualTo}
 import com.github.tomakehurst.wiremock.stubbing.Scenario
-import org.mockito.scalatest.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.when
+import org.mockito.ArgumentMatchers.{any, eq as eqTo}
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
@@ -40,6 +42,8 @@ import uk.gov.hmrc.internalauth.client.{BackendAuthComponents, Retrieval}
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
 import uk.gov.hmrc.slacknotifications.services.SlackMessageConsumer
+import org.mongodb.scala.SingleObservableFuture
+import play.api.libs.ws.writeableOf_JsValue
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -53,17 +57,17 @@ class NotificationControllerISpec
      with IntegrationPatience
      with Eventually
      with WireMockSupport
-     with GuiceOneServerPerSuite {
+     with GuiceOneServerPerSuite:
 
-  implicit val timout: Timeout = Helpers.defaultNegativeTimeout.t
+  given Timeout = Helpers.defaultNegativeTimeout.t
 
   val authStubBehaviour: StubBehaviour = mock[StubBehaviour]
   when(authStubBehaviour.stubAuth(any, eqTo(Retrieval.EmptyRetrieval)))
     .thenReturn(Future.unit)
 
-  implicit val cc: ControllerComponents = stubControllerComponents()
+  given ControllerComponents = stubControllerComponents()
 
-  override lazy val app: Application = new GuiceApplicationBuilder()
+  override lazy val app: Application = GuiceApplicationBuilder()
     .configure(
       "microservice.services.internal-auth.host"          -> wireMockHost,
       "microservice.services.internal-auth.port"          -> wireMockPort,
@@ -83,16 +87,16 @@ class NotificationControllerISpec
     )
     .build()
 
-  implicit val mat: Materializer = app.injector.instanceOf[Materializer]
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+  given Materializer = app.injector.instanceOf[Materializer]
+  given HeaderCarrier = HeaderCarrier()
 
   private val wsClient  = app.injector.instanceOf[WSClient]
   private val consumer  = app.injector.instanceOf[SlackMessageConsumer]
   private val queueRepo = app.injector.instanceOf[SlackMessageQueueRepository]
   private val baseUrl   = s"http://localhost:$port"
 
-  "POST /v2/notification" should {
-    "queue message for processing and return a msgId - scheduler should send message successfully" in {
+  "POST /v2/notification" should:
+    "queue message for processing and return a msgId - scheduler should send message successfully" in:
 
       stubFor(
         post(urlEqualTo("/chat.postMessage"))
@@ -126,7 +130,7 @@ class NotificationControllerISpec
 
       consumer.runQueue().futureValue
 
-      eventually(timeout(Span(20, Seconds))) {
+      eventually(timeout(Span(20, Seconds))):
         val response =
           wsClient.url(s"$baseUrl/slack-notifications/v2/${msgId.toString}/status")
             .withHttpHeaders(
@@ -136,12 +140,10 @@ class NotificationControllerISpec
         val status = (response.json \ "status").as[String]
 
         status shouldBe "complete"
-      }
 
       queueRepo.getByMsgId(msgId).futureValue.map(_.status).forall(_ == ProcessingStatus.Succeeded) shouldBe true
-    }
 
-    "not queue message and return result straight away when error encountered during channel lookup" in {
+    "not queue message and return result straight away when error encountered during channel lookup" in:
       stubFor(
         get(urlEqualTo("/api/v2/repositories/non-existent-repo"))
           .willReturn(aResponse().withStatus(404))
@@ -177,9 +179,8 @@ class NotificationControllerISpec
 
       // assert no work items created
       queueSizeBefore shouldBe queueSizeAfter
-    }
 
-    "stop processing in the event of a 429 response from Slack" in {
+    "stop processing in the event of a 429 response from Slack" in:
       val scenarioName = "Rate Limit"
       stubFor(
         post(urlEqualTo("/chat.postMessage"))
@@ -219,7 +220,7 @@ class NotificationControllerISpec
           "attachments" -> JsArray(Seq.empty)
         )
 
-      val msgIdMap: Map[Int, UUID] = (1 to 5).map { i =>
+      val msgIdMap: Map[Int, UUID] = (1 to 5).map: i =>
         val payload = basePayload + ("text" -> JsString(s"Test Message $i"))
 
         val response =
@@ -232,7 +233,7 @@ class NotificationControllerISpec
         val msgId = (response.json \ "msgId").as[UUID]
 
         i -> msgId
-      }.toMap
+      .toMap
 
       consumer.runQueue().futureValue
 
@@ -241,7 +242,3 @@ class NotificationControllerISpec
       queueRepo.getByMsgId(msgIdMap(3)).futureValue.map(_.status) shouldBe Seq(ProcessingStatus.Failed) // Gets marked as failed in the service layer .recoverWith
       queueRepo.getByMsgId(msgIdMap(4)).futureValue.map(_.status) shouldBe Seq(ProcessingStatus.ToDo)
       queueRepo.getByMsgId(msgIdMap(5)).futureValue.map(_.status) shouldBe Seq(ProcessingStatus.ToDo)
-    }
-  }
-
-}

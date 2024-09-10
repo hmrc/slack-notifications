@@ -16,35 +16,32 @@
 
 package uk.gov.hmrc.slacknotifications.model
 
-import play.api.libs.functional.syntax.{toFunctionalBuilderOps, unlift}
+import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 
-final case class Error(code: String, message: String) {
+case class Error(code: String, message: String):
   override def toString: String = message
-}
 
-object Error {
+object Error:
   private val umpTeamsUrl = "https://user-management.tools.tax.service.gov.uk/teams"
 
   val format: Format[Error] =
     ( (__ \ "code"   ).format[String]
     ~ (__ \ "message").format[String]
-    )(apply, unlift(unapply))
+    )(apply, e => Tuple.fromProductTyped(e))
 
   def slackError(
     statusCode   : Int,
     slackErrorMsg: String,
     channel      : String,
     teamName     : Option[String]
-  ): Error = {
+  ): Error =
     val code = "slack_error"
-    val message = teamName match {
+    val message = teamName match
       case Some(value) => s"Slack error, statusCode: $statusCode, msg: '$slackErrorMsg', channel: '$channel', team: '$value'"
       case None        => s"Slack error, statusCode: $statusCode, msg: '$slackErrorMsg', channel: '$channel'"
-    }
 
     Error(code, message)
-  }
 
   def repositoryNotFound(repoName: String): Error =
     Error(
@@ -89,17 +86,15 @@ object Error {
       message = s"Unable to deliver slack message to team <$umpTeamsUrl/$teamName|*$teamName*>. The team does not have a slack channel configured.\n" +
         "You are receiving this alert since you are an *admin* in this team. Please configure a team slack notification channel."
     )
-}
 
-final case class Exclusion(code: String, message: String) {
+case class Exclusion(code: String, message: String):
   override def toString: String = message
-}
 
-object Exclusion {
+object Exclusion:
   val format: Format[Exclusion] =
     ( (__ \ "code"   ).format[String]
     ~ (__ \ "message").format[String]
-    )(apply, unlift(unapply))
+    )(apply, e => Tuple.fromProductTyped(e))
 
   def notARealTeam(name: String): Exclusion =
     Exclusion(
@@ -118,13 +113,12 @@ object Exclusion {
       code    = "notification_disabled",
       message = s"Slack notifications have been disabled. Slack message: $slackMessage"
     )
-}
 
-final case class NotificationResult(
+case class NotificationResult(
   successfullySentTo: Seq[String]    = Nil,
   errors            : Seq[Error]     = Nil,
   exclusions        : Seq[Exclusion] = Nil
-) {
+):
   def addError(e: Error*): NotificationResult =
     copy(errors = (errors ++ e).distinct)
 
@@ -133,17 +127,15 @@ final case class NotificationResult(
 
   def addExclusion(e: Exclusion*): NotificationResult =
     copy(exclusions = (exclusions ++ e).distinct)
-}
 
-object NotificationResult {
-  implicit val errorFormat: Format[Error]     = Error.format
-  implicit val excluFormat: Format[Exclusion] = Exclusion.format
-
+object NotificationResult:
   val format: Format[NotificationResult] =
+    given Format[Error]     = Error.format
+    given Format[Exclusion] = Exclusion.format
     ( (__ \ "successfullySentTo").format[Seq[String]]
     ~ (__ \ "errors"            ).format[Seq[Error]]
     ~ (__ \ "exclusions"        ).format[Seq[Exclusion]]
-    )(apply, unlift(unapply))
+    )(apply, n => Tuple.fromProductTyped(n))
 
   def concatResults(results: Seq[NotificationResult]): NotificationResult =
     results.foldLeft(NotificationResult())((acc, current) =>
@@ -152,4 +144,3 @@ object NotificationResult {
         .addError(current.errors: _*)
         .addExclusion(current.exclusions: _*)
     )
-}

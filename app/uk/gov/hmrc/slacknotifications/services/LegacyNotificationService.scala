@@ -39,20 +39,18 @@ class LegacyNotificationService @Inject()(
   userManagementService  : UserManagementService,
   channelLookupService   : ChannelLookupService,
   serviceConfigsConnector: ServiceConfigsConnector
-)(implicit
-  ec: ExecutionContext
+)(using ExecutionContext
 ) extends Logging {
 
   private def createAndSend(
     toBeProcessed      : List[String],
     notificationRequest: NotificationRequest,
     clientService      : ClientService
-  )(implicit
-    hc: HeaderCarrier
+  )(using HeaderCarrier
   ): EitherT[Future, NotificationResult, NotificationResult] =
     EitherT.liftF[Future, NotificationResult, NotificationResult](
       toBeProcessed.foldLeftM(Seq.empty[NotificationResult]){ (acc, teamName) =>
-        for {
+        for
           channelLookupResult <- channelLookupService.getExistingSlackChannel(teamName)
           notificationResult  <- dispatchMessage(
                                    notificationRequest,
@@ -60,34 +58,34 @@ class LegacyNotificationService @Inject()(
                                    clientService,
                                    channelLookupResult
                                  )
-        } yield acc :+ notificationResult
+        yield acc :+ notificationResult
       }.map(NotificationResult.concatResults)
     )
 
   def sendNotification(notificationRequest: NotificationRequest, clientService: ClientService)(
-    implicit hc: HeaderCarrier): Future[NotificationResult] =
-    notificationRequest.channelLookup match {
+    using HeaderCarrier): Future[NotificationResult] =
+    notificationRequest.channelLookup match
       case ChannelLookup.GithubRepository(repoName) =>
         (
-          for {
+          for
             repositoryDetails         <- EitherT(channelLookupService.getExistingRepository(repoName))
             allTeams                  <- EitherT.fromEither[Future](channelLookupService.getTeamsResponsibleForRepo(repoName, repositoryDetails))
             (excluded, toBeProcessed) =  allTeams.partition(slackNotificationConfig.notRealTeams.contains)
             notificationResult        <- createAndSend(toBeProcessed, notificationRequest, clientService)
             resWithExclusions         =  notificationResult.addExclusion(excluded.map(Exclusion.notARealTeam): _*)
-          } yield resWithExclusions
+          yield resWithExclusions
         ).merge
 
       case ChannelLookup.Service(serviceName) =>
         (
-          for {
+          for
             repoName                  <- EitherT.liftF(serviceConfigsConnector.repoNameForService(serviceName)).map(_.getOrElse(serviceName))
             repositoryDetails         <- EitherT(channelLookupService.getExistingRepository(repoName))
             allTeams                  <- EitherT.fromEither[Future](channelLookupService.getTeamsResponsibleForRepo(repoName, repositoryDetails))
             (excluded, toBeProcessed) =  allTeams.partition(slackNotificationConfig.notRealTeams.contains)
             notificationResult        <- createAndSend(toBeProcessed, notificationRequest, clientService)
             resWithExclusions         =  notificationResult.addExclusion(excluded.map(Exclusion.notARealTeam): _*)
-          } yield resWithExclusions
+          yield resWithExclusions
         ).merge
 
       case ChannelLookup.GithubTeam(team) =>
@@ -100,22 +98,21 @@ class LegacyNotificationService @Inject()(
         }.map(NotificationResult.concatResults)
 
       case ChannelLookup.TeamsOfGithubUser(githubUsername) =>
-        if (slackNotificationConfig.notRealGithubUsers.contains(githubUsername))
+        if slackNotificationConfig.notRealGithubUsers.contains(githubUsername) then
           Future.successful(NotificationResult().addExclusion(Exclusion.notARealGithubUser(githubUsername)))
         else
           sendNotificationForUser("github", githubUsername, userManagementService.getTeamsForGithubUser)(notificationRequest, clientService)
 
       case ChannelLookup.TeamsOfLdapUser(ldapUsername) =>
           sendNotificationForUser("ldap", ldapUsername, userManagementService.getTeamsForLdapUser)(notificationRequest, clientService)
-    }
 
   private def dispatchMessage(
     notificationRequest: NotificationRequest,
     team               : String,
     clientService      : ClientService,
     lookupRes          : Either[(Seq[AdminSlackId], FallbackChannel), TeamChannel]
-  )(implicit hc: HeaderCarrier): Future[NotificationResult] =
-    lookupRes match {
+  )(using HeaderCarrier): Future[NotificationResult] =
+    lookupRes match
       case Right(teamChannel) =>
         val msg = fromNotification(notificationRequest, teamChannel.asString)
         sendSlackMessage(msg, clientService, Some(team))
@@ -125,20 +122,19 @@ class LegacyNotificationService @Inject()(
             val error = Error.errorForAdminMissingTeamSlackChannel(team)
             (fromNotification(notificationRequest, adminSlackId.asString, Some(error.message)), error)
           } :+
-            (if (adminSlackIds.isEmpty){
+            (if adminSlackIds.isEmpty then
                val error = Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(team)
                (fromNotification(notificationRequest, fallbackChannel.asString, Some(error.message)), error)
-            } else {
+            else
               val error = Error.unableToFindTeamSlackChannelInUMP(team, adminSlackIds.size)
               (fromNotification(notificationRequest, fallbackChannel.asString, Some(error.message)), error)
-            })
+            )
         msgs
           .traverse{ case (msg, error) =>
             sendSlackMessage(msg, clientService, Some(team))
               .map(_.copy(errors = Seq(error)))
           }
           .map(NotificationResult.concatResults)
-    }
 
   private def sendNotificationForUser(
     userType   : String,
@@ -147,14 +143,13 @@ class LegacyNotificationService @Inject()(
   )(
     notificationRequest: NotificationRequest,
     clientService      : ClientService
-  )(implicit
-    hc: HeaderCarrier
+  )(using HeaderCarrier
   ): Future[NotificationResult] =
-  for {
+  for
     allTeams                  <- teamsGetter(username)
     (excluded, toBeProcessed) =  allTeams.map(_.asString).partition(slackNotificationConfig.notRealTeams.contains)
-    notificationResult        <- if (toBeProcessed.nonEmpty) createAndSend(toBeProcessed, notificationRequest, clientService).merge
-                                 else {
+    notificationResult        <- if toBeProcessed.nonEmpty then createAndSend(toBeProcessed, notificationRequest, clientService).merge
+                                 else
                                    logger.info(s"Failed to find teams for usertype: $userType, username: $username. " +
                                      s"Sending slack notification to Platops admin channel instead")
                                    sendSlackMessage(
@@ -179,22 +174,19 @@ class LegacyNotificationService @Inject()(
                                      service = clientService
                                    )
                                    Future.successful(NotificationResult().addError(Error.teamsNotFoundForUsername(userType, username)))
-                                 }
     resWithExclusions         = notificationResult.addExclusion(excluded.map(Exclusion.notARealTeam): _*)
-  } yield resWithExclusions
+  yield resWithExclusions
 
-  private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String, errorMessage: Option[String] = None): LegacySlackMessage = {
+  private def fromNotification(notificationRequest: NotificationRequest, slackChannel: String, errorMessage: Option[String] = None): LegacySlackMessage =
     import notificationRequest.messageDetails._
     // username and user emoji are initially hard-coded to 'slack-notifications' and none,
     // then overridden from the authorised services config later
-    errorMessage match {
+    errorMessage match
       case Some(error) => LegacySlackMessage.sanitise(LegacySlackMessage(slackChannel, error, "slack-notifications", None, Attachment(text = Some(text)) +: attachments, showAttachmentAuthor), domainConfig)
       case None        => LegacySlackMessage.sanitise(LegacySlackMessage(slackChannel, text, "slack-notifications", None, attachments, showAttachmentAuthor), domainConfig)
-    }
-  }
 
   // Override the username used to send the message to what is configured in the config for the sending service
-  def populateNameAndIconInMessage(slackMessage: LegacySlackMessage, service: ClientService): LegacySlackMessage = {
+  def populateNameAndIconInMessage(slackMessage: LegacySlackMessage, service: ClientService): LegacySlackMessage =
     val config      = slackNotificationConfig.serviceConfigs.find(_.name == service.name)
     val displayName = config.flatMap(_.displayName).getOrElse(service.name)
 
@@ -206,24 +198,20 @@ class LegacyNotificationService @Inject()(
                       author_icon = None
                     ))
     )
-  }
 
   private[services] def sendSlackMessage(
     slackMessage: LegacySlackMessage,
     service     : ClientService,
     teamName    : Option[String] = None
-  )(implicit
-    hc: HeaderCarrier
+  )(using HeaderCarrier
   ): Future[NotificationResult] =
-    if (slackNotificationConfig.notificationEnabled)
+    if slackNotificationConfig.notificationEnabled then
       slackConnector
         .sendMessage(populateNameAndIconInMessage(slackMessage, service))
-        .map { response =>
-          response.status match {
+        .map: response =>
+          response.status match
             case 200 => NotificationResult().addSuccessfullySent(slackMessage.channel)
             case _   => SlackConnector.logAndReturnSlackError(response.status, response.body, slackMessage.channel, teamName)
-          }
-        }
         .recoverWith(SlackConnector.handleSlackExceptions(slackMessage.channel, teamName))
     else
       Future.successful {

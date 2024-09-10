@@ -32,35 +32,30 @@ class ChannelLookupService @Inject()(
   slackConfig: SlackConfig,
   teamsAndReposConnector: TeamsAndRepositoriesConnector,
   userManagementConnector: UserManagementConnector
-)(implicit
-  ec: ExecutionContext
-) {
+)(using ExecutionContext
+):
 
   def getExistingRepository(
     repoName: String
-  )(implicit
-    hc: HeaderCarrier
+  )(using HeaderCarrier
   ): Future[Either[NotificationResult, RepositoryDetails]] =
     teamsAndReposConnector
       .getRepositoryDetails(repoName)
-      .map {
+      .map:
         case Some(repoDetails) => Right(repoDetails)
         case None              => Left(NotificationResult().addError(Error.repositoryNotFound(repoName)))
-      }
 
   def getTeamsResponsibleForRepo(
     repoName         : String,
     repositoryDetails: RepositoryDetails
   ): Either[NotificationResult, List[String]] =
-    repositoryDetails.owningTeams match {
+    repositoryDetails.owningTeams match
       case Nil   => Left(NotificationResult().addError(Error.teamsNotFoundForRepository(repoName)))
       case teams => Right(teams)
-    }
 
   def getExistingSlackChannel(
     teamName: String
-  )(implicit
-    hc: HeaderCarrier
+  )(using HeaderCarrier
   ): Future[Either[(Seq[AdminSlackId], FallbackChannel), TeamChannel]] =
     EitherT.fromOptionF(
       userManagementConnector.getTeamSlackDetails(teamName).map(_.flatMap(extractSlackChannel)),
@@ -68,28 +63,24 @@ class ChannelLookupService @Inject()(
     ).leftSemiflatMap(_ =>
       userManagementConnector
         .getTeamUsers(teamName)
-        .map { users =>
+        .map: users =>
           ( users.filter(user => user.role == "team_admin" && user.slackId.isDefined)
               .map(user => AdminSlackId(user.slackId.get))
           , FallbackChannel(slackConfig.noTeamFoundAlert.channel)
           )
-        }
     ).value
 
   def extractSlackChannel(slackDetails: TeamDetails): Option[TeamChannel] =
-    slackDetails.slackNotification.orElse(slackDetails.slack).flatMap { slackChannelUrl =>
+    slackDetails.slackNotification.orElse(slackDetails.slack).flatMap: slackChannelUrl =>
       val urlWithoutTrailingSpace =
-        if (slackChannelUrl.endsWith("/"))
+        if slackChannelUrl.endsWith("/") then
           slackChannelUrl.init
         else
           slackChannelUrl
 
       val slashPos = urlWithoutTrailingSpace.lastIndexOf("/")
       val s = urlWithoutTrailingSpace.substring(slashPos + 1)
-      if (slashPos > 0 && s.nonEmpty) Some(TeamChannel(s)) else None
-    }
-
-}
+      if slashPos > 0 && s.nonEmpty then Some(TeamChannel(s)) else None
 
 case class AdminSlackId(asString: String) extends AnyVal
 case class FallbackChannel(asString: String) extends AnyVal
