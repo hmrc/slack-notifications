@@ -2,8 +2,9 @@ import play.sbt.PlayImport.PlayKeys
 import uk.gov.hmrc.DefaultBuildSettings
 
 
-ThisBuild / majorVersion := 0
-ThisBuild / scalaVersion := "3.3.3"
+ThisBuild / majorVersion  := 0
+ThisBuild / scalaVersion  := "3.3.4"
+ThisBuild / scalacOptions += "-Wconf:msg=Flag.*repeatedly:s"
 
 lazy val microservice = Project("slack-notifications", file("."))
   .enablePlugins(play.sbt.PlayScala, SbtDistributablesPlugin)
@@ -11,8 +12,7 @@ lazy val microservice = Project("slack-notifications", file("."))
   .settings(PlayKeys.playDefaultPort := 8866)
   .settings(libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test)
   .settings(resolvers += Resolver.jcenterRepo)
-// Disabled until implemented in a later Scala version
-//  .settings(scalacOptions += "-Wconf:src=routes/.*:s")
+  .settings(scalacOptions += "-Wconf:src=routes/.*:s")
 
 lazy val it =
   (project in file("it"))
