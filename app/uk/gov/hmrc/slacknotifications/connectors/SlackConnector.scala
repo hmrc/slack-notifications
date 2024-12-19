@@ -61,6 +61,16 @@ class SlackConnector @Inject()(
       .withBody(Json.toJson(message))
       .withProxy
       .execute[Either[UpstreamErrorResponse, JsValue]]
+      .map:
+        case Right(jsValue) =>
+          (jsValue \ "ok").asOpt[Boolean] match
+            case Some(false) =>
+              val error = (jsValue \ "error").asOpt[String].getOrElse("Unknown error")
+              val errors = (jsValue \ "errors").asOpt[Seq[String]].getOrElse(Seq.empty)
+              throw SlackErrorException(error, errors)
+            case _ => Right(jsValue)
+        case Left(errorResponse) =>
+          Left(errorResponse)
 
 
 object SlackConnector extends Logging:
@@ -85,3 +95,4 @@ object SlackConnector extends Logging:
     NotificationResult().addError(slackError)
 
 case class RateLimitExceededException() extends RuntimeException("Rate Limit Exceeded")
+case class SlackErrorException(error: String, errors: Seq[String]) extends RuntimeException(s"Slack API error: $error, details: ${errors.mkString(", ")}")
