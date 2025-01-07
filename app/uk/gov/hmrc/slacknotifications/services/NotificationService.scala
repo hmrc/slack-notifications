@@ -277,6 +277,6 @@ class NotificationService @Inject()(
             Future.failed(ex) // make match exhaustive, delegate to recoverWith
         .recoverWith:
           case NonFatal(ex) =>
-            logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel}", ex)
+            logger.warn(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel} for msgId: ${workItem.item.msgId}", ex)
             slackMessageQueue.markFailed(workItem.id)
             Future.failed(ex)
