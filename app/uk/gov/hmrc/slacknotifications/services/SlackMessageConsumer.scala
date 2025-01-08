@@ -53,5 +53,6 @@ class SlackMessageConsumer @Inject()(
                   slackMessageQueue.resetInProgress()
                   Done
                 case ex =>
+                  logger.error(s"Failed to send message to channel: $channel due to ${ex.getMessage}", ex)
                   Done
       ).map(_ => Done)

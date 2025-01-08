@@ -18,11 +18,11 @@ package uk.gov.hmrc.slacknotifications.controllers.v2
 
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.util.Timeout
-import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, containing, equalTo, get, post, stubFor, urlEqualTo}
+import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.stubbing.Scenario
 import org.scalatestplus.mockito.MockitoSugar
 import org.mockito.Mockito.when
-import org.mockito.ArgumentMatchers.{any, eq as eqTo}
+import org.mockito.ArgumentMatchers.any
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
@@ -39,6 +39,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.http.test.WireMockSupport
 import uk.gov.hmrc.internalauth.client.test.{BackendAuthComponentsStub, StubBehaviour}
 import uk.gov.hmrc.internalauth.client.{BackendAuthComponents, Retrieval}
+import uk.gov.hmrc.internalauth.client.Retrieval.Username
 import uk.gov.hmrc.mongo.workitem.ProcessingStatus
 import uk.gov.hmrc.slacknotifications.persistence.SlackMessageQueueRepository
 import uk.gov.hmrc.slacknotifications.services.SlackMessageConsumer
@@ -62,8 +63,8 @@ class NotificationControllerISpec
   given Timeout = Helpers.defaultNegativeTimeout.t
 
   val authStubBehaviour: StubBehaviour = mock[StubBehaviour]
-  when(authStubBehaviour.stubAuth(any, eqTo(Retrieval.EmptyRetrieval)))
-    .thenReturn(Future.unit)
+  when(authStubBehaviour.stubAuth(any, any[Retrieval[Username]]))
+    .thenReturn(Future.successful(Username("test")))
 
   given ControllerComponents = stubControllerComponents()
 
@@ -143,6 +144,67 @@ class NotificationControllerISpec
 
       queueRepo.getByMsgId(msgId).futureValue.map(_.status).forall(_ == ProcessingStatus.Succeeded) shouldBe true
 
+    "notify the sender of an error returned by slack when callbackChannel is present in the request" in:
+      stubFor(
+        post(urlEqualTo("/chat.postMessage"))
+          .withHeader("Authorization", equalTo("Bearer token"))
+          .withRequestBody(containing("a-channel"))
+          .willReturn(aResponse().withStatus(200).withBody("""{ "ok": false, "error": "channel_not_found" }"""))
+      )
+
+      stubFor(
+        post(urlEqualTo("/chat.postMessage"))
+          .withHeader("Authorization", equalTo("Bearer token"))
+          .withRequestBody(containing("callback-channel"))
+          .willReturn(aResponse().withStatus(200).withBody("{}"))
+      )
+
+      val payload =
+        Json.obj(
+          "displayName"     -> JsString("my bot"),
+          "emoji"           -> JsString(":robot_face:"),
+          "channelLookup"   -> Json.obj(
+            "by"            -> JsString("slack-channel"),
+            "slackChannels" -> JsArray(Seq(JsString("a-channel")))
+          ),
+          "text"            -> JsString("Some text"),
+          "blocks"          -> JsArray(Seq.empty),
+          "attachments"     -> JsArray(Seq.empty),
+          "callbackChannel" -> JsString("callback-channel")
+        )
+
+      val response =
+        wsClient.url(s"$baseUrl/slack-notifications/v2/notification")
+          .withHttpHeaders(
+            "Authorization" -> "token",
+            "Content-Type"  -> "application/json"
+          ).post(payload).futureValue
+      
+      response.status shouldBe Helpers.ACCEPTED
+
+      val msgId = (response.json \ "msgId").as[UUID]
+
+      consumer.runQueue().futureValue
+
+      val statusResponse =
+        wsClient.url(s"$baseUrl/slack-notifications/v2/$msgId/status")
+          .withHttpHeaders(
+            "Authorization" -> "token"
+          ).get().futureValue
+
+      val status = (statusResponse.json \ "status").as[String]
+
+      status shouldBe "complete" // permanently-failed gets transformed into complete
+      
+      consumer.runQueue().futureValue // callback msg should be ready to be picked up
+      
+      verify(
+        postRequestedFor(urlEqualTo("/chat.postMessage"))
+          .withHeader("Authorization", equalTo("Bearer token"))
+          .withRequestBody(containing("callback-channel"))
+      )
+
+
     "not queue message and return result straight away when error encountered during channel lookup" in:
       stubFor(
         get(urlEqualTo("/api/v2/repositories/non-existent-repo"))
@@ -180,7 +242,7 @@ class NotificationControllerISpec
       // assert no work items created
       queueSizeBefore shouldBe queueSizeAfter
 
-    "stop processing in the event of a 429 response from Slack" in:
+    "stop processing in the event of a rate_limited response from Slack" in:
       val scenarioName = "Rate Limit"
       stubFor(
         post(urlEqualTo("/chat.postMessage"))
@@ -205,7 +267,7 @@ class NotificationControllerISpec
           .withHeader("Authorization", equalTo("Bearer token"))
           .inScenario(scenarioName)
           .whenScenarioStateIs("LIMITED")
-          .willReturn(aResponse().withStatus(429).withBody("{}"))
+          .willReturn(aResponse().withStatus(200).withBody("""{ "ok": false, "error": "rate_limited" }"""))
       )
 
       val basePayload =

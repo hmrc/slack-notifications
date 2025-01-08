@@ -20,7 +20,7 @@ import play.api.Logging
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
 import play.api.mvc.{Action, AnyContent, ControllerComponents, Result}
-import uk.gov.hmrc.internalauth.client.{BackendAuthComponents, IAAction, Predicate, Resource}
+import uk.gov.hmrc.internalauth.client.{BackendAuthComponents, IAAction, Predicate, Resource, Retrieval}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
 import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationResult, NotificationStatus, SendNotificationResponse}
@@ -42,19 +42,20 @@ class NotificationController @Inject()(
     Predicate.Permission(Resource.from("slack-notifications", "v2/notification"), IAAction("SEND_NOTIFICATION"))
 
   def sendNotification(): Action[JsValue] =
-    auth.authorizedAction(predicate).async(parse.json) { implicit request =>
+    auth.authorizedAction(predicate, Retrieval.username).async(parse.json) { implicit request =>
+      val senderPrincipal = request.retrieval.value
       given Reads[SendNotificationRequest] = SendNotificationRequest.reads
       withJsonBody[SendNotificationRequest] { snr =>
         notificationService.sendNotification(snr).value.map {
           case Left(nr) =>
             given Format[NotificationResult] = NotificationResult.format
             val asJson = Json.toJson(nr)
-            logger.info(s"Request: $snr resulted in a notification result: $asJson")
+            logger.info(s"Request from $senderPrincipal: $snr resulted in a notification result: $asJson")
             InternalServerError(asJson)
           case Right(response) =>
             given Writes[SendNotificationResponse] = SendNotificationResponse.writes
             val asJson = Json.toJson(response)
-            logger.info(s"Request: $snr was queued with msgId: ${response.msgId.toString}")
+            logger.info(s"Request from $senderPrincipal: $snr was queued with msgId: ${response.msgId.toString}")
             Accepted(asJson)
         }
       }
@@ -70,20 +71,22 @@ class NotificationController @Inject()(
 
 object NotificationController:
   case class SendNotificationRequest(
-    displayName  : String,
-    emoji        : String,
-    channelLookup: ChannelLookup,
-    text         : String,
-    blocks       : Seq[JsObject],
-    attachments  : Seq[JsObject]
+    callbackChannel: Option[String],
+    displayName    : String,
+    emoji          : String,
+    channelLookup  : ChannelLookup,
+    text           : String,
+    blocks         : Seq[JsObject],
+    attachments    : Seq[JsObject]
   )
 
   object SendNotificationRequest:
     val reads: Reads[SendNotificationRequest] =
-      ( (__ \ "displayName"  ).read[String]
-      ~ (__ \ "emoji"        ).read[String]
-      ~ (__ \ "channelLookup").read[ChannelLookup]
-      ~ (__ \ "text"         ).read[String]
-      ~ (__ \ "blocks"       ).readWithDefault[Seq[JsObject]](Seq.empty)
-      ~ (__ \ "attachments"  ).readWithDefault[Seq[JsObject]](Seq.empty)
+      ( (__ \ "callbackChannel").readNullable[String]
+      ~ (__ \ "displayName"    ).read[String]
+      ~ (__ \ "emoji"          ).read[String]
+      ~ (__ \ "channelLookup"  ).read[ChannelLookup]
+      ~ (__ \ "text"           ).read[String]
+      ~ (__ \ "blocks"         ).readWithDefault[Seq[JsObject]](Seq.empty)
+      ~ (__ \ "attachments"    ).readWithDefault[Seq[JsObject]](Seq.empty)
       )(SendNotificationRequest.apply _)

@@ -51,7 +51,7 @@ class SlackConnector @Inject()(
       .withProxy
       .execute[HttpResponse]
 
-  def postChatMessage(message: SlackMessage)(using HeaderCarrier): Future[Either[UpstreamErrorResponse, JsValue]] =
+  def postChatMessage(message: SlackMessage)(using HeaderCarrier): Future[Either[SlackError, JsValue]] =
     given Format[SlackMessage] = SlackMessage.format
 
     httpClientV2
@@ -60,17 +60,15 @@ class SlackConnector @Inject()(
       .setHeader(HeaderNames.Authorization -> s"Bearer $botToken")
       .withBody(Json.toJson(message))
       .withProxy
-      .execute[Either[UpstreamErrorResponse, JsValue]]
+      .execute[JsValue]
       .map:
-        case Right(jsValue) =>
+        jsValue => // https://api.slack.com/methods/chat.postMessage#errors
           (jsValue \ "ok").asOpt[Boolean] match
             case Some(false) =>
-              val error = (jsValue \ "error").asOpt[String].getOrElse("Unknown error")
+              val code   = (jsValue \ "error").asOpt[String].getOrElse("unknown_error")
               val errors = (jsValue \ "errors").asOpt[Seq[String]].getOrElse(Seq.empty)
-              throw SlackErrorException(error, errors)
+              Left(SlackError(code, errors))
             case _ => Right(jsValue)
-        case Left(errorResponse) =>
-          Left(errorResponse)
 
 
 object SlackConnector extends Logging:
@@ -95,4 +93,5 @@ object SlackConnector extends Logging:
     NotificationResult().addError(slackError)
 
 case class RateLimitExceededException() extends RuntimeException("Rate Limit Exceeded")
-case class SlackErrorException(error: String, errors: Seq[String]) extends RuntimeException(s"Slack API error: $error, details: ${errors.mkString(", ")}")
+
+case class SlackError(val code: String, val errors: Seq[String])
