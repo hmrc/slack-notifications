@@ -24,7 +24,7 @@ import play.api.Configuration
 import play.api.libs.json.JsObject
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
-import uk.gov.hmrc.slacknotifications.model.{NotificationResult, QueuedSlackMessage, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.{ChannelLookup, NotificationResult, QueuedSlackMessage, SlackMessage}
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -50,6 +50,8 @@ class SlackMessageQueueRepositorySpec
   def message(id: UUID): QueuedSlackMessage =
     QueuedSlackMessage(
       msgId = id,
+      callbackChannel = Some("callback-channel"),
+      channelLookup = Some(ChannelLookup.SlackChannel(cats.data.NonEmptyList.one("a-channel"))),
       slackMessage = SlackMessage(
         channel = "a-channel",
         text = "some text",

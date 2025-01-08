@@ -95,7 +95,7 @@ object LegacySlackMessage:
     )
 
 // model for https://api.slack.com/methods/chat.postMessage
-// omitting attachments and irrelevant optional fields
+// omitting irrelevant optional fields
 case class SlackMessage(
   channel    : String
 , text       : String
@@ -159,16 +159,20 @@ object SlackMessage:
     )
 
 case class QueuedSlackMessage(
-  msgId       : UUID,
-  slackMessage: SlackMessage,
-  result      : NotificationResult
+  msgId          : UUID,
+  callbackChannel: Option[String],
+  channelLookup  : Option[ChannelLookup],
+  slackMessage   : SlackMessage,
+  result         : NotificationResult
 )
 
 object QueuedSlackMessage:
   val format: Format[QueuedSlackMessage] =
     given Format[SlackMessage]       = SlackMessage.format
     given Format[NotificationResult] = NotificationResult.format
-    ( (__ \ "msgId"       ).format[UUID] // using play json uuid format to String - makes querying in mongo shell easier
-    ~ (__ \ "slackMessage").format[SlackMessage]
-    ~ (__ \ "result"      ).format[NotificationResult]
+    ( (__ \ "msgId"          ).format[UUID] // using play json uuid format to String - makes querying in mongo shell easier
+    ~ (__ \ "callbackChannel").formatNullable[String]
+    ~ (__ \ "channelLookup"  ).formatNullable[ChannelLookup]
+    ~ (__ \ "slackMessage"   ).format[SlackMessage]
+    ~ (__ \ "result"         ).format[NotificationResult]
     )(apply, q => Tuple.fromProductTyped(q))

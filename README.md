@@ -193,6 +193,8 @@ Response will typically have 200 status code and the following details:
 
 This endpoint is asynchronous and utilises `work-item-repo` in order to queue messages for sending at a steady rate of 1 message per channel per second. This is to comply with Slack's [rate limit](https://api.slack.com/docs/rate-limits)
 
+You can optionally provide a `callbackChannel` (without the `#` prefix), where you will be notified if any of the messages you've tried to send end up failing - this is an alternative to querying the `/v2/:msgId/status` endpoint.
+
 ### Auth
 
 This endpoint uses `internal-auth` for access control. If you want to use it then you will need to fork [internal-auth-config](https://github.com/hmrc/internal-auth-config) and raise a PR adding your service to the list of grantees for the `slack-notifications` resource type.
@@ -229,7 +231,8 @@ body:
     ],
     "attachments": [
         ...
-    ]
+    ],
+    "callbackChannel": "team-platops-alerts" # optional
 }
 ```
 

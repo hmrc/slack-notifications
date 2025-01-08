@@ -82,12 +82,13 @@ class NotificationServiceSpec
       channelLookups.foreach: channelLookup =>
         val request =
           SendNotificationRequest(
-            displayName   = "a-display-name",
-            emoji         = ":robot_face:",
-            channelLookup = channelLookup,
-            text          = "a test message",
-            blocks        = Seq.empty,
-            attachments   = Seq.empty
+            callbackChannel = Some("callback-channel"),
+            displayName     = "a-display-name",
+            emoji           = ":robot_face:",
+            channelLookup   = channelLookup,
+            text            = "a test message",
+            blocks          = Seq.empty,
+            attachments     = Seq.empty
           )
 
         val result = service.sendNotification(request).value.futureValue
@@ -128,12 +129,13 @@ class NotificationServiceSpec
       channelLookups.collect { case service: Service => service }.foreach: channelLookup =>
         val request =
           SendNotificationRequest(
-            displayName   = "a-display-name",
-            emoji         = ":robot_face:",
-            channelLookup = channelLookup,
-            text          = "a test message",
-            blocks        = Seq.empty,
-            attachments   = Seq.empty
+            callbackChannel = Some("callback-channel"),
+            displayName     = "a-display-name",
+            emoji           = ":robot_face:",
+            channelLookup   = channelLookup,
+            text            = "a test message",
+            blocks          = Seq.empty,
+            attachments     = Seq.empty
           )
 
         val result = service.sendNotification(request).value.futureValue
@@ -146,12 +148,13 @@ class NotificationServiceSpec
     val team = "teamA"
     val request =
       SendNotificationRequest(
-        displayName   = "a-display-name",
-        emoji         = ":robot_face:",
-        channelLookup = GithubTeam(team),
-        text          = "a test message",
-        blocks        = Seq.empty,
-        attachments   = Seq.empty
+        callbackChannel = Some("callback-channel"),
+        displayName     = "a-display-name",
+        emoji           = ":robot_face:",
+        channelLookup   = GithubTeam(team),
+        text            = "a test message",
+        blocks          = Seq.empty,
+        attachments     = Seq.empty
       )
     val initResult = NotificationResult()
     val teamChannel = TeamChannel("https://hmrcdigital.slack.com/messages/teamA")

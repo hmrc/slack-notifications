@@ -61,10 +61,10 @@ object Error:
       message = s"Teams not found for ${userType.capitalize} username: *$username*"
     )
 
-  def slackChannelNotFound(channelName: String): Error =
+  def slackChannelNotFound(channelName: String, channelLookup: Option[ChannelLookup] = None): Error =
     Error(
       code    = "slack_channel_not_found",
-      message = s"Slack channel: '$channelName' not found"
+      message = s"Slack channel: '$channelName' not found${channelLookup.fold("")(cl => s" using channelLookup: ${Json.toJson(cl)}")}"
     )
 
   def unableToFindTeamSlackChannelInUMP(teamName: String, numAdmins: Int): Error =

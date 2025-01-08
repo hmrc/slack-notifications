@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import cats.data.NonEmptyList
-import play.api.libs.json.{Json, Reads, JsError, JsResult, JsValue}
+import play.api.libs.json._
 import uk.gov.hmrc.slacknotifications.JsonHelpers
 
 enum ChannelLookup:
@@ -30,20 +30,37 @@ enum ChannelLookup:
 
 object ChannelLookup extends JsonHelpers:
 
-  private given Reads[ChannelLookup.GithubRepository] = Json.reads[ChannelLookup.GithubRepository]
-  private given Reads[ChannelLookup.Service] = Json.reads[ChannelLookup.Service]
-  private given Reads[ChannelLookup.GithubTeam] = Json.reads[ChannelLookup.GithubTeam]
-  private given Reads[ChannelLookup.SlackChannel] = Json.reads[ChannelLookup.SlackChannel]
-  private given Reads[ChannelLookup.TeamsOfGithubUser] = Json.reads[ChannelLookup.TeamsOfGithubUser]
-  private given Reads[ChannelLookup.TeamsOfLdapUser] = Json.reads[ChannelLookup.TeamsOfLdapUser]
+  private given Format[ChannelLookup.GithubRepository]  = Json.format[ChannelLookup.GithubRepository]
+  private given Format[ChannelLookup.Service]           = Json.format[ChannelLookup.Service]
+  private given Format[ChannelLookup.GithubTeam]        = Json.format[ChannelLookup.GithubTeam]
+  private given Format[ChannelLookup.SlackChannel]      = Json.format[ChannelLookup.SlackChannel]
+  private given Format[ChannelLookup.TeamsOfGithubUser] = Json.format[ChannelLookup.TeamsOfGithubUser]
+  private given Format[ChannelLookup.TeamsOfLdapUser]   = Json.format[ChannelLookup.TeamsOfLdapUser]
 
-  given Reads[ChannelLookup] = Reads[ChannelLookup] { json =>
-    (json \ "by").validate[String].flatMap:
-      case "github-repository"    => json.validate[ChannelLookup.GithubRepository]
-      case "service"              => json.validate[ChannelLookup.Service]
-      case "github-team"          => json.validate[ChannelLookup.GithubTeam]
-      case "slack-channel"        => json.validate[ChannelLookup.SlackChannel]
-      case "teams-of-github-user" => json.validate[ChannelLookup.TeamsOfGithubUser]
-      case "teams-of-ldap-user"   => json.validate[ChannelLookup.TeamsOfLdapUser]
-      case _                      => JsError("Unknown channel lookup type")
-  }
+  given Format[ChannelLookup] = Format[ChannelLookup](
+    Reads[ChannelLookup] { json =>
+      (json \ "by").validate[String].flatMap {
+        case "github-repository"    => json.validate[ChannelLookup.GithubRepository]
+        case "service"              => json.validate[ChannelLookup.Service]
+        case "github-team"          => json.validate[ChannelLookup.GithubTeam]
+        case "slack-channel"        => json.validate[ChannelLookup.SlackChannel]
+        case "teams-of-github-user" => json.validate[ChannelLookup.TeamsOfGithubUser]
+        case "teams-of-ldap-user"   => json.validate[ChannelLookup.TeamsOfLdapUser]
+        case _                      => JsError("Unknown channel lookup type")
+      }
+    },
+    Writes[ChannelLookup] {
+      case lookup: ChannelLookup.GithubRepository =>
+        Json.toJson(lookup).as[JsObject] + ("by" -> JsString("github-repository"))
+      case lookup: ChannelLookup.Service =>
+        Json.toJson(lookup).as[JsObject] + ("by" -> JsString("service"))
+      case lookup: ChannelLookup.GithubTeam =>
+        Json.toJson(lookup).as[JsObject] + ("by" -> JsString("github-team"))
+      case lookup: ChannelLookup.SlackChannel =>
+        Json.toJson(lookup).as[JsObject] + ("by" -> JsString("slack-channel"))
+      case lookup: ChannelLookup.TeamsOfGithubUser =>
+        Json.toJson(lookup).as[JsObject] + ("by" -> JsString("teams-of-github-user"))
+      case lookup: ChannelLookup.TeamsOfLdapUser =>
+        Json.toJson(lookup).as[JsObject] + ("by" -> JsString("teams-of-ldap-user"))
+    }
+  )
