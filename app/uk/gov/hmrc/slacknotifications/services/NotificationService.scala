@@ -248,7 +248,7 @@ class NotificationService @Inject()(
         val msg = SlackMessage(
           channel = callbackChannel,
           text = "Unable to send slack notification",
-          blocks = Seq(SlackMessage.errorBlock(s"Slack API returned error: ${error.code}, msg: ${error.message}")),
+          blocks = Seq(SlackMessage.errorBlock(s"Slack API returned error for msgId: ${queuedMsg.msgId} - code: ${error.code}, msg: ${error.message}")),
           attachments = Seq.empty,
           username = "slack-notifications",
           emoji = ":rotating_light:"
