@@ -276,17 +276,18 @@ class NotificationService @Inject()(
             yield ()
           case Left(SlackError(code, errors)) if code == "channel_not_found" =>
             val error = Error.slackChannelNotFound(workItem.item.slackMessage.channel, workItem.item.channelLookup)
+            logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel} for msgId: ${workItem.item.msgId}, the following error occurred: ${error.message}")
             for
               _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
               _ <- slackMessageQueue.markPermFailed(workItem.id)
               _ <- notifySender(workItem.item, error)
             yield ()
           case Left(SlackError(code, errors)) if code == "rate_limited" =>
-            logger.warn(s"Received rate_limited response when attempting to notify Slack channel ${workItem.item.slackMessage.channel}")
+            logger.warn(s"Received rate_limited response when attempting to notify Slack channel ${workItem.item.slackMessage.channel} for msgId: ${workItem.item.msgId}")
             Future.failed(RateLimitExceededException())
           case Left(SlackError(code, errors)) if code.startsWith("invalid_blocks") =>
             val error = Error.slackError(400, s"error: $code, details: ${errors.mkString(", ")}", workItem.item.slackMessage.channel, None)
-            logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}")
+            logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel} for msgId: ${workItem.item.msgId}, the following error occurred: ${error.message}")
             for
               _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
               _ <- slackMessageQueue.markPermFailed(workItem.id)
@@ -294,7 +295,7 @@ class NotificationService @Inject()(
             yield ()
           case Left(SlackError(code, errors)) =>
             val error = Error("slack_error", s"error: $code, details: ${errors.mkString(", ")}")
-            logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel}, the following error occurred: ${error.message}")
+            logger.error(s"Unable to notify Slack channel ${workItem.item.slackMessage.channel} for msgId: ${workItem.item.msgId}, the following error occurred: ${error.message}")
             for
               _ <- slackMessageQueue.updateNotificationResult(workItem.id, workItem.item.result.addError(error))
               _ <- slackMessageQueue.markFailed(workItem.id)
