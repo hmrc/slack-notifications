@@ -19,6 +19,7 @@ package uk.gov.hmrc.slacknotifications.services
 import cats.data.EitherT
 import cats.implicits._
 import play.api.Logging
+import play.api.libs.json.Json
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
@@ -248,7 +249,7 @@ class NotificationService @Inject()(
         val msg = SlackMessage(
           channel = callbackChannel,
           text = "Unable to send slack notification",
-          blocks = Seq(SlackMessage.errorBlock(s"Slack API returned error for msgId: ${queuedMsg.msgId} - code: ${error.code}, msg: ${error.message}")),
+          blocks = Seq(SlackMessage.errorBlock(s"Slack API returned error for msgId: ${queuedMsg.msgId} when attempting to deliver the message to channel: `${queuedMsg.slackMessage.channel}`\n${queuedMsg.channelLookup.fold("")(cl => s"channelLookup: ```${Json.toJson(cl)}```\n")}code: `${error.code}`, msg: `${error.message}`")),
           attachments = Seq.empty,
           username = "slack-notifications",
           emoji = ":rotating_light:"
