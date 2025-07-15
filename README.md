@@ -5,7 +5,7 @@ This service enables sending messages into the HMRC Digital workspace on Slack.
 The service provides 2 ways to send messages:
 
 ```
-POST    /notification        # (sync) uses legacy incoming webhooks
+POST    /notification        # (sync) uses legacy incoming webhooks (DEPRECATED: Will be removed on 01/09/2025 – use /v2/notification)
 
 POST    /v2/notification     # (async) uses a queue and PlatOps Bot (recommended)
 GET     /v2/:msgId/status    # retrieve status of queued message
@@ -72,7 +72,10 @@ Can be one of:
 }
 ```
 
-## Setup and example usage of `POST    /notification` (legacy)
+## Setup and example usage of `POST    /notification` (legacy) (DEPRECATED)
+
+> ⚠️ **This endpoint is deprecated and will be removed on 01/09/2025.**
+> Please use `POST /v2/notification` instead.
 
 ### Auth
 This endpoint uses Basic Auth for access control. If you want to use it please contact team PlatOps.
