@@ -11,7 +11,6 @@ lazy val microservice = Project("slack-notifications", file("."))
   .disablePlugins(JUnitXmlReportPlugin) //Required to prevent https://github.com/scalatest/scalatest/issues/1427
   .settings(PlayKeys.playDefaultPort := 8866)
   .settings(libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test)
-  .settings(resolvers += Resolver.jcenterRepo)
   .settings(scalacOptions += "-Wconf:src=routes/.*:s")
 
 lazy val it =

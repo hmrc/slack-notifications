@@ -36,6 +36,7 @@ class LegacyNotificationController @Inject()(
 )(using ExecutionContext
 ) extends BackendController(controllerComponents) with Logging:
 
+  @deprecated("Use NotificationController.sendNotification() instead. Will be removed on 01/09/2025")
   def sendNotification(): Action[JsValue] = Action.async(parse.json) { implicit request =>
     withAuthorization { authenticatedService =>
       withJsonBody[NotificationRequest] { notificationRequest =>
