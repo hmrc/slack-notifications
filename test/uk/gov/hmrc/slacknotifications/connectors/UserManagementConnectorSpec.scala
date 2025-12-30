@@ -265,14 +265,20 @@ class UserManagementConnectorSpec
                   |  "teamName": "TeamA",
                   |  "description": "Team A",
                   |  "documentation": "https://confluence.tools.tax.service.gov.uk/display/TeamA",
-                  |  "slack": "https://slack.com/messages/team-a",
-                  |  "slackNotification": "https://slack.com/messages/team-a-alerts"
+                  |  "slack": {
+                  |    "channel_url": "https://slack.com/messages/team-a",
+                  |    "is_private": false
+                  |  },
+                  |  "slackNotification": {
+                  |    "channel_url": "https://slack.com/messages/team-a-alerts",
+                  |    "is_private": false
+                  |  }
                   |}
                   |""".stripMargin
               )
           )
       )
-        connector.getTeamSlackDetails("TeamA").futureValue shouldBe Some(TeamDetails("TeamA", Some("https://slack.com/messages/team-a"), Some("https://slack.com/messages/team-a-alerts")))
+        connector.getTeamSlackDetails("TeamA").futureValue shouldBe Some(TeamDetails("TeamA", Some(TeamSlackChannel("https://slack.com/messages/team-a", false)), Some(TeamSlackChannel("https://slack.com/messages/team-a-alerts", false))))
 
     "return None when team not found" in:
       stubFor(

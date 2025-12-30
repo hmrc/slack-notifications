@@ -20,7 +20,7 @@ import org.scalatest.concurrent.ScalaFutures
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.config.{MessageConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamDetails
-import uk.gov.hmrc.slacknotifications.connectors.{TeamsAndRepositoriesConnector, UserManagementConnector}
+import uk.gov.hmrc.slacknotifications.connectors.{TeamSlackChannel, TeamsAndRepositoriesConnector, UserManagementConnector}
 import uk.gov.hmrc.slacknotifications.base.UnitSpec
 import org.mockito.Mockito.when
 import org.mockito.ArgumentMatchers.any
@@ -36,7 +36,7 @@ class ChannelLookupServiceSpec
     "work if slack field exists and contains team name at the end" in new Fixtures:
       val teamChannelName: String  = "teamChannel"
       val slackLink: String        = "foo/" + teamChannelName
-      val teamDetails: TeamDetails = TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
+      val teamDetails: TeamDetails = TeamDetails(slack = Some(TeamSlackChannel(slackLink, false)), slackNotification = None, teamName = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe Some(TeamChannel(teamChannelName))
 
@@ -44,8 +44,8 @@ class ChannelLookupServiceSpec
       val teamChannelName: String  = "teamChannel"
       val slackLink: String        = "foo/" + teamChannelName
       val teamDetails: TeamDetails = TeamDetails(
-                                       slack             = Some(slackLink),
-                                       slackNotification = Some(s"foo/$teamChannelName-notification"),
+                                       slack             = Some(TeamSlackChannel(slackLink, false)),
+                                       slackNotification = Some(TeamSlackChannel(s"foo/$teamChannelName-notification", false)),
                                        teamName = "n/a"
                                      )
 
@@ -54,7 +54,7 @@ class ChannelLookupServiceSpec
     "return None if slack field exists but there is no slack channel in it" in new Fixtures:
       val slackLink   = "link-without-team/"
       val teamDetails: TeamDetails =
-        TeamDetails(slack = Some(slackLink), slackNotification = None, teamName = "n/a")
+        TeamDetails(slack = Some(TeamSlackChannel(slackLink, false)), slackNotification = None, teamName = "n/a")
 
       service.extractSlackChannel(teamDetails) shouldBe None
 
@@ -65,14 +65,14 @@ class ChannelLookupServiceSpec
 
     "return None if slack field does not contain a forward slash" in new Fixtures:
       val teamDetails: TeamDetails =
-        TeamDetails(slack = Some("not a url"), slackNotification = None, teamName = "n/a")
+        TeamDetails(slack = Some(TeamSlackChannel("not a url", false)), slackNotification = None, teamName = "n/a")
       service.extractSlackChannel(teamDetails) shouldBe None
 
   "Getting an existing channel" should:
     "return TeamChannel if it exists" in new Fixtures:
       val teamName: String = "teamA"
       val teamDetails: TeamDetails =
-        TeamDetails(teamName, None, Some("https://hmrcdigital.slack.com/messages/teamA"))
+        TeamDetails(teamName, None, Some(TeamSlackChannel("https://hmrcdigital.slack.com/messages/teamA", false)))
 
       when(mockUserManagementConnector.getTeamSlackDetails(any[String])(using any[HeaderCarrier]))
         .thenReturn(Future.successful(Some(teamDetails)))
