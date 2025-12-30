@@ -87,13 +87,21 @@ object UserManagementConnector:
 
   case class TeamDetails(
     teamName         : String,
-    slack            : Option[String],
-    slackNotification: Option[String]
+    slack            : Option[TeamSlackChannel],
+    slackNotification: Option[TeamSlackChannel]
   )
 
   object TeamDetails:
     given Reads[TeamDetails] =
       ( (__ \ "teamName"         ).read[String]
-      ~ (__ \ "slack"            ).readNullable[String]
-      ~ (__ \ "slackNotification").readNullable[String]
+      ~ (__ \ "slack"            ).readNullable[TeamSlackChannel]
+      ~ (__ \ "slackNotification").readNullable[TeamSlackChannel]
       )(TeamDetails.apply _)
+
+case class TeamSlackChannel(channelUrl: String, isPrivate: Boolean)
+
+object TeamSlackChannel:
+  given format: OFormat[TeamSlackChannel] =
+    ((__ \ "channel_url").format[String]
+    ~ (__ \ "is_private").format[Boolean]
+    )(TeamSlackChannel.apply, (t: TeamSlackChannel) => (t.channelUrl, t.isPrivate))

@@ -73,10 +73,10 @@ class ChannelLookupService @Inject()(
   def extractSlackChannel(slackDetails: TeamDetails): Option[TeamChannel] =
     slackDetails.slackNotification.orElse(slackDetails.slack).flatMap: slackChannelUrl =>
       val urlWithoutTrailingSpace =
-        if slackChannelUrl.endsWith("/") then
-          slackChannelUrl.init
+        if slackChannelUrl.channelUrl.endsWith("/") then 
+          slackChannelUrl.channelUrl.init
         else
-          slackChannelUrl
+          slackChannelUrl.channelUrl
 
       val slashPos = urlWithoutTrailingSpace.lastIndexOf("/")
       val s = urlWithoutTrailingSpace.substring(slashPos + 1)
