@@ -21,37 +21,6 @@ import uk.gov.hmrc.slacknotifications.config.DomainConfig
 import uk.gov.hmrc.slacknotifications.base.UnitSpec
 
 class SlackMessageSpec extends UnitSpec:
-  "A legacy slack message" should:
-    "contain a text message with allowlisted links" in new Fixtures:
-      val message: LegacySlackMessage =
-        LegacySlackMessage(
-          channel  = "slack_channel",
-          text     = "Random text and link to https://domain1/hmrc",
-          username = "someone",
-          None,
-          Seq.empty,
-          showAttachmentAuthor = true
-        )
-      val sanitisedMessage: LegacySlackMessage =
-        LegacySlackMessage.sanitise(message, domainConfig)
-      sanitisedMessage shouldBe message
-
-    "contain a text with non-allowlisted links replaced" in new Fixtures:
-      val message: LegacySlackMessage =
-        LegacySlackMessage(
-          channel  = "slack_channel",
-          text     = "Evil text with links to http://very.bad.url/with-plenty-malware and http://url.i.dont?know=about",
-          username = "someone",
-          None,
-          Seq.empty,
-          showAttachmentAuthor = true
-        )
-      val sanitisedMessage: LegacySlackMessage =
-        LegacySlackMessage.sanitise(message, domainConfig)
-
-      val sanitisedText = s"Evil text with links to ${domainConfig.linkNotAllowListed} and ${domainConfig.linkNotAllowListed}"
-      sanitisedMessage shouldBe message.copy(text = sanitisedText)
-
   "An attachment" should:
     val emptyAttachment: Attachment =
       Attachment(

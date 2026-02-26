@@ -1,13 +1,9 @@
 # slack-notifications
 
-This service enables sending messages into the HMRC Digital workspace on Slack.
-
-The service provides 2 ways to send messages:
+This service enables sending messages into the HMRC Digital workspace on Slack:
 
 ```
-POST    /notification        # (sync) uses legacy incoming webhooks (DEPRECATED: Will be removed on 01/09/2025 – use /v2/notification)
-
-POST    /v2/notification     # (async) uses a queue and PlatOps Bot (recommended)
+POST    /v2/notification     # (async) uses a queue and PlatOps Bot
 GET     /v2/:msgId/status    # retrieve status of queued message
 ```
 
@@ -72,11 +68,6 @@ Can be one of:
 }
 ```
 
-## Setup and example usage of `POST    /notification` (legacy) (DEPRECATED)
-
-> ⚠️ **This endpoint is deprecated and will be removed on 01/09/2025.**
-> Please use `POST /v2/notification` instead.
-
 ### Auth
 This endpoint uses Basic Auth for access control. If you want to use it please contact team PlatOps.
 
@@ -120,77 +111,7 @@ If you would like to add a new user that is able to send Slack notifications the
 
 Once we receive the PR we will review, before redeploying the app.
 
-**N.B.** This only applies to users within the HMRC organisation on github
-
-### Example request
-
-Sends Slack messages to all teams contributing to a repo as shown in The Catalogue.
-If a repository defines owners explicitly in the 'repository.yaml' file, Slack message will be sent only to those teams (relevant mostly for shared repos like app-config-*).
-
-Here `attachments` should be structured as defined in the [Slack documentation](https://api.slack.com/reference/messaging/attachments)
-
-Note: `channelLookup` can be replaced with any of the ones mentioned above, depending on the use case.
-```
-POST /slack-notifications/notification
-
-body:
-
-{
-    "channelLookup" : {
-        "by" : "github-repository",
-        "repositoryName" : "name-of-a-repo"
-    },
-    "messageDetails" : {
-        "text" : "message to be posted",
-        "attachments" : [ // optional
-            { "text" : "some-attachment" }
-        ]    
-    }
-}
-```
-
-### Example curl request
-
-Assuming basic auth credentials for user: foo, pass: bar, i.e.: user:bar (Base64 encoded) = Zm9vOmJhcg==
-
-```
-curl -X POST -H 'Content-type: application/json' -H 'Authorization: Basic Zm9vOmJhcg==' \
-    --data '{"channelLookup" : { "by" : "github-repository", "repositoryName" : "foo" }, "messageDetails" : { "text" : "Testing if slack-notifications work" } }' \
-    localhost:8866/slack-notifications/notification
-```
-
-## Response
-
-Response will typically have 200 status code and the following details:
-
-```
-
-{
-    "successfullySentTo" : [
-        "channel1",
-        "channel2"
-    ],
-    "errors" : [
-        {   
-            "code" : "error_code_1",
-            "message" : "Details of a problem"
-        },
-        {
-            "code" : "error_code_2",
-            "message" : "Details of another problem"
-        }
-    ],
-    "exclusions" : [
-        {
-            "code" : "exclusion_code",
-            "message" : "Details of why slack message was not sent"
-        }
-    ]
-}
-
-# error/exclusion codes are stable, messages may change
-
-```
+**N.B.** This only applies to users within the HMRC organisation on GitHub
 
 ## Setup and example usage of `POST    /v2/notification`
 
