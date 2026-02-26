@@ -17,16 +17,15 @@
 package uk.gov.hmrc.slacknotifications.connectors
 
 import javax.inject.{Inject, Singleton}
-import play.api.{Configuration, Logging}
+import play.api.Configuration
 import play.api.libs.json.{Format, JsValue, Json}
 import sttp.model.HeaderNames
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps, UpstreamErrorResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.slacknotifications.model.{Error, NotificationResult, SlackMessage}
+import uk.gov.hmrc.slacknotifications.model.SlackMessage
 import play.api.libs.ws.writeableOf_JsValue
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NonFatal
 
 @Singleton
 class SlackConnector @Inject()(
@@ -59,28 +58,6 @@ class SlackConnector @Inject()(
               val errors = (jsValue \ "errors").asOpt[Seq[String]].getOrElse(Seq.empty)
               Left(SlackError(code, errors))
             case _ => Right(jsValue)
-
-
-object SlackConnector extends Logging:
-  def handleSlackExceptions(channel: String, teamName: Option[String]): PartialFunction[Throwable, Future[NotificationResult]] =
-    case ex@UpstreamErrorResponse.WithStatusCode(404) if ex.message.contains("channel_not_found") =>
-      handleChannelNotFound(channel)
-    case UpstreamErrorResponse.Upstream4xxResponse(ex) =>
-      Future.successful(logAndReturnSlackError(ex.statusCode, ex.message, channel, teamName))
-    case UpstreamErrorResponse.Upstream5xxResponse(ex) =>
-      Future.successful(logAndReturnSlackError(ex.statusCode, ex.message, channel, teamName))
-    case NonFatal(ex) =>
-      logger.error(s"Unable to notify Slack channel $channel", ex)
-      Future.failed(ex)
-
-  private def handleChannelNotFound(channel: String): Future[NotificationResult] =
-    logger.error(Error.slackChannelNotFound(channel).message)
-    Future.successful(NotificationResult().addError(Error.slackChannelNotFound(channel)))
-
-  private def logAndReturnSlackError(statusCode: Int, exceptionMessage: String, channel: String, teamName: Option[String]): NotificationResult =
-    val slackError = Error.slackError(statusCode, exceptionMessage, channel, teamName)
-    logger.error(s"Unable to notify Slack channel $channel, the following error occurred: ${slackError.message}")
-    NotificationResult().addError(slackError)
 
 case class RateLimitExceededException() extends RuntimeException("Rate Limit Exceeded")
 
