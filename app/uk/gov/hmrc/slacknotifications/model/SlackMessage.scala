@@ -76,24 +76,6 @@ object Attachment:
       footer_icon = attch.footer_icon.map(update)
     )
 
-case class LegacySlackMessage(
-  channel             : String,
-  text                : String,
-  username            : String,
-  icon_emoji          : Option[String],
-  attachments         : Seq[Attachment],
-  showAttachmentAuthor: Boolean
-)
-
-object LegacySlackMessage:
-  given OFormat[LegacySlackMessage] = Json.format[LegacySlackMessage]
-
-  def sanitise(msg: LegacySlackMessage, domainConfig: DomainConfig): LegacySlackMessage =
-    msg.copy(
-      text        = LinkUtils.updateLinks(msg.text, msg.channel, domainConfig),
-      attachments = msg.attachments.map(Attachment.sanitise(_, msg.channel, domainConfig))
-    )
-
 // model for https://api.slack.com/methods/chat.postMessage
 // omitting irrelevant optional fields
 case class SlackMessage(

@@ -108,12 +108,6 @@ object Exclusion:
       message = s"$name is not a real Github user"
     )
 
-  def notificationDisabled(slackMessage: String): Exclusion =
-    Exclusion(
-      code    = "notification_disabled",
-      message = s"Slack notifications have been disabled. Slack message: $slackMessage"
-    )
-
 case class NotificationResult(
   successfullySentTo: Seq[String]    = Nil,
   errors            : Seq[Error]     = Nil,
