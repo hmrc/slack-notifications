@@ -18,7 +18,7 @@ package uk.gov.hmrc.slacknotifications.model
 
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json._
-import uk.gov.hmrc.slacknotifications.config.DomainConfig
+import uk.gov.hmrc.slacknotifications.config.AllowedListConfig
 import uk.gov.hmrc.slacknotifications.utils.LinkUtils
 
 import java.util.UUID
@@ -57,8 +57,8 @@ object Attachment:
 
   given OFormat[Attachment] = Json.format[Attachment]
 
-  def sanitise(attch: Attachment, channel: String, domainConfig: DomainConfig): Attachment =
-    def update(link: String) = LinkUtils.updateLinks(link, channel, domainConfig)
+  def sanitise(attch: Attachment, channel: String, allowedListConfig: AllowedListConfig): Attachment =
+    def update(link: String) = LinkUtils.updateLinks(link, channel, allowedListConfig)
 
     attch.copy(
       fallback    = attch.fallback.map(update),
@@ -97,8 +97,8 @@ object SlackMessage:
     ~ (__ \ "icon_emoji" ).format[String]
     )(apply, s => Tuple.fromProductTyped(s))
 
-  def sanitise(msg: SlackMessage, domainConfig: DomainConfig): SlackMessage =
-    val updatedText = LinkUtils.updateLinks(msg.text, msg.channel, domainConfig)
+  def sanitise(msg: SlackMessage, allowedListConfig: AllowedListConfig): SlackMessage =
+    val updatedText = LinkUtils.updateLinks(msg.text, msg.channel, allowedListConfig)
 
     // update links whilst preserving json structure
     def updateLinks(json: JsValue): JsValue =
@@ -106,7 +106,7 @@ object SlackMessage:
         case JsNull             => JsNull
         case boolean: JsBoolean => boolean
         case number : JsNumber  => number
-        case string : JsString  => JsString(LinkUtils.updateLinks(string.value, msg.channel, domainConfig))
+        case string : JsString  => JsString(LinkUtils.updateLinks(string.value, msg.channel, allowedListConfig))
         case array  : JsArray   => JsArray(array.value.map(updateLinks))
         case obj    : JsObject  => JsObject(underlying = obj.value.map { case (k, v) => (k, updateLinks(v)) })
 

@@ -19,7 +19,7 @@ package uk.gov.hmrc.slacknotifications.utils
 import org.scalatest.prop.TableFor2
 import play.api.libs.json.{JsArray, JsObject, JsString}
 import play.api.Configuration
-import uk.gov.hmrc.slacknotifications.config.DomainConfig
+import uk.gov.hmrc.slacknotifications.config.AllowedListConfig
 import uk.gov.hmrc.slacknotifications.base.UnitSpec
 
 import java.net.URL
@@ -64,12 +64,15 @@ class LinkUtilsSpec extends UnitSpec:
           heading = ("url"                           , "is_allowlisted"),
           rows    = ("https://domain1"               , true),
                     ("https://domain1/login?from=%2F", true),
+                    ("https://url1", true),
+                    ("https://url2", true),
+                    ("https://url3", false),
                     ("https://www.google.com"        , false),
   
         )
 
       forAll(links): (link: String, isAllowListedLink: Boolean) =>
-        LinkUtils.isAllowListed(new URL(link), domainConfig) shouldBe isAllowListedLink
+        LinkUtils.isAllowListed(new URL(link), allowedListConfig) shouldBe isAllowListedLink
 
     "be replaced if they are not allow listed" in new Fixtures:
       val links: TableFor2[String, String] =
@@ -78,11 +81,11 @@ class LinkUtilsSpec extends UnitSpec:
           rows    = ("https://domain1"               , "https://domain1"),
                     ("https://domain1/login?from=%2F", "https://domain1/login?from=%2F"),
                     ("https://domain2/hmrc"          , "https://domain2/hmrc"),
-                    ("https://www.google.com"        , domainConfig.linkNotAllowListed)
+                    ("https://www.google.com"        , allowedListConfig.linkNotAllowListed)
         )
 
       forAll(links): (link: String, sanitisedLink: String) =>
-        LinkUtils.updateLinks(link, "channel", domainConfig) shouldBe sanitisedLink
+        LinkUtils.updateLinks(link, "channel", allowedListConfig) shouldBe sanitisedLink
 
   "Catalogue Links" should:
     import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -96,7 +99,7 @@ class LinkUtilsSpec extends UnitSpec:
         )
 
       forAll(links): (link: String, sanitisedLink: String) =>
-        LinkUtils.updateLinks(link, "channel", domainConfig) shouldBe sanitisedLink
+        LinkUtils.updateLinks(link, "channel", allowedListConfig) shouldBe sanitisedLink
 
     "have source added if not present" in new Fixtures:
       val links: TableFor2[String, String] =
@@ -109,11 +112,12 @@ class LinkUtilsSpec extends UnitSpec:
         )
 
       forAll(links): (link: String, sanitisedLink: String) =>
-        LinkUtils.updateLinks(link, "channel", domainConfig) shouldBe sanitisedLink
+        LinkUtils.updateLinks(link, "channel", allowedListConfig) shouldBe sanitisedLink
 
   trait Fixtures:
-    val domainConfig: DomainConfig =
-      DomainConfig(Configuration(
-        "allowed.domains"    ->  Seq("domain1", "domain2", "catalogue.tax.service.gov.uk")
-      , "linkNotAllowListed" -> "LINK NOT ALLOW LISTED"
+    val allowedListConfig: AllowedListConfig =
+      AllowedListConfig(Configuration(
+        "allowed.domains"    ->  Seq("domain1", "domain2", "catalogue.tax.service.gov.uk"),
+        "allowed.urls"       ->  Seq("url1", "url2"),
+        "linkNotAllowListed" -> "LINK NOT ALLOW LISTED"
       ))

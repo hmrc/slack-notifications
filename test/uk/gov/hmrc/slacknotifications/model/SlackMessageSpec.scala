@@ -17,7 +17,7 @@
 package uk.gov.hmrc.slacknotifications.model
 
 import play.api.Configuration
-import uk.gov.hmrc.slacknotifications.config.DomainConfig
+import uk.gov.hmrc.slacknotifications.config.AllowedListConfig
 import uk.gov.hmrc.slacknotifications.base.UnitSpec
 
 class SlackMessageSpec extends UnitSpec:
@@ -53,16 +53,17 @@ class SlackMessageSpec extends UnitSpec:
       val expected: Attachment =
         emptyAttachment.copy(
           author_link = Some("https://domain1/hmrc"),
-          title_link  = Some(domainConfig.linkNotAllowListed),
-          image_url   = Some(domainConfig.linkNotAllowListed),
+          title_link  = Some(allowedListConfig.linkNotAllowListed),
+          image_url   = Some(allowedListConfig.linkNotAllowListed),
           thumb_url   = Some("https://domain2/hmrc")
         )
 
-      Attachment.sanitise(attachment, "channel", domainConfig) shouldBe expected
+      Attachment.sanitise(attachment, "channel", allowedListConfig) shouldBe expected
 
   trait Fixtures:
-    val domainConfig: DomainConfig =
-      DomainConfig(Configuration(
+    val allowedListConfig: AllowedListConfig =
+      AllowedListConfig(Configuration(
         "allowed.domains"    ->  Seq("domain1", "domain2"),
+        "allowed.urls"       ->  Seq("url1", "url2"),
         "linkNotAllowListed" -> "LINK NOT ALLOW LISTED"
     ))
