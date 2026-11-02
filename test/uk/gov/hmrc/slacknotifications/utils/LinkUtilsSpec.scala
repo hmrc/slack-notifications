@@ -64,6 +64,9 @@ class LinkUtilsSpec extends UnitSpec:
           heading = ("url"                           , "is_allowlisted"),
           rows    = ("https://domain1"               , true),
                     ("https://domain1/login?from=%2F", true),
+                    ("https://url1", true),
+                    ("https://url2", true),
+                    ("https://url3", false),
                     ("https://www.google.com"        , false),
   
         )

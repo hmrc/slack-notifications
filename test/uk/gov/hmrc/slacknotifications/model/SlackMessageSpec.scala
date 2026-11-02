@@ -64,6 +64,6 @@ class SlackMessageSpec extends UnitSpec:
     val allowedListConfig: AllowedListConfig =
       AllowedListConfig(Configuration(
         "allowed.domains"    ->  Seq("domain1", "domain2"),
-        "allowed.url"        ->  Seq("url1", "url2"),
+        "allowed.urls"       ->  Seq("url1", "url2"),
         "linkNotAllowListed" -> "LINK NOT ALLOW LISTED"
     ))

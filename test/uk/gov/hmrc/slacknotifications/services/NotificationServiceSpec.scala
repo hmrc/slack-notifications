@@ -179,7 +179,7 @@ class NotificationServiceSpec
       private val lookupRes = Left((Seq.empty[AdminSlackId], fallbackChannel))
       val error: Error = Error.unableToFindTeamSlackChannelInUMPandNoSlackAdmins(team)
 
-      service.constructMessagesWithErrors(request, team, lookupRes, initResult) shouldBe ((
+      service.constructMessagesWithErrors(request, team, lookupRes, initResult) shouldBe (
         Seq(SlackMessage(
           channel     = fallbackChannel.asString,
           text        = error.message,
@@ -189,7 +189,7 @@ class NotificationServiceSpec
           emoji       = request.emoji
         )),
         initResult.addError(error)
-      ))
+      )
 
     "handle Left case with admins correctly" in new Fixtures:
       private val lookupRes = Left((Seq(AdminSlackId("id_A"), AdminSlackId("id_B")), fallbackChannel))
@@ -235,7 +235,7 @@ class NotificationServiceSpec
         "slack.notification.enabled"       -> true
       , "alerts.slack.noTeamFound.channel" -> "test-channel"
       , "allowed.domains"                  ->  Seq("domain1", "domain2","tax.service.gov.uk")
-      , "allowed.url"                      ->  Seq("url1", "url2")
+      , "allowed.urls"                     ->  Seq("url1", "url2")
       , "linkNotAllowListed"               -> "LINK NOT ALLOW LISTED"
       )
 
