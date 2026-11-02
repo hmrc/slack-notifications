@@ -23,7 +23,7 @@ import play.api.libs.json.Json
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
-import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
+import uk.gov.hmrc.slacknotifications.config.{AllowedListConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.connectors.{RateLimitExceededException, ServiceConfigsConnector, SlackConnector, SlackError}
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
@@ -39,7 +39,7 @@ import scala.util.control.NonFatal
 class NotificationService @Inject()(
   slackNotificationConfig: SlackNotificationConfig
 , slackConfig            : SlackConfig
-, domainConfig           : DomainConfig
+, allowedListConfig      : AllowedListConfig
 , userManagementService  : UserManagementService
 , channelLookupService   : ChannelLookupService
 , slackMessageQueue      : SlackMessageQueueRepository
@@ -207,7 +207,7 @@ class NotificationService @Inject()(
             username    = request.displayName,
             emoji       = request.emoji
           ),
-          domainConfig
+          allowedListConfig
         )
       case None =>
         SlackMessage.sanitise(
@@ -219,7 +219,7 @@ class NotificationService @Inject()(
             username    = request.displayName,
             emoji       = request.emoji
           ),
-          domainConfig
+          allowedListConfig
         )
 
   private[services] def queueSlackMessage(

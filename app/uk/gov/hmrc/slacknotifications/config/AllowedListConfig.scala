@@ -20,10 +20,13 @@ import play.api.Configuration
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class DomainConfig @Inject()(configuration: Configuration):
+class AllowedListConfig @Inject()(configuration: Configuration):
 
   val linkNotAllowListed: String =
     configuration.get[String]("linkNotAllowListed")
 
   val allowedDomains: Set[String] =
     configuration.get[Seq[String]]("allowed.domains").toSet
+    
+  val allowedUrls: Set[String] =
+    configuration.get[Seq[String]]("allowed.urls").toSet

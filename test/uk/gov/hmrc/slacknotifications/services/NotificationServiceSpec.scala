@@ -23,7 +23,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import play.api.Configuration
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.slacknotifications.SlackNotificationConfig
-import uk.gov.hmrc.slacknotifications.config.{DomainConfig, SlackConfig}
+import uk.gov.hmrc.slacknotifications.config.{AllowedListConfig, SlackConfig}
 import uk.gov.hmrc.slacknotifications.connectors.UserManagementConnector.TeamName
 import uk.gov.hmrc.slacknotifications.connectors.{RepositoryDetails, ServiceConfigsConnector, SlackConnector}
 import uk.gov.hmrc.slacknotifications.controllers.v2.NotificationController.SendNotificationRequest
@@ -202,7 +202,7 @@ class NotificationServiceSpec
             attachments = Seq.empty,
             username    = request.displayName,
             emoji       = request.emoji
-          ), domainConfig),
+          ), allowedListConfig),
           SlackMessage.sanitise( SlackMessage(
             channel     = "id_A",
             text        = Error.errorForAdminMissingTeamSlackChannel(team).message,
@@ -210,7 +210,7 @@ class NotificationServiceSpec
             attachments = Seq.empty,
             username    = request.displayName,
             emoji       = request.emoji
-          ), domainConfig),
+          ), allowedListConfig),
           SlackMessage.sanitise( SlackMessage(
             channel     = "id_B",
             text        = Error.errorForAdminMissingTeamSlackChannel(team).message,
@@ -218,7 +218,7 @@ class NotificationServiceSpec
             attachments = Seq.empty,
             username    = request.displayName,
             emoji       = request.emoji
-          ), domainConfig)
+          ), allowedListConfig)
         ),
         initResult.addError(Error.unableToFindTeamSlackChannelInUMP(team, lookupRes.value._1.size))
       )
@@ -235,6 +235,7 @@ class NotificationServiceSpec
         "slack.notification.enabled"       -> true
       , "alerts.slack.noTeamFound.channel" -> "test-channel"
       , "allowed.domains"                  ->  Seq("domain1", "domain2","tax.service.gov.uk")
+      , "allowed.url"                      ->  Seq("url1", "url2")
       , "linkNotAllowListed"               -> "LINK NOT ALLOW LISTED"
       )
 
@@ -242,7 +243,7 @@ class NotificationServiceSpec
       NotificationService(
         slackNotificationConfig = new SlackNotificationConfig(configuration),
         slackConfig             = new SlackConfig(configuration),
-        domainConfig            = new DomainConfig(configuration),
+        allowedListConfig       = new AllowedListConfig(configuration),
         userManagementService   = mockUserManagementService,
         channelLookupService    = mockChannelLookupService,
         slackMessageQueue       = mockSlackMessageQueue,
@@ -250,5 +251,5 @@ class NotificationServiceSpec
         serviceConfigsConnector = mockServiceConfigsConnector
       )
 
-    val domainConfig: DomainConfig =
-      DomainConfig(configuration)
+    val allowedListConfig: AllowedListConfig =
+      AllowedListConfig(configuration)

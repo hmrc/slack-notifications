@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.slacknotifications.utils
 
-import uk.gov.hmrc.slacknotifications.config.DomainConfig
+import uk.gov.hmrc.slacknotifications.config.AllowedListConfig
 
 import java.net.{URI, URL}
 import scala.util.Try
@@ -38,8 +38,9 @@ object LinkUtils:
       .flatMap(_.toOption)
       .toSet
 
-  private[utils] def isAllowListed(url: URL, domainConfig: DomainConfig): Boolean =
-    domainConfig.allowedDomains.exists(url.getHost.contains)
+  private[utils] def isAllowListed(url: URL, allowedListConfig: AllowedListConfig): Boolean =
+    allowedListConfig.allowedDomains.exists(url.getHost.contains) || 
+      allowedListConfig.allowedUrls.exists(url.toString.contains)
 
   private def isCatalogueLink(url: URL) =
     url.getHost.contains("catalogue.tax.service.gov.uk")
@@ -65,11 +66,11 @@ object LinkUtils:
   private def overrideBadLinks(badLinkMessage: String, links: Set[URL])(str: String): String =
     links.foldLeft(str)((acc, link) => acc.replace(link.toString, badLinkMessage))
 
-  def updateLinks(text: String, channel: String, domainConfig: DomainConfig): String =
+  def updateLinks(text: String, channel: String, allowedListConfig: AllowedListConfig): String =
     val (catalogueLinks, otherLinks) = getUris(text).partition(isCatalogueLink)
-    val badLinks = otherLinks.filterNot(isAllowListed(_, domainConfig))
+    val badLinks = otherLinks.filterNot(isAllowListed(_, allowedListConfig))
     updateCatalogueLinks(channel, catalogueLinks)(
-      overrideBadLinks(domainConfig.linkNotAllowListed, badLinks)(
+      overrideBadLinks(allowedListConfig.linkNotAllowListed, badLinks)(
         text
       )
     )
